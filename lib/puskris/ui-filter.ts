@@ -1,7 +1,7 @@
 import type { Periode, PuskrisFilter } from './types'
 
 export type Pilar = 'semua' | 'krisis' | 'layanan' | 'kesiapsiagaan'
-export type PuskrisTab = 'ringkasan' | 'krisis' | 'layanan' | 'kesiapsiagaan' | 'asistensi'
+export type PuskrisTab = 'ringkasan' | 'krisis' | 'layanan' | 'kesiapsiagaan' | 'asistensi' | 'analisis'
 
 export type PuskrisUiFilter = PuskrisFilter & {
   pilar: Pilar
@@ -73,5 +73,12 @@ export const PUSKRIS_PAGES: { key: PuskrisTab; label: string; eyebrow: string; t
     eyebrow: 'Dasbor Pusat Krisis Kesehatan',
     title: 'Asistensi Risiko',
     desc: 'Cakupan pengisian asesmen risiko di tingkat provinsi dan kabupaten/kota.',
+  },
+  {
+    key: 'analisis',
+    label: 'Analisis',
+    eyebrow: 'Dasbor Pusat Krisis Kesehatan',
+    title: 'Analisis Krisis Kesehatan',
+    desc: 'Heatmap, indeks kesenjangan respons, dan perbandingan tren antar-pilar.',
   },
 ]

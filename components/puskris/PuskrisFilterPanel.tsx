@@ -15,6 +15,8 @@ export default function PuskrisFilterPanel({
   provinces,
   kabOptions,
   jenisOptions,
+  hidePilar = false,
+  hideJenis = false,
 }: {
   f: PuskrisUiFilter
   onApply: (applied: PuskrisUiFilter) => void
@@ -23,6 +25,8 @@ export default function PuskrisFilterPanel({
   provinces: { code: string; nama: string }[]
   kabOptions: string[]
   jenisOptions: string[]
+  hidePilar?: boolean
+  hideJenis?: boolean
 }) {
   const [draft, setDraft] = useState<PuskrisUiFilter>(f)
   useEffect(() => { setDraft(f) }, [f])
@@ -60,6 +64,7 @@ export default function PuskrisFilterPanel({
       </div>
 
       <div className="w-full space-y-4 overflow-x-hidden p-4 text-xs box-border">
+        {!hidePilar && (
         <div>
           <div className={lbl}><Layers className="h-3.5 w-3.5 text-primary" /><span>Sumber / Pilar</span></div>
           <div className="grid grid-cols-2 gap-1 rounded-xl bg-slate-100 p-1">
@@ -80,6 +85,7 @@ export default function PuskrisFilterPanel({
             ))}
           </div>
         </div>
+        )}
 
         <div>
           <div className={lbl}>Periode</div>
@@ -125,6 +131,7 @@ export default function PuskrisFilterPanel({
           </select>
         </div>
 
+        {!hideJenis && (
         <div>
           <div className={lbl}>Jenis Kejadian</div>
           <select
@@ -136,6 +143,7 @@ export default function PuskrisFilterPanel({
             {jenisOptions.map((j) => <option key={j} value={j}>{j}</option>)}
           </select>
         </div>
+        )}
       </div>
 
       <div className="space-y-2 border-t border-slate-100 p-4">

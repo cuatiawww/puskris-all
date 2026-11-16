@@ -403,22 +403,51 @@ export const FORM_PE_SUB_ITEMS: SidebarSubItemConfig[] = [
 export const DEFAULT_NAVIGATION_CONFIG: SidebarGroupConfig[] = [
   { id: 'grp_dasbor', title: 'Dasbor', order: 1, enabled: true, area: 'dashboard', items: [
     it('mod_ringkasan', 'Ringkasan', '/dashboard/ringkasan', 'LayoutDashboard', 1, {
-      description: 'Dasbor agregat Pusat Krisis Kesehatan: situasi bencana, layanan 119, tenaga cadangan, logistik, dan asesmen risiko',
+      description: 'Dasbor agregat Pusat Krisis Kesehatan',
     }),
-    it('mod_dasbor_sumber', 'Dasbor Sumber', '#', 'ExternalLink', 2, {
-      description: 'Tautan ke ketujuh dasbor sumber yang diaggregatkan di Ringkasan',
+    it('mod_situasi_krisis', 'Situasi Krisis', '/dashboard/situasi-krisis', 'AlertTriangle', 2, {
+      description: 'Kejadian bencana, korban, pengungsi, dan tren dari Pantauan Bencana / EOC',
+    }),
+    it('mod_layanan', 'Layanan Gawat Darurat', '/dashboard/layanan-gawat-darurat', 'PhoneCall', 3, {
+      description: 'PSC, ambulans, dan panggilan 119',
       subItems: [
-        { id: 'src_psc', label: 'PSC', href: 'https://psc.kemkes.go.id/dashboard', icon: 'PhoneCall', order: 1, enabled: true, description: 'Dasbor PSC 119 — buka sumber asli di tab baru' },
-        { id: 'src_ambulans', label: 'Ambulans', href: 'https://psc.kemkes.go.id/dashboard/dashboard-ambulans', icon: 'Ambulance', order: 2, enabled: true, description: 'Dasbor armada ambulans PSC — buka sumber asli di tab baru' },
-        { id: 'src_ncc', label: 'NCC Panggilan', href: 'https://psc.kemkes.go.id/dashboard/dashboard-ncc', icon: 'Radio', order: 3, enabled: true, description: 'Dasbor NCC panggilan 119 — buka sumber asli di tab baru' },
-        { id: 'src_eoc', label: 'Krisis Kesehatan', href: 'https://pusatkrisis.kemkes.go.id/dashboard-new', icon: 'AlertTriangle', order: 4, enabled: true, description: 'Pantauan bencana / EOC resmi — buka sumber asli di tab baru' },
-        { id: 'src_tck', label: 'Tenaga Cadangan', href: 'https://tenagacadangankesehatan.kemkes.go.id/web/site/dashboard-tck', icon: 'Users', order: 5, enabled: true, description: 'Dasbor Tenaga Cadangan Kesehatan — buka sumber asli di tab baru' },
-        { id: 'src_logistik', label: 'Logistik', href: 'https://pusatkrisis.kemkes.go.id/logistik/site/landing-page', icon: 'Package', order: 6, enabled: true, description: 'Landing SIMLOGKES — buka sumber asli di tab baru' },
-        { id: 'src_asistensi_prov', label: 'Asistensi Provinsi', href: 'https://pusatkrisis.kemkes.go.id/asistensi/dashboard-provinsi/index?modul=58MFls8WhAeVFGXqpKj9KQ%3D%3D', icon: 'Shield', order: 7, enabled: true, description: 'Dasbor Asistensi Risiko tingkat provinsi — butuh login' },
-        { id: 'src_asistensi_kab', label: 'Asistensi Kab/Kota', href: 'https://pusatkrisis.kemkes.go.id/asistensi/dashboard-kabkot/index?modul=%2FArN8EAs7d%2BDUOevVYliBA%3D%3D', icon: 'MapPin', order: 8, enabled: true, description: 'Dasbor Asistensi Risiko tingkat kabupaten/kota — butuh login' },
+        { id: 'lay_psc', label: 'PSC', href: '/dashboard/layanan-gawat-darurat/psc', icon: 'PhoneCall', order: 1, enabled: true },
+        { id: 'lay_amb', label: 'Ambulans', href: '/dashboard/layanan-gawat-darurat/ambulans', icon: 'Ambulance', order: 2, enabled: true },
+        { id: 'lay_ncc', label: 'Panggilan 119', href: '/dashboard/layanan-gawat-darurat/panggilan-119', icon: 'Radio', order: 3, enabled: true },
       ],
     }),
-    it('mod_tv', 'Mode TV', '/tv', 'Tv', 3, { badge: 'Berikutnya', description: 'Mode TV akan memakai variabel agregat Puskris pada tahap berikutnya' }),
+    it('mod_kesiap', 'Kesiapsiagaan', '/dashboard/kesiapsiagaan', 'Users', 4, {
+      description: 'Tenaga cadangan kesehatan dan logistik',
+      subItems: [
+        { id: 'kes_tck', label: 'Tenaga Cadangan', href: '/dashboard/kesiapsiagaan/tenaga-cadangan', icon: 'Users', order: 1, enabled: true },
+        { id: 'kes_log', label: 'Logistik', href: '/dashboard/kesiapsiagaan/logistik', icon: 'Package', order: 2, enabled: true },
+      ],
+    }),
+    it('mod_asistensi', 'Asistensi Risiko', '/dashboard/asistensi-risiko', 'Shield', 5, {
+      description: 'Status kapasitas dan kelengkapan asesmen risiko',
+      subItems: [
+        { id: 'asis_prov', label: 'Provinsi', href: '/dashboard/asistensi-risiko/provinsi', icon: 'Shield', order: 1, enabled: true },
+        { id: 'asis_kab', label: 'Kab/Kota', href: '/dashboard/asistensi-risiko/kabupaten-kota', icon: 'MapPin', order: 2, enabled: true },
+      ],
+    }),
+    it('mod_dasbor_sumber', 'Dasbor Sumber', '#', 'ExternalLink', 6, {
+      description: 'Tautan ke dasbor sumber asli, terbuka di tab baru',
+      subItems: [
+        { id: 'src_psc', label: 'PSC', href: 'https://psc.kemkes.go.id/dashboard', icon: 'PhoneCall', order: 1, enabled: true, description: 'Dasbor PSC 119' },
+        { id: 'src_ambulans', label: 'Ambulans', href: 'https://psc.kemkes.go.id/dashboard/dashboard-ambulans', icon: 'Ambulance', order: 2, enabled: true, description: 'Dasbor armada ambulans' },
+        { id: 'src_ncc', label: 'NCC Panggilan', href: 'https://psc.kemkes.go.id/dashboard/dashboard-ncc', icon: 'Radio', order: 3, enabled: true, description: 'Dasbor panggilan 119' },
+        { id: 'src_eoc', label: 'Pantauan Bencana', href: 'https://pusatkrisis.kemkes.go.id/dashboard-new', icon: 'AlertTriangle', order: 4, enabled: true, description: 'Pantauan bencana Pusat Krisis' },
+        { id: 'src_eoc_vercel', label: 'EOC', href: 'https://dashboard-eoc.vercel.app/dashboard-eoc/', icon: 'Activity', order: 5, enabled: true, description: 'Dasbor EOC' },
+        { id: 'src_tck', label: 'Tenaga Cadangan', href: 'https://tenagacadangankesehatan.kemkes.go.id/web/site/dashboard-tck', icon: 'Users', order: 6, enabled: true, description: 'Dasbor Tenaga Cadangan Kesehatan' },
+        { id: 'src_logistik', label: 'Logistik', href: 'https://pusatkrisis.kemkes.go.id/logistik/site/landing-page', icon: 'Package', order: 7, enabled: true, description: 'Landing SIMLOGKES' },
+        { id: 'src_asistensi_prov', label: 'Asistensi Provinsi', href: 'https://pusatkrisis.kemkes.go.id/asistensi/dashboard-provinsi/index?modul=58MFls8WhAeVFGXqpKj9KQ%3D%3D', icon: 'Shield', order: 8, enabled: true, description: 'Asistensi Risiko tingkat provinsi' },
+        { id: 'src_asistensi_kab', label: 'Asistensi Kab/Kota', href: 'https://pusatkrisis.kemkes.go.id/asistensi/dashboard-kabkot/index?modul=%2FArN8EAs7d%2BDUOevVYliBA%3D%3D', icon: 'MapPin', order: 9, enabled: true, description: 'Asistensi Risiko tingkat kabupaten/kota' },
+      ],
+    }),
+    it('mod_analisis', 'Analisis', '/dashboard/analisis', 'BarChart3', 7, {
+      description: 'Heatmap, indeks kesenjangan respons, dan perbandingan tren antar-pilar',
+    }),
+    it('mod_spatial', 'Spatial Mode', '/dashboard/spatial-mode', 'Globe2', 8, { badge: 'Berikutnya', description: 'Tampilan peta layar penuh dengan variabel Pusat Krisis Kesehatan' }),
   ] },
 ]
 

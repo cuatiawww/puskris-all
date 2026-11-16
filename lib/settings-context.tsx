@@ -18,12 +18,12 @@ export interface SystemSettings {
 
 const DEFAULT_SETTINGS: SystemSettings = {
   // PR 014: SKDR branding defaults = first paint / SSR fallback (no legacy-branding flash before /console/settings loads).
-  app_name: 'SKDR INDONESIA',
-  app_tagline: 'Sistem Kewaspadaan Dini dan Respons',
+  app_name: 'Pusat Krisis Kesehatan',
+  app_tagline: 'Dasbor Terpadu Krisis Kesehatan',
   sidebar_logo_url: '',
   login_logo_url: '',
   favicon_url: '',
-  footer_text: 'SKDR Indonesia',
+  footer_text: 'Pusat Krisis Kesehatan',
   ticker_text: '',
   navigation_menu: DEFAULT_NAVIGATION_CONFIG,
 };
@@ -35,6 +35,22 @@ interface SettingsContextType {
   updateSettings: (partial: Partial<SystemSettings>) => void;
   saveNavigationMenu: (menu: SidebarGroupConfig[]) => Promise<{ ok: boolean; error?: string }>;
   resetNavigationMenu: () => Promise<{ ok: boolean; error?: string }>;
+}
+
+function looksLikeOldBrand(value?: string) {
+  return !value || /skdr|kewaspadaan dini|puskris\b/i.test(value);
+}
+
+function sanitizeBrand(config: Partial<SystemSettings> = {}): Pick<SystemSettings, 'app_name' | 'app_tagline' | 'footer_text'> {
+  return {
+    app_name: looksLikeOldBrand(config.app_name) ? DEFAULT_SETTINGS.app_name : String(config.app_name),
+    app_tagline: looksLikeOldBrand(config.app_tagline) || config.app_tagline === 'Real-time Multilingual Disease Monitoring'
+      ? DEFAULT_SETTINGS.app_tagline
+      : String(config.app_tagline),
+    footer_text: looksLikeOldBrand(config.footer_text) || config.footer_text === 'Disease Surveillance AI'
+      ? DEFAULT_SETTINGS.footer_text
+      : String(config.footer_text),
+  };
 }
 
 const SettingsContext = createContext<SettingsContextType>({
@@ -81,13 +97,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
             ...DEFAULT_SETTINGS,
             ...config,
             navigation_menu: navMenu,
-            app_name: config.app_name || DEFAULT_SETTINGS.app_name,
-            app_tagline: config.app_tagline === 'Real-time Multilingual Disease Monitoring'
-              ? DEFAULT_SETTINGS.app_tagline
-              : config.app_tagline,
-            footer_text: config.footer_text === 'Disease Surveillance AI'
-              ? DEFAULT_SETTINGS.footer_text
-              : config.footer_text,
+            ...sanitizeBrand(config),
           });
         }
       }

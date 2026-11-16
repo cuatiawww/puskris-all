@@ -21,7 +21,7 @@ export default function LayoutContent({ children }: { children: React.ReactNode 
   return (
     <>
       {/* PR 050: /tv tampil penuh layar (tvMode=true) tanpa header dan tanpa sidebar */}
-      <AppShell tvMode={pathname === '/tv'}><AuthGuard>{children}</AuthGuard></AppShell>
+      <AppShell tvMode={pathname === '/tv' || pathname === '/dashboard/spatial-mode'}><AuthGuard>{children}</AuthGuard></AppShell>
       {toaster}
     </>
   )

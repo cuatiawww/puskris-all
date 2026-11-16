@@ -1,5 +1,5 @@
-import PuskrisRingkasanClient from '@/components/puskris/PuskrisRingkasanClient'
+import PuskrisDasborClient from '@/components/puskris/PuskrisDasborClient'
 
 export default function PuskrisRingkasanPage() {
-  return <PuskrisRingkasanClient />
+  return <PuskrisDasborClient />
 }

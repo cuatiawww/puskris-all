@@ -6,6 +6,7 @@ import { monthLabel } from '@/lib/puskris/to-spasial'
 import SectionHead from '@/components/puskris/SectionHead'
 import InfoHint from '@/components/puskris/InfoHint'
 import { displayJenisArmada, EMT_LABEL, IRBI_HINT, IRBI_LABEL, NCC_LABEL } from '@/lib/puskris/labels'
+import { NASIONAL_NOTE } from '@/lib/puskris/pages'
 import {
   Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts'
@@ -39,12 +40,14 @@ function Stat({ label, value, sub, hint }: { label: string; value: string; sub?:
 }
 
 export default function PuskrisSumberSections({
-  raw, view, tab, kejadian,
+  raw, view, tab, bagian = null, kejadian, filteredWilayah = false,
 }: {
   raw: any
   view: any
   tab: PuskrisTab
+  bagian?: string | null
   kejadian: any[]
+  filteredWilayah?: boolean
 }) {
   const psc = raw.psc?.summary || {}
   const eoc = view.situasi
@@ -89,9 +92,12 @@ export default function PuskrisSumberSections({
   const show = {
     ringkasan: tab === 'ringkasan',
     krisis: tab === 'ringkasan' || tab === 'krisis',
-    layanan: tab === 'ringkasan' || tab === 'layanan',
-    kesiap: tab === 'ringkasan' || tab === 'kesiapsiagaan',
-    asis: tab === 'ringkasan' || tab === 'asistensi',
+    psc: (tab === 'ringkasan' || tab === 'layanan') && (!bagian || bagian === 'psc'),
+    ambulans: (tab === 'ringkasan' || tab === 'layanan') && (!bagian || bagian === 'ambulans'),
+    ncc: (tab === 'ringkasan' || tab === 'layanan') && (!bagian || bagian === 'panggilan-119'),
+    tck: (tab === 'ringkasan' || tab === 'kesiapsiagaan') && (!bagian || bagian === 'tenaga-cadangan'),
+    logistik: (tab === 'ringkasan' || tab === 'kesiapsiagaan') && (!bagian || bagian === 'logistik'),
+    asis: (tab === 'ringkasan' || tab === 'asistensi') && (!bagian || bagian === 'provinsi' || bagian === 'kabupaten-kota'),
   }
 
   return (
@@ -183,8 +189,8 @@ export default function PuskrisSumberSections({
         </>
       )}
 
-      {show.layanan && (
-        <>
+      <>
+          {show.psc && (
           <Card eyebrow="Layanan 119" title="PSC 119" desc="Kumulatif dari dasbor PSC. Tidak mengikuti filter periode. Waktu respons rata-rata dan jumlah PSC ikut snapshot yang sama.">
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
               <Stat label="Total panggilan" value={nf(psc.total_panggilan)} />
@@ -233,6 +239,8 @@ export default function PuskrisSumberSections({
             </div>
           </Card>
 
+          )}
+          {show.ambulans && (
           <Card eyebrow="Layanan 119" title="Ambulans" desc="Armada dari dasbor Ambulans / PSC: jenis gawat darurat vs transport, kondisi, dan yang ber-GPS.">
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
               <Stat label="Total armada" value={nf(psc.total_ambulan)} />
@@ -274,7 +282,9 @@ export default function PuskrisSumberSections({
             </div>
           </Card>
 
-          <Card eyebrow="Layanan 119" title="Panggilan 119 (NCC)" desc="Panggilan masuk, terjawab, dan tak terjawab (ditutup penelepon), plus tingkat keberhasilan layanan. Snapshot November 2026; filter 7/30 hari memotong rentang ini.">
+          )}
+          {show.ncc && (
+          <Card eyebrow="Layanan 119" title="Panggilan 119 (NCC)" desc={`Panggilan masuk, terjawab, dan tak terjawab (ditutup penelepon), plus tingkat keberhasilan layanan. Snapshot November 2026; filter 7/30 hari memotong rentang ini.${filteredWilayah ? " " + NASIONAL_NOTE : ""}`}>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
               <Stat label={NCC_LABEL.cof} value={nf(view.ncc?.totals?.cof)} />
               <Stat label={NCC_LABEL.acd} value={nf(view.ncc?.totals?.acd)} />
@@ -297,11 +307,11 @@ export default function PuskrisSumberSections({
               </ResponsiveContainer>
             </div>
           </Card>
-        </>
-      )}
+          )}
+      </>
 
-      {show.kesiap && (
-        <>
+      <>
+          {show.tck && (
           <Card eyebrow="Kesiapsiagaan SDM" title="Tenaga cadangan kesehatan" desc={`Kartu KPI publik TCK: individu, tim, dan ${EMT_LABEL}, plus nakes vs non-nakes dari sebaran geojson. Data pengalaman dan pelatihan tidak ada di snapshot ini.`}>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
               <Stat label="Individu" value={nf(tck.individu)} sub={tckS.individu_delta_bulan ? `+${nf(tckS.individu_delta_bulan)} bulan ini` : undefined} />
@@ -326,6 +336,8 @@ export default function PuskrisSumberSections({
               </ResponsiveContainer>
             </div>
           </Card>
+          )}
+          {show.logistik && (
           <Card eyebrow="Logistik dan stok" title="Logistik" desc="Stok, penerimaan, dan pengeluaran dari landing SIMLOGKES, plus matriks 11 regional × Obat / Sarpras / Alkes / BMHP. Bukan 38 provinsi.">
             <div className="grid grid-cols-3 gap-2">
               <Stat label="Total stok" value={nf(view.logistik.totalStok)} />
@@ -352,8 +364,8 @@ export default function PuskrisSumberSections({
               </table>
             </div>
           </Card>
-        </>
-      )}
+          )}
+      </>
 
       {show.asis && (
         <Card eyebrow="Asesmen risiko" title="Asistensi risiko" desc="Snapshot manual 16 November 2026 (sumber butuh login). Yang diutamakan: cakupan pengisian status kapasitas dan kelengkapan modul, di provinsi dan kab/kota.">

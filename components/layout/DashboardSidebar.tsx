@@ -2,7 +2,7 @@
 // PR 017: left sidebar with grouped navigation (Beranda, Dasbor, Transaksi, Integrasi, Bantuan & Dokumentasi).
 // Desktop (lg+): persistent, collapsible to icon-only (tooltips). Mobile: slide-in drawer.
 import { tr } from "@/lib/i18n/LanguageContext";
-import { X, ChevronDown, ChevronRight, PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { X, ChevronDown, ChevronRight, PanelLeftClose, PanelLeftOpen, ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { SidebarGroup, SidebarItem } from "@/lib/menu";
@@ -62,16 +62,33 @@ export default function DashboardSidebar({ open, collapsed, menuGroups, match, o
   const linkCls = (active: boolean) =>
     `group relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold outline-none transition-all focus-visible:ring-2 focus-visible:ring-primary/40 ${rail ? "justify-center px-0" : ""} ${active ? "bg-primary/10 text-primary" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"}`;
 
+  const isExternal = (href?: string) => !!href && /^https?:\/\//i.test(href);
+
   const ItemLink = ({ it, active }: { it: SidebarItem; active: boolean }) => {
     const Icon = it.icon;
-    return (
-      <Link href={it.href || "#"} onClick={onClose} aria-current={active ? "page" : undefined} aria-label={rail ? it.label : undefined}
-        title={!rail ? it.description : undefined} data-nav-item className={linkCls(active)}>
+    const ext = isExternal(it.href);
+    const body = (
+      <>
         {Icon && <Icon className={`h-4 w-4 shrink-0 ${active ? "text-primary" : "text-slate-400"}`} />}
-        {!rail && <span className="truncate">{it.label}</span>}
-        {/* PR 029: small badge, e.g. "Segera" for Dasbor Limited placeholders */}
+        {!rail && <span className="min-w-0 flex-1">{it.label}</span>}
+        {!rail && ext && <ExternalLink className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden />}
         {!rail && it.badge && <span className="ml-auto shrink-0 rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-800">{it.badge}</span>}
         <Tip label={it.label} />
+      </>
+    );
+    const cls = linkCls(active);
+    if (ext) {
+      return (
+        <a href={it.href} target="_blank" rel="noopener" onClick={onClose} aria-label={rail ? `${it.label} (tab baru)` : undefined}
+          title={!rail ? (it.description || `Buka ${it.label} di tab baru`) : undefined} data-nav-item className={cls}>
+          {body}
+        </a>
+      );
+    }
+    return (
+      <Link href={it.href || "#"} onClick={onClose} aria-current={active ? "page" : undefined} aria-label={rail ? it.label : undefined}
+        title={!rail ? it.description : undefined} data-nav-item className={cls}>
+        {body}
       </Link>
     );
   };
@@ -89,7 +106,7 @@ export default function DashboardSidebar({ open, collapsed, menuGroups, match, o
           </div>
           {!rail && (
             <div className="min-w-0">
-              <p className="truncate text-sm font-bold uppercase tracking-wide text-slate-800">{appTitle}</p>
+              <p className="truncate text-sm font-bold tracking-wide text-slate-800">{appTitle}</p>
               <p className="mt-0.5 truncate text-[11px] text-slate-500">{appSubtitle}</p>
             </div>
           )}
@@ -134,7 +151,7 @@ export default function DashboardSidebar({ open, collapsed, menuGroups, match, o
                     const hasSubs = !!item.subItems?.length;
                     const active = !!match && match.item === item;
                     if (!hasSubs) return <li key={ik(item)}><ItemLink it={item} active={active} /></li>;
-                    const subOpen = !!itemOpen[ik(item)];
+                    const subOpen = item.id === 'mod_dasbor_sumber' ? itemOpen[ik(item)] !== false : !!itemOpen[ik(item)];
                     const Icon = item.icon;
                     return (
                       <li key={ik(item)} className="relative" ref={flyout === ik(item) ? flyRef : undefined}>
@@ -151,9 +168,16 @@ export default function DashboardSidebar({ open, collapsed, menuGroups, match, o
                             <p className="px-3 pb-1 pt-1 text-[10px] font-bold uppercase tracking-widest text-slate-400">{item.label}</p>
                             {item.subItems!.map((sub) => {
                               const SubIcon = sub.icon; const on = !!match && match.sub === sub;
-                              return (
-                                <Link key={sub.id || sub.href} href={sub.href || "#"} role="menuitem" data-nav-item onClick={() => { setFlyout(null); onClose(); }} aria-current={on ? "page" : undefined}
-                                  className={`flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold ${on ? "bg-primary/10 text-primary" : "text-slate-600 hover:bg-slate-50"}`}>
+                              const ext = isExternal(sub.href);
+                              const flyCls = `flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold ${on ? "bg-primary/10 text-primary" : "text-slate-600 hover:bg-slate-50"}`;
+                              return ext ? (
+                                <a key={sub.id || sub.href} href={sub.href} target="_blank" rel="noopener" role="menuitem" data-nav-item onClick={() => { setFlyout(null); onClose(); }} className={flyCls}>
+                                  {SubIcon && <SubIcon className={`h-4 w-4 ${on ? "text-primary" : "text-slate-400"}`} />}
+                                  <span className="flex-1">{sub.label}</span>
+                                  <ExternalLink className="h-3.5 w-3.5 shrink-0 text-slate-400" aria-hidden />
+                                </a>
+                              ) : (
+                                <Link key={sub.id || sub.href} href={sub.href || "#"} role="menuitem" data-nav-item onClick={() => { setFlyout(null); onClose(); }} aria-current={on ? "page" : undefined} className={flyCls}>
                                   {SubIcon && <SubIcon className={`h-4 w-4 ${on ? "text-primary" : "text-slate-400"}`} />}{sub.label}
                                 </Link>
                               );

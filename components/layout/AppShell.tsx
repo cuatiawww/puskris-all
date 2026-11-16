@@ -38,7 +38,7 @@ export default function AppShell({
   // PR 027: Dasbor Zoonosis Lite has its own header title/subtitle (the page body carries no title).
   const isLite = pathname === "/dasbor/zoonosis-lite";
   // PR 050: Mode TV (/tv) is a full-viewport spatial epidemiological command center (no breadcrumbs/footer/padding).
-  const isTv = pathname === "/tv";
+  const isTv = pathname === "/tv" || pathname === "/dashboard/spatial-mode";
   const homeWrapRef = useRef<HTMLDivElement>(null);
   const [homeBgH, setHomeBgH] = useState(0);
   useEffect(() => {

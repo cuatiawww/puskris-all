@@ -94,7 +94,7 @@ export default function DashboardHeader({
               />
               <div className="min-w-0 border-brand-200 md:border-l md:pl-5">
                 <div className="flex items-center gap-2">
-                  <h1 className={`font-extrabold leading-tight text-brand-900 ${title ? "max-w-[900px] text-lg sm:text-xl md:text-2xl" : "max-w-[720px] text-lg uppercase sm:text-2xl md:text-3xl"}`} data-testid="app-header-title">
+                  <h1 className={`font-extrabold leading-tight text-brand-900 ${title ? "max-w-[900px] text-lg sm:text-xl md:text-2xl" : "max-w-[720px] text-lg sm:text-2xl md:text-3xl"}`} data-testid="app-header-title">
                     {appTitle}
                   </h1>
                   {consoleMode && (

@@ -1,5 +1,5 @@
-import TvSpasialClient from '@/components/spasial/TvSpasialClient'
+import { redirect } from 'next/navigation'
 
 export default function TvModePage() {
-  return <TvSpasialClient />
+  redirect('/dashboard/spatial-mode')
 }

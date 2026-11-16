@@ -76,7 +76,7 @@
     },
     "items": {
       "home": "Beranda",
-      "mainDashboard": "Dasbor SKDR",
+      "mainDashboard": "Dasbor",
       "regionsCountry": "Regions/Country",
       "diseases": "Diseases",
       "sources": "Sumber Data",
@@ -563,7 +563,7 @@
     "UNKNOWN": "Penyakit Tidak Dikenal"
   },
   "footer": {
-    "copyright": "© 2026 SKDR Indonesia — Sistem Kewaspadaan Dini dan Respons. Hak cipta dilindungi."
+    "copyright": "© 2026 Pusat Krisis Kesehatan — Kementerian Kesehatan Republik Indonesia. Hak cipta dilindungi."
   },
   "pages": {
     "login": {
@@ -1205,8 +1205,8 @@
       "the_page_you_are_looking_for_does_not_ex": "Halaman yang Anda cari tidak ada atau telah dipindahkan.",
       "back_to_dashboard": "Kembali ke Dasbor",
       "go_back": "Kembali",
-      "appName": "PUSAT KRISIS KESEHATAN",
-      "appTagline": "Ringkasan agregat kesiapsiagaan dan respons krisis",
+      "appName": "Pusat Krisis Kesehatan",
+      "appTagline": "Dasbor Terpadu Krisis Kesehatan",
       "console": "KONSOL MANAJEMEN SISTEM",
       "consoleSub": "Portal Manajemen Sistem, Branding & Konfigurasi Terpusat",
       "dashboardLink": "Dasbor ↗",
@@ -1216,8 +1216,8 @@
       "tvDesc": "Mode TV untuk ruang pemantauan (tampilan layar lebar yang berganti otomatis) sedang disiapkan. Sementara ini, gunakan Dasbor untuk melihat data surveilans terkini."
     },
     "meta": {
-      "title": "Pusat Krisis Kesehatan — Ringkasan Agregat",
-      "description": "Dasbor ringkasan yang menyatukan PSC, Ambulans, NCC, Tenaga Cadangan, Pantauan Bencana, Logistik, dan Asistensi Risiko."
+      "title": "Pusat Krisis Kesehatan — Dasbor Terpadu",
+      "description": "Dasbor terpadu Pusat Krisis Kesehatan yang menyatukan pantauan bencana, layanan 119, tenaga cadangan, logistik, dan asesmen risiko."
     },
     "mapScopeLocations": "Wilayah: {scope} • {count} lokasi terpetakan",
     "filter": {
@@ -2193,7 +2193,7 @@
     },
     "auth": {
       "portal": "Portal Akses",
-      "title": "Masuk ke SKDR",
+      "title": "Masuk ke Pusat Krisis Kesehatan",
       "subtitle": "Masukkan akun Anda untuk membuka {app}.",
       "username": "Nama pengguna / Email",
       "usernamePh": "Masukkan nama pengguna atau email",
@@ -2211,14 +2211,14 @@
       "heroBadge": "Kementerian Kesehatan Republik Indonesia",
       "heroText": "Platform kewaspadaan dini dan respons: memantau sinyal EBS, Form Penyelidikan Epidemiologi, dan indikator 7-1-7 di seluruh Indonesia.",
       "heroCard1Title": "Dasbor",
-      "heroCard1Text": "Indikator SKDR, penyakit, dan peta sebaran untuk pengguna terdaftar.",
+      "heroCard1Text": "Indikator krisis kesehatan, peta sebaran, dan layanan 119 untuk pengguna terdaftar.",
       "heroCard2Title": "Dasbor Limited",
       "heroCard2Text": "Analisis spasial dan matriks analisa untuk pengguna terdaftar.",
       "heroCard3Title": "Tata Kelola",
       "heroCard3Text": "Form PE, master data, dan sinkronisasi integrasi.",
       "heroCard4Title": "Akses Berbasis Peran",
       "heroCard4Text": "Setiap akun hanya membuka menu sesuai perannya.",
-      "heroFoot": "Sistem Kewaspadaan Dini dan Respons (SKDR)",
+      "heroFoot": "Kementerian Kesehatan RI",
       "logout": "Keluar",
       "loggedOut": "Anda telah keluar",
       "changePassword": "Ganti kata sandi",

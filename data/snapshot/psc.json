@@ -1,0 +1,841 @@
+{
+  "sumber": "https://psc.kemkes.go.id/dashboard",
+  "data_source": "snapshot",
+  "data_snapshot_at": "2026-11-15T17:06:38.345Z",
+  "data_updated_at": "2026-11-16T03:56:53.964Z",
+  "fetched_at_wib": "2026-11-16 10:56 WIB",
+  "label": "snapshot agregat (tanpa data individu)",
+  "summary": {
+    "total_panggilan": 116314,
+    "total_emergency": 49858,
+    "total_non_emergency": 30270,
+    "total_non_category": 36186,
+    "total_psc": 450,
+    "total_ambulan": 1758,
+    "total_personil": 6436,
+    "total_rs": 3389,
+    "waktu_respons_rata_rata": 91.7,
+    "waktu_respons_label": "91.7 Menit",
+    "total_layanan_ambulan_hari_ini": 0,
+    "total_ambulan_sedang_melayani_hari_ini": 0,
+    "psc_aktif": 392,
+    "ambulans_aktif": 1164,
+    "ambulans_baik": 1075,
+    "ambulans_rusak_ringan": 87,
+    "ambulans_rusak_berat": 9,
+    "ambulans_kondisi_kosong": 587,
+    "ambulans_gps": 395
+  },
+  "jenis_panggilan": [
+    {
+      "nama": "Panggilan Non Valid",
+      "jumlah": 36186
+    },
+    {
+      "nama": "Trauma",
+      "jumlah": 21448
+    },
+    {
+      "nama": "Non Trauma",
+      "jumlah": 13497
+    },
+    {
+      "nama": "Keperawatan",
+      "jumlah": 10569
+    },
+    {
+      "nama": "KIA",
+      "jumlah": 9455
+    },
+    {
+      "nama": "Ambulan Transport",
+      "jumlah": 8693
+    },
+    {
+      "nama": "Ambulan Gadar",
+      "jumlah": 5225
+    },
+    {
+      "nama": "Rujukan",
+      "jumlah": 4305
+    },
+    {
+      "nama": "Non Medis-Informasi Lainnya",
+      "jumlah": 3822
+    },
+    {
+      "nama": "Non Medis-Informasi Faskes",
+      "jumlah": 1461
+    },
+    {
+      "nama": "Edukasi",
+      "jumlah": 1400
+    },
+    {
+      "nama": "Bencana",
+      "jumlah": 222
+    },
+    {
+      "nama": "Vaksin",
+      "jumlah": 20
+    },
+    {
+      "nama": "Trauma Gigitan / Sengatan Hewan Berbisa",
+      "jumlah": 11
+    }
+  ],
+  "spesifikasi": [
+    {
+      "nama": "Panggilan Palsu",
+      "jumlah": 27001
+    },
+    {
+      "nama": "Trauma Kll",
+      "jumlah": 17714
+    },
+    {
+      "nama": "Keperawatan",
+      "jumlah": 10569
+    },
+    {
+      "nama": "Non Trauma",
+      "jumlah": 10092
+    },
+    {
+      "nama": "Salah Sambung",
+      "jumlah": 9185
+    },
+    {
+      "nama": "Ambulan Transport",
+      "jumlah": 8693
+    },
+    {
+      "nama": "KIA - IBU",
+      "jumlah": 8690
+    },
+    {
+      "nama": "Ambulan Gadar",
+      "jumlah": 5225
+    },
+    {
+      "nama": "Rujukan",
+      "jumlah": 4305
+    },
+    {
+      "nama": "Non Medis-Informasi Lainnya",
+      "jumlah": 3822
+    },
+    {
+      "nama": "Trauma Non Kll",
+      "jumlah": 3682
+    },
+    {
+      "nama": "Jantung",
+      "jumlah": 1584
+    },
+    {
+      "nama": "Non Medis-Informasi Faskes",
+      "jumlah": 1461
+    },
+    {
+      "nama": "Edukasi",
+      "jumlah": 1400
+    },
+    {
+      "nama": "Stroke",
+      "jumlah": 959
+    },
+    {
+      "nama": "Hipertensi",
+      "jumlah": 862
+    },
+    {
+      "nama": "KIA-ANAK",
+      "jumlah": 765
+    },
+    {
+      "nama": "Banjir",
+      "jumlah": 209
+    },
+    {
+      "nama": "Trauma Gigitan/Sengatan Hewan Berbisa",
+      "jumlah": 52
+    },
+    {
+      "nama": "Vaksin",
+      "jumlah": 20
+    },
+    {
+      "nama": "Tanah Longsor",
+      "jumlah": 12
+    },
+    {
+      "nama": "Trauma Gigitan / Sengatan Hewan Berbisa II",
+      "jumlah": 11
+    },
+    {
+      "nama": "Gempa Bumi",
+      "jumlah": 1
+    }
+  ],
+  "sumber_panggilan_top": [
+    {
+      "nama": "Call Center 119",
+      "jumlah": 11397
+    },
+    {
+      "nama": "Whatsapp",
+      "jumlah": 9771
+    },
+    {
+      "nama": "WhatsApp",
+      "jumlah": 8764
+    },
+    {
+      "nama": "Telpon",
+      "jumlah": 5297
+    },
+    {
+      "nama": "WHATSAPP",
+      "jumlah": 4279
+    },
+    {
+      "nama": "Masyarakat Umum",
+      "jumlah": 4200
+    },
+    {
+      "nama": "119",
+      "jumlah": 3447
+    },
+    {
+      "nama": "APLIKASI 119",
+      "jumlah": 2936
+    },
+    {
+      "nama": "Call 119",
+      "jumlah": 2814
+    },
+    {
+      "nama": "Avaya",
+      "jumlah": 2664
+    },
+    {
+      "nama": "CALL CENTER 119",
+      "jumlah": 2581
+    },
+    {
+      "nama": "call center 119",
+      "jumlah": 2579
+    },
+    {
+      "nama": "112",
+      "jumlah": 2436
+    },
+    {
+      "nama": "Masyarakat",
+      "jumlah": 2218
+    },
+    {
+      "nama": "WhatsApp Chat",
+      "jumlah": 2122
+    },
+    {
+      "nama": "Aplikasi Badung Sehat",
+      "jumlah": 2013
+    },
+    {
+      "nama": "avaya",
+      "jumlah": 1997
+    },
+    {
+      "nama": "NCC 119",
+      "jumlah": 1937
+    },
+    {
+      "nama": "WHATSAPP CALL CENTER RUJUKAN DINAS KESEHATAN KOTA TANGERANG",
+      "jumlah": 1883
+    },
+    {
+      "nama": "Panggilan Lokal",
+      "jumlah": 1837
+    }
+  ],
+  "jenis_ambulans": [
+    {
+      "nama": "Ambulans Gawat Darurat",
+      "jumlah": 964
+    },
+    {
+      "nama": "Ambulans Transport",
+      "jumlah": 704
+    },
+    {
+      "nama": "Sepeda Motor",
+      "jumlah": 73
+    },
+    {
+      "nama": "Tidak diketahui",
+      "jumlah": 13
+    },
+    {
+      "nama": "Speed Boat",
+      "jumlah": 3
+    },
+    {
+      "nama": "Kapal Laut",
+      "jumlah": 1
+    }
+  ],
+  "kondisi_ambulans": [
+    {
+      "nama": "Baik",
+      "jumlah": 1075
+    },
+    {
+      "nama": "Belum diisi",
+      "jumlah": 587
+    },
+    {
+      "nama": "Rusak Ringan",
+      "jumlah": 87
+    },
+    {
+      "nama": "Rusak Berat",
+      "jumlah": 9
+    }
+  ],
+  "provinsi": [
+    {
+      "code": "11",
+      "nama": "Aceh",
+      "panggilan": 2,
+      "psc_total": 26,
+      "psc_aktif": 24,
+      "ambulans": 48,
+      "ambulans_aktif": 8,
+      "ambulans_baik": 7,
+      "ambulans_rusak_ringan": 1,
+      "ambulans_rusak_berat": 0,
+      "ambulans_gps": 1,
+      "rs_jejaring": 79
+    },
+    {
+      "code": "51",
+      "nama": "Bali",
+      "panggilan": 3027,
+      "psc_total": 10,
+      "psc_aktif": 10,
+      "ambulans": 92,
+      "ambulans_aktif": 87,
+      "ambulans_baik": 87,
+      "ambulans_rusak_ringan": 0,
+      "ambulans_rusak_berat": 0,
+      "ambulans_gps": 33,
+      "rs_jejaring": 78
+    },
+    {
+      "code": "36",
+      "nama": "Banten",
+      "panggilan": 13031,
+      "psc_total": 12,
+      "psc_aktif": 9,
+      "ambulans": 72,
+      "ambulans_aktif": 55,
+      "ambulans_baik": 36,
+      "ambulans_rusak_ringan": 18,
+      "ambulans_rusak_berat": 0,
+      "ambulans_gps": 19,
+      "rs_jejaring": 136
+    },
+    {
+      "code": "17",
+      "nama": "Bengkulu",
+      "panggilan": 934,
+      "psc_total": 8,
+      "psc_aktif": 7,
+      "ambulans": 13,
+      "ambulans_aktif": 7,
+      "ambulans_baik": 6,
+      "ambulans_rusak_ringan": 1,
+      "ambulans_rusak_berat": 0,
+      "ambulans_gps": 0,
+      "rs_jejaring": 28
+    },
+    {
+      "code": "31",
+      "nama": "DKI Jakarta",
+      "panggilan": 1,
+      "psc_total": 3,
+      "psc_aktif": 1,
+      "ambulans": 77,
+      "ambulans_aktif": 0,
+      "ambulans_baik": 0,
+      "ambulans_rusak_ringan": 0,
+      "ambulans_rusak_berat": 0,
+      "ambulans_gps": 0,
+      "rs_jejaring": 202
+    },
+    {
+      "code": "75",
+      "nama": "Gorontalo",
+      "panggilan": 35,
+      "psc_total": 4,
+      "psc_aktif": 3,
+      "ambulans": 9,
+      "ambulans_aktif": 7,
+      "ambulans_baik": 8,
+      "ambulans_rusak_ringan": 0,
+      "ambulans_rusak_berat": 0,
+      "ambulans_gps": 4,
+      "rs_jejaring": 20
+    },
+    {
+      "code": "15",
+      "nama": "Jambi",
+      "panggilan": 720,
+      "psc_total": 13,
+      "psc_aktif": 10,
+      "ambulans": 21,
+      "ambulans_aktif": 12,
+      "ambulans_baik": 10,
+      "ambulans_rusak_ringan": 1,
+      "ambulans_rusak_berat": 0,
+      "ambulans_gps": 3,
+      "rs_jejaring": 46
+    },
+    {
+      "code": "32",
+      "nama": "Jawa Barat",
+      "panggilan": 29364,
+      "psc_total": 32,
+      "psc_aktif": 30,
+      "ambulans": 146,
+      "ambulans_aktif": 118,
+      "ambulans_baik": 117,
+      "ambulans_rusak_ringan": 7,
+      "ambulans_rusak_berat": 0,
+      "ambulans_gps": 25,
+      "rs_jejaring": 426
+    },
+    {
+      "code": "33",
+      "nama": "Jawa Tengah",
+      "panggilan": 3833,
+      "psc_total": 43,
+      "psc_aktif": 35,
+      "ambulans": 309,
+      "ambulans_aktif": 245,
+      "ambulans_baik": 224,
+      "ambulans_rusak_ringan": 22,
+      "ambulans_rusak_berat": 4,
+      "ambulans_gps": 165,
+      "rs_jejaring": 359
+    },
+    {
+      "code": "35",
+      "nama": "Jawa Timur",
+      "panggilan": 17203,
+      "psc_total": 39,
+      "psc_aktif": 38,
+      "ambulans": 267,
+      "ambulans_aktif": 230,
+      "ambulans_baik": 225,
+      "ambulans_rusak_ringan": 2,
+      "ambulans_rusak_berat": 0,
+      "ambulans_gps": 40,
+      "rs_jejaring": 481
+    },
+    {
+      "code": "61",
+      "nama": "Kalimantan Barat",
+      "panggilan": 531,
+      "psc_total": 14,
+      "psc_aktif": 13,
+      "ambulans": 36,
+      "ambulans_aktif": 34,
+      "ambulans_baik": 30,
+      "ambulans_rusak_ringan": 4,
+      "ambulans_rusak_berat": 0,
+      "ambulans_gps": 21,
+      "rs_jejaring": 62
+    },
+    {
+      "code": "63",
+      "nama": "Kalimantan Selatan",
+      "panggilan": 907,
+      "psc_total": 17,
+      "psc_aktif": 14,
+      "ambulans": 37,
+      "ambulans_aktif": 16,
+      "ambulans_baik": 16,
+      "ambulans_rusak_ringan": 1,
+      "ambulans_rusak_berat": 0,
+      "ambulans_gps": 2,
+      "rs_jejaring": 56
+    },
+    {
+      "code": "62",
+      "nama": "Kalimantan Tengah",
+      "panggilan": 167,
+      "psc_total": 8,
+      "psc_aktif": 8,
+      "ambulans": 12,
+      "ambulans_aktif": 8,
+      "ambulans_baik": 7,
+      "ambulans_rusak_ringan": 0,
+      "ambulans_rusak_berat": 0,
+      "ambulans_gps": 2,
+      "rs_jejaring": 33
+    },
+    {
+      "code": "64",
+      "nama": "Kalimantan Timur",
+      "panggilan": 10937,
+      "psc_total": 9,
+      "psc_aktif": 6,
+      "ambulans": 18,
+      "ambulans_aktif": 14,
+      "ambulans_baik": 14,
+      "ambulans_rusak_ringan": 0,
+      "ambulans_rusak_berat": 0,
+      "ambulans_gps": 9,
+      "rs_jejaring": 63
+    },
+    {
+      "code": "65",
+      "nama": "Kalimantan Utara",
+      "panggilan": 1997,
+      "psc_total": 1,
+      "psc_aktif": 1,
+      "ambulans": 1,
+      "ambulans_aktif": 1,
+      "ambulans_baik": 1,
+      "ambulans_rusak_ringan": 0,
+      "ambulans_rusak_berat": 0,
+      "ambulans_gps": 0,
+      "rs_jejaring": 17
+    },
+    {
+      "code": "19",
+      "nama": "Kepulauan Bangka Belitung",
+      "panggilan": 4253,
+      "psc_total": 9,
+      "psc_aktif": 8,
+      "ambulans": 17,
+      "ambulans_aktif": 11,
+      "ambulans_baik": 11,
+      "ambulans_rusak_ringan": 0,
+      "ambulans_rusak_berat": 0,
+      "ambulans_gps": 1,
+      "rs_jejaring": 28
+    },
+    {
+      "code": "21",
+      "nama": "Kepulauan Riau",
+      "panggilan": 0,
+      "psc_total": 4,
+      "psc_aktif": 4,
+      "ambulans": 4,
+      "ambulans_aktif": 0,
+      "ambulans_baik": 0,
+      "ambulans_rusak_ringan": 0,
+      "ambulans_rusak_berat": 0,
+      "ambulans_gps": 0,
+      "rs_jejaring": 39
+    },
+    {
+      "code": "18",
+      "nama": "Lampung",
+      "panggilan": 857,
+      "psc_total": 13,
+      "psc_aktif": 11,
+      "ambulans": 53,
+      "ambulans_aktif": 23,
+      "ambulans_baik": 20,
+      "ambulans_rusak_ringan": 1,
+      "ambulans_rusak_berat": 0,
+      "ambulans_gps": 0,
+      "rs_jejaring": 86
+    },
+    {
+      "code": "81",
+      "nama": "Maluku",
+      "panggilan": 64,
+      "psc_total": 8,
+      "psc_aktif": 8,
+      "ambulans": 8,
+      "ambulans_aktif": 4,
+      "ambulans_baik": 3,
+      "ambulans_rusak_ringan": 0,
+      "ambulans_rusak_berat": 0,
+      "ambulans_gps": 2,
+      "rs_jejaring": 37
+    },
+    {
+      "code": "82",
+      "nama": "Maluku Utara",
+      "panggilan": 206,
+      "psc_total": 3,
+      "psc_aktif": 2,
+      "ambulans": 4,
+      "ambulans_aktif": 2,
+      "ambulans_baik": 2,
+      "ambulans_rusak_ringan": 0,
+      "ambulans_rusak_berat": 0,
+      "ambulans_gps": 1,
+      "rs_jejaring": 24
+    },
+    {
+      "code": "52",
+      "nama": "Nusa Tenggara Barat",
+      "panggilan": 109,
+      "psc_total": 11,
+      "psc_aktif": 11,
+      "ambulans": 30,
+      "ambulans_aktif": 26,
+      "ambulans_baik": 24,
+      "ambulans_rusak_ringan": 1,
+      "ambulans_rusak_berat": 1,
+      "ambulans_gps": 1,
+      "rs_jejaring": 47
+    },
+    {
+      "code": "53",
+      "nama": "Nusa Tenggara Timur",
+      "panggilan": 0,
+      "psc_total": 6,
+      "psc_aktif": 6,
+      "ambulans": 6,
+      "ambulans_aktif": 0,
+      "ambulans_baik": 0,
+      "ambulans_rusak_ringan": 0,
+      "ambulans_rusak_berat": 0,
+      "ambulans_gps": 0,
+      "rs_jejaring": 66
+    },
+    {
+      "code": "91",
+      "nama": "Papua",
+      "panggilan": 1714,
+      "psc_total": 4,
+      "psc_aktif": 3,
+      "ambulans": 6,
+      "ambulans_aktif": 4,
+      "ambulans_baik": 4,
+      "ambulans_rusak_ringan": 0,
+      "ambulans_rusak_berat": 0,
+      "ambulans_gps": 4,
+      "rs_jejaring": 19
+    },
+    {
+      "code": "92",
+      "nama": "Papua Barat",
+      "panggilan": 0,
+      "psc_total": 2,
+      "psc_aktif": 2,
+      "ambulans": 1,
+      "ambulans_aktif": 1,
+      "ambulans_baik": 1,
+      "ambulans_rusak_ringan": 0,
+      "ambulans_rusak_berat": 0,
+      "ambulans_gps": 0,
+      "rs_jejaring": 13
+    },
+    {
+      "code": "96",
+      "nama": "Papua Barat Daya",
+      "panggilan": 0,
+      "psc_total": 4,
+      "psc_aktif": 1,
+      "ambulans": 1,
+      "ambulans_aktif": 0,
+      "ambulans_baik": 0,
+      "ambulans_rusak_ringan": 0,
+      "ambulans_rusak_berat": 0,
+      "ambulans_gps": 0,
+      "rs_jejaring": 13
+    },
+    {
+      "code": "95",
+      "nama": "Papua Pegunungan",
+      "panggilan": 0,
+      "psc_total": 0,
+      "psc_aktif": 0,
+      "ambulans": 0,
+      "ambulans_aktif": 0,
+      "ambulans_baik": 0,
+      "ambulans_rusak_ringan": 0,
+      "ambulans_rusak_berat": 0,
+      "ambulans_gps": 0,
+      "rs_jejaring": 10
+    },
+    {
+      "code": "93",
+      "nama": "Papua Selatan",
+      "panggilan": 0,
+      "psc_total": 0,
+      "psc_aktif": 0,
+      "ambulans": 0,
+      "ambulans_aktif": 0,
+      "ambulans_baik": 0,
+      "ambulans_rusak_ringan": 0,
+      "ambulans_rusak_berat": 0,
+      "ambulans_gps": 0,
+      "rs_jejaring": 8
+    },
+    {
+      "code": "94",
+      "nama": "Papua Tengah",
+      "panggilan": 0,
+      "psc_total": 1,
+      "psc_aktif": 1,
+      "ambulans": 3,
+      "ambulans_aktif": 0,
+      "ambulans_baik": 0,
+      "ambulans_rusak_ringan": 0,
+      "ambulans_rusak_berat": 0,
+      "ambulans_gps": 0,
+      "rs_jejaring": 14
+    },
+    {
+      "code": "14",
+      "nama": "Riau",
+      "panggilan": 907,
+      "psc_total": 8,
+      "psc_aktif": 7,
+      "ambulans": 12,
+      "ambulans_aktif": 2,
+      "ambulans_baik": 2,
+      "ambulans_rusak_ringan": 0,
+      "ambulans_rusak_berat": 0,
+      "ambulans_gps": 0,
+      "rs_jejaring": 85
+    },
+    {
+      "code": "76",
+      "nama": "Sulawesi Barat",
+      "panggilan": 255,
+      "psc_total": 7,
+      "psc_aktif": 5,
+      "ambulans": 13,
+      "ambulans_aktif": 8,
+      "ambulans_baik": 7,
+      "ambulans_rusak_ringan": 0,
+      "ambulans_rusak_berat": 0,
+      "ambulans_gps": 2,
+      "rs_jejaring": 16
+    },
+    {
+      "code": "73",
+      "nama": "Sulawesi Selatan",
+      "panggilan": 12664,
+      "psc_total": 32,
+      "psc_aktif": 24,
+      "ambulans": 127,
+      "ambulans_aktif": 90,
+      "ambulans_baik": 78,
+      "ambulans_rusak_ringan": 18,
+      "ambulans_rusak_berat": 4,
+      "ambulans_gps": 25,
+      "rs_jejaring": 135
+    },
+    {
+      "code": "72",
+      "nama": "Sulawesi Tengah",
+      "panggilan": 1017,
+      "psc_total": 14,
+      "psc_aktif": 14,
+      "ambulans": 20,
+      "ambulans_aktif": 9,
+      "ambulans_baik": 8,
+      "ambulans_rusak_ringan": 1,
+      "ambulans_rusak_berat": 0,
+      "ambulans_gps": 1,
+      "rs_jejaring": 43
+    },
+    {
+      "code": "74",
+      "nama": "Sulawesi Tenggara",
+      "panggilan": 1323,
+      "psc_total": 13,
+      "psc_aktif": 11,
+      "ambulans": 38,
+      "ambulans_aktif": 30,
+      "ambulans_baik": 29,
+      "ambulans_rusak_ringan": 0,
+      "ambulans_rusak_berat": 0,
+      "ambulans_gps": 9,
+      "rs_jejaring": 43
+    },
+    {
+      "code": "71",
+      "nama": "Sulawesi Utara",
+      "panggilan": 31,
+      "psc_total": 10,
+      "psc_aktif": 10,
+      "ambulans": 15,
+      "ambulans_aktif": 4,
+      "ambulans_baik": 2,
+      "ambulans_rusak_ringan": 2,
+      "ambulans_rusak_berat": 0,
+      "ambulans_gps": 0,
+      "rs_jejaring": 61
+    },
+    {
+      "code": "13",
+      "nama": "Sumatera Barat",
+      "panggilan": 409,
+      "psc_total": 10,
+      "psc_aktif": 9,
+      "ambulans": 40,
+      "ambulans_aktif": 3,
+      "ambulans_baik": 3,
+      "ambulans_rusak_ringan": 0,
+      "ambulans_rusak_berat": 0,
+      "ambulans_gps": 0,
+      "rs_jejaring": 85
+    },
+    {
+      "code": "16",
+      "nama": "Sumatera Selatan",
+      "panggilan": 1832,
+      "psc_total": 24,
+      "psc_aktif": 19,
+      "ambulans": 73,
+      "ambulans_aktif": 43,
+      "ambulans_baik": 41,
+      "ambulans_rusak_ringan": 2,
+      "ambulans_rusak_berat": 0,
+      "ambulans_gps": 6,
+      "rs_jejaring": 91
+    },
+    {
+      "code": "12",
+      "nama": "Sumatera Utara",
+      "panggilan": 537,
+      "psc_total": 21,
+      "psc_aktif": 21,
+      "ambulans": 52,
+      "ambulans_aktif": 35,
+      "ambulans_baik": 29,
+      "ambulans_rusak_ringan": 1,
+      "ambulans_rusak_berat": 0,
+      "ambulans_gps": 6,
+      "rs_jejaring": 246
+    },
+    {
+      "code": "34",
+      "nama": "Yogyakarta",
+      "panggilan": 7447,
+      "psc_total": 7,
+      "psc_aktif": 6,
+      "ambulans": 27,
+      "ambulans_aktif": 18,
+      "ambulans_baik": 16,
+      "ambulans_rusak_ringan": 2,
+      "ambulans_rusak_berat": 0,
+      "ambulans_gps": 11,
+      "rs_jejaring": 93
+    }
+  ]
+}

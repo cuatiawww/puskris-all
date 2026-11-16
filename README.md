@@ -34,3 +34,4 @@ SESSION_COOKIE_NAME=puskris_session
 
 - `NEXT_PUBLIC_BYPASS_AUTH=true`: Memungkinkan seluruh halaman dibuka secara langsung dalam mode statis/mock tanpa perlu koneksi ke backend database auth.
 - `BACKEND_INTERNAL_URL`: Arahkan ke endpoint API backend (Rust, FastAPI, Express, Go, dll.) saat sudah siap diintegrasikan.
+

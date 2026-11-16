@@ -1,0 +1,119 @@
+{
+  "sumber": "https://pusatkrisis.kemkes.go.id/logistik/site/landing-page",
+  "fetched_at_wib": "2026-11-16 10:52 WIB",
+  "label": "snapshot dari landing publik tahun 2026 (HTML). Bukan 38 provinsi, melainkan 11 regional.",
+  "tahun": 2026,
+  "filterable_provinsi": false,
+  "summary": {
+    "total_stok": 8627576,
+    "transaksi_pengeluaran": 180,
+    "transaksi_penerimaan": 39
+  },
+  "kategori": [
+    "Obat-Obatan",
+    "Sarana dan Prasarana",
+    "Alat Kesehatan",
+    "BMHP"
+  ],
+  "regional": [
+    {
+      "nama": "Pusat (DKI Jakarta)",
+      "code": "31",
+      "obat": 250072,
+      "sarpras": 2230,
+      "alkes": 5284,
+      "bmhp": 1705029,
+      "total": 1962615
+    },
+    {
+      "nama": "Sumatera Utara",
+      "code": "12",
+      "obat": 70139,
+      "sarpras": 238,
+      "alkes": 33,
+      "bmhp": 127434,
+      "total": 197844
+    },
+    {
+      "nama": "Sumatera Barat",
+      "code": "13",
+      "obat": 68229,
+      "sarpras": 223,
+      "alkes": 100,
+      "bmhp": 489271,
+      "total": 557823
+    },
+    {
+      "nama": "Sumatera Selatan",
+      "code": "16",
+      "obat": 35053,
+      "sarpras": 289,
+      "alkes": 192,
+      "bmhp": 70752,
+      "total": 106286
+    },
+    {
+      "nama": "Jawa Tengah",
+      "code": "33",
+      "obat": 76750,
+      "sarpras": 125,
+      "alkes": 163,
+      "bmhp": 897116,
+      "total": 974154
+    },
+    {
+      "nama": "Jawa Timur",
+      "code": "35",
+      "obat": 60442,
+      "sarpras": 210,
+      "alkes": 44,
+      "bmhp": 673357,
+      "total": 734053
+    },
+    {
+      "nama": "Kalimantan Selatan",
+      "code": "63",
+      "obat": 102648,
+      "sarpras": 237,
+      "alkes": 256,
+      "bmhp": 379577,
+      "total": 482718
+    },
+    {
+      "nama": "Bali",
+      "code": "51",
+      "obat": 85477,
+      "sarpras": 252,
+      "alkes": 172,
+      "bmhp": 886668,
+      "total": 972569
+    },
+    {
+      "nama": "Sulawesi Utara",
+      "code": "71",
+      "obat": 56829,
+      "sarpras": 180,
+      "alkes": 129,
+      "bmhp": 325098,
+      "total": 382236
+    },
+    {
+      "nama": "Sulawesi Selatan",
+      "code": "73",
+      "obat": 46491,
+      "sarpras": 366,
+      "alkes": 195,
+      "bmhp": 62024,
+      "total": 109076
+    },
+    {
+      "nama": "Papua",
+      "code": "91",
+      "obat": 40123,
+      "sarpras": 97,
+      "alkes": 54,
+      "bmhp": 18604,
+      "total": 58878
+    }
+  ]
+}

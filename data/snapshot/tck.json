@@ -1,0 +1,294 @@
+{
+  "sumber": "https://tenagacadangankesehatan.kemkes.go.id/web/site/dashboard-tck",
+  "fetched_at_wib": "2026-11-16 10:52 WIB",
+  "label": "KPI kartu dari HTML publik; sebaran provinsi dari geojson individu (agregat)",
+  "summary": {
+    "individu": 39673,
+    "individu_bulan_ini": 8590,
+    "individu_delta_bulan": 5658,
+    "individu_delta_pct": 65.87,
+    "individu_hari_ini": 0,
+    "tim": 349,
+    "tim_bulan_ini": 174,
+    "tim_delta_bulan": 149,
+    "tim_delta_pct": 85.63,
+    "tim_hari_ini": 0,
+    "emt": 642,
+    "emt_bulan_ini": 369,
+    "emt_delta_bulan": 312,
+    "emt_delta_pct": 84.55,
+    "emt_hari_ini": 0,
+    "nakes_geojson": 31109,
+    "non_nakes_geojson": 8562,
+    "individu_geojson": 39671
+  },
+  "provinsi": [
+    {
+      "code": "11",
+      "nama": "ACEH",
+      "nakes": 2739,
+      "non_nakes": 281,
+      "individu": 3020
+    },
+    {
+      "code": "12",
+      "nama": "SUMATERA UTARA",
+      "nakes": 1052,
+      "non_nakes": 290,
+      "individu": 1342
+    },
+    {
+      "code": "93",
+      "nama": "PAPUA SELATAN",
+      "nakes": 46,
+      "non_nakes": 16,
+      "individu": 62
+    },
+    {
+      "code": "94",
+      "nama": "PAPUA TENGAH",
+      "nakes": 32,
+      "non_nakes": 10,
+      "individu": 42
+    },
+    {
+      "code": "96",
+      "nama": "PAPUA BARAT DAYA",
+      "nakes": 37,
+      "non_nakes": 4,
+      "individu": 41
+    },
+    {
+      "code": "95",
+      "nama": "PAPUA PEGUNUNGAN",
+      "nakes": 6,
+      "non_nakes": 2,
+      "individu": 8
+    },
+    {
+      "code": "13",
+      "nama": "SUMATERA BARAT",
+      "nakes": 1082,
+      "non_nakes": 221,
+      "individu": 1303
+    },
+    {
+      "code": "53",
+      "nama": "NUSA TENGGARA TIMUR",
+      "nakes": 1000,
+      "non_nakes": 214,
+      "individu": 1214
+    },
+    {
+      "code": "14",
+      "nama": "RIAU",
+      "nakes": 566,
+      "non_nakes": 110,
+      "individu": 676
+    },
+    {
+      "code": "15",
+      "nama": "JAMBI",
+      "nakes": 549,
+      "non_nakes": 86,
+      "individu": 635
+    },
+    {
+      "code": "16",
+      "nama": "SUMATERA SELATAN",
+      "nakes": 856,
+      "non_nakes": 163,
+      "individu": 1019
+    },
+    {
+      "code": "17",
+      "nama": "BENGKULU",
+      "nakes": 629,
+      "non_nakes": 100,
+      "individu": 729
+    },
+    {
+      "code": "18",
+      "nama": "LAMPUNG",
+      "nakes": 898,
+      "non_nakes": 201,
+      "individu": 1099
+    },
+    {
+      "code": "19",
+      "nama": "KEPULAUAN BANGKA BELITUNG",
+      "nakes": 228,
+      "non_nakes": 21,
+      "individu": 249
+    },
+    {
+      "code": "21",
+      "nama": "KEPULAUAN RIAU",
+      "nakes": 196,
+      "non_nakes": 52,
+      "individu": 248
+    },
+    {
+      "code": "31",
+      "nama": "DKI JAKARTA",
+      "nakes": 1687,
+      "non_nakes": 685,
+      "individu": 2372
+    },
+    {
+      "code": "32",
+      "nama": "JAWA BARAT",
+      "nakes": 4017,
+      "non_nakes": 1210,
+      "individu": 5227
+    },
+    {
+      "code": "33",
+      "nama": "JAWA TENGAH",
+      "nakes": 2297,
+      "non_nakes": 603,
+      "individu": 2900
+    },
+    {
+      "code": "34",
+      "nama": "D.I. YOGYAKARTA",
+      "nakes": 581,
+      "non_nakes": 190,
+      "individu": 771
+    },
+    {
+      "code": "35",
+      "nama": "JAWA TIMUR",
+      "nakes": 2536,
+      "non_nakes": 2048,
+      "individu": 4584
+    },
+    {
+      "code": "36",
+      "nama": "BANTEN",
+      "nakes": 1229,
+      "non_nakes": 343,
+      "individu": 1572
+    },
+    {
+      "code": "51",
+      "nama": "BALI",
+      "nakes": 258,
+      "non_nakes": 103,
+      "individu": 361
+    },
+    {
+      "code": "52",
+      "nama": "NUSA TENGGARA BARAT",
+      "nakes": 884,
+      "non_nakes": 199,
+      "individu": 1083
+    },
+    {
+      "code": "61",
+      "nama": "KALIMANTAN BARAT",
+      "nakes": 343,
+      "non_nakes": 100,
+      "individu": 443
+    },
+    {
+      "code": "62",
+      "nama": "KALIMANTAN TENGAH",
+      "nakes": 253,
+      "non_nakes": 57,
+      "individu": 310
+    },
+    {
+      "code": "63",
+      "nama": "KALIMANTAN SELATAN",
+      "nakes": 519,
+      "non_nakes": 103,
+      "individu": 622
+    },
+    {
+      "code": "64",
+      "nama": "KALIMANTAN TIMUR",
+      "nakes": 359,
+      "non_nakes": 77,
+      "individu": 436
+    },
+    {
+      "code": "71",
+      "nama": "SULAWESI UTARA",
+      "nakes": 229,
+      "non_nakes": 80,
+      "individu": 309
+    },
+    {
+      "code": "73",
+      "nama": "SULAWESI SELATAN",
+      "nakes": 3107,
+      "non_nakes": 405,
+      "individu": 3512
+    },
+    {
+      "code": "74",
+      "nama": "SULAWESI TENGGARA",
+      "nakes": 640,
+      "non_nakes": 143,
+      "individu": 783
+    },
+    {
+      "code": "75",
+      "nama": "GORONTALO",
+      "nakes": 256,
+      "non_nakes": 74,
+      "individu": 330
+    },
+    {
+      "code": "76",
+      "nama": "SULAWESI BARAT",
+      "nakes": 533,
+      "non_nakes": 74,
+      "individu": 607
+    },
+    {
+      "code": "81",
+      "nama": "MALUKU",
+      "nakes": 378,
+      "non_nakes": 74,
+      "individu": 452
+    },
+    {
+      "code": "82",
+      "nama": "MALUKU UTARA",
+      "nakes": 205,
+      "non_nakes": 37,
+      "individu": 242
+    },
+    {
+      "code": "91",
+      "nama": "PAPUA",
+      "nakes": 147,
+      "non_nakes": 38,
+      "individu": 185
+    },
+    {
+      "code": "92",
+      "nama": "PAPUA BARAT",
+      "nakes": 84,
+      "non_nakes": 13,
+      "individu": 97
+    },
+    {
+      "code": "72",
+      "nama": "SULAWESI TENGAH",
+      "nakes": 551,
+      "non_nakes": 117,
+      "individu": 668
+    },
+    {
+      "code": "65",
+      "nama": "KALIMANTAN UTARA",
+      "nakes": 100,
+      "non_nakes": 18,
+      "individu": 118
+    }
+  ],
+  "unmapped": []
+}

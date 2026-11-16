@@ -13,12 +13,14 @@ const cspDirectives = [
   "frame-ancestors 'self'",
 ].join('; ');
 
-// SKDR: copied from NLP-PENYAKIT next.config.mjs (same CSP). Base path and backend URL come from env.
+// Base path and backend URL come from env.
 const backend = process.env.BACKEND_INTERNAL_URL;
-if (!backend) console.warn('[puskris] BACKEND_INTERNAL_URL is not set; API proxy disabled (expected for the static frontend)');
+if (backend) {
+  console.info(`[puskris] Backend API proxy enabled -> ${backend}`);
+}
 
 const nextConfig = {
-  output: 'standalone',
+  output: process.env.VERCEL ? undefined : 'standalone',
   basePath: process.env.NEXT_PUBLIC_BASE_PATH || '',
   // PR 040: hide bottom-left Next.js DevTools "Static route" & build indicators in dev-mode containers
   devIndicators: {

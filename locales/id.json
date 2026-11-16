@@ -1205,8 +1205,8 @@
       "the_page_you_are_looking_for_does_not_ex": "Halaman yang Anda cari tidak ada atau telah dipindahkan.",
       "back_to_dashboard": "Kembali ke Dasbor",
       "go_back": "Kembali",
-      "appName": "SKDR INDONESIA",
-      "appTagline": "Sistem Kewaspadaan Dini dan Respons",
+      "appName": "PUSAT KRISIS KESEHATAN",
+      "appTagline": "Ringkasan agregat kesiapsiagaan dan respons krisis",
       "console": "KONSOL MANAJEMEN SISTEM",
       "consoleSub": "Portal Manajemen Sistem, Branding & Konfigurasi Terpusat",
       "dashboardLink": "Dasbor ↗",
@@ -1216,8 +1216,8 @@
       "tvDesc": "Mode TV untuk ruang pemantauan (tampilan layar lebar yang berganti otomatis) sedang disiapkan. Sementara ini, gunakan Dasbor untuk melihat data surveilans terkini."
     },
     "meta": {
-      "title": "SKDR Indonesia — Sistem Kewaspadaan Dini dan Respons",
-      "description": "Dasbor pelaporan kasus surveilans penyakit Indonesia"
+      "title": "Pusat Krisis Kesehatan — Ringkasan Agregat",
+      "description": "Dasbor ringkasan yang menyatukan PSC, Ambulans, NCC, Tenaga Cadangan, Pantauan Bencana, Logistik, dan Asistensi Risiko."
     },
     "mapScopeLocations": "Wilayah: {scope} • {count} lokasi terpetakan",
     "filter": {

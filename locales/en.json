@@ -1205,8 +1205,8 @@
       "the_page_you_are_looking_for_does_not_ex": "The page you are looking for does not exist or has been moved.",
       "back_to_dashboard": "Back to Dashboard",
       "go_back": "Go Back",
-      "appName": "SKDR INDONESIA",
-      "appTagline": "Sistem Kewaspadaan Dini dan Respons",
+      "appName": "HEALTH CRISIS CENTER",
+      "appTagline": "Aggregate readiness and crisis-response summary",
       "console": "SYSTEM MANAGEMENT CONSOLE",
       "consoleSub": "Centralized System Management, Branding & Configuration Portal",
       "dashboardLink": "Dashboard ↗",
@@ -1216,8 +1216,8 @@
       "tvDesc": "TV mode for monitoring rooms (an auto-rotating wide-screen view) is being prepared. Meanwhile, use the Dashboard for the latest surveillance data."
     },
     "meta": {
-      "title": "SKDR Indonesia — Early Warning and Response System",
-      "description": "Indonesia disease surveillance case reporting dashboard"
+      "title": "Health Crisis Center — Aggregate Summary",
+      "description": "Summary dashboard unifying PSC, Ambulance, NCC, Reserve Health Workforce, Disaster Monitoring, Logistics, and Risk Assessment."
     },
     "mapScopeLocations": "Area: {scope} • {count} mapped locations",
     "filter": {

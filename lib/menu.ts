@@ -54,6 +54,9 @@ import {
   Sparkles,
   Share2,
   Calendar,
+  PhoneCall,
+  Ambulance,
+  Package,
 } from 'lucide-react'
 
 // Icon registry for serializable navigation configurations
@@ -110,6 +113,9 @@ export const MENU_ICON_MAP: Record<string, any> = {
   Sparkles,
   Share2,
   Calendar,
+  PhoneCall,
+  Ambulance,
+  Package,
 }
 
 export function resolveMenuIcon(name?: string) {
@@ -395,59 +401,24 @@ export const FORM_PE_SUB_ITEMS: SidebarSubItemConfig[] = [
 ]
 
 export const DEFAULT_NAVIGATION_CONFIG: SidebarGroupConfig[] = [
-  { id: 'grp_beranda', title: 'Beranda', order: 1, enabled: true, area: 'home', items: [it('mod_beranda', 'Beranda', '/beranda', 'Home', 1)] },
-  { id: 'grp_dasbor', title: 'Dasbor', order: 2, enabled: true, area: 'dashboard', items: [
-    it('mod_dashboard_home', 'Ringkasan Dasbor', '/dashboard', 'LayoutDashboard', 0),
-    DASBOR_SKDR_MENU_ITEM,
-    DASBOR_ZOONOSIS_MENU_ITEM,
-    it('mod_dasbor_ebs_ibs', 'Dasbor SKDR EBS & IBS', '/dasbor/ebs-ibs', 'BarChart3', 1.8, { enabled: false, description: 'Dasbor analitik dari Transaksi Form Laporan EBS, Entri Data Agregat IBS, dan Form Individu IBS' }),
-    DASBOR_MBG_MENU_ITEM,
-    it('mod_penyakit', 'Penyakit', '/penyakit', 'Stethoscope', 2),
-    it('mod_tv', 'Mode TV', '/tv', 'Tv', 3),
-  ] },
-  { id: 'grp_dasbor_limited', title: 'Dasbor Limited', order: 3, enabled: true, area: 'dashboard', requiresAuth: true, items: [
-    it('mod_spasial', 'Spasial', '/dashboard/spasial', 'MapPin', 1),
-    it('mod_matriks_analisa', 'Matriks Analisa', '/dashboard/matriks-analisa', 'Layers', 2),
-  ] },
-  { id: 'grp_tatakelola', title: 'Tata Kelola', order: 4, enabled: true, area: 'tatakelola', requiresAuth: true, permission: 'tatakelola', items: [
-    it('mod_tatakelola_home', 'Ringkasan Tata Kelola', '/tatakelola', 'Shield', 1),
-    it('mod_navigasi', 'Modul & Navigasi', '/tatakelola/navigasi', 'SlidersHorizontal', 2, { description: 'Pengaturan dinamis nama navigasi, menu, dan sub-menu sidebar' }),
-  ] },
-  { id: 'grp_transaksi', title: 'Transaksi', order: 5, enabled: true, area: 'tatakelola', items: [
-    it('mod_form_pe', 'Form PE', '#', 'FileText', 1, { subItems: FORM_PE_SUB_ITEMS }),
-    it('mod_laporan_ebs', 'Laporan EBS', '/ebs/laporan', 'Radio', 2, { description: 'Laporan kejadian/rumor penyakit di masyarakat — jumlah kasus & kematian per kelompok usia dan jenis kelamin' }), // PR 030, label PR 035
-    it('mod_laporan_ibs', 'Laporan Agregat IBS', '/ibs/laporan', 'FileSpreadsheet', 3, { description: 'Rekap mingguan Puskesmas/unit — jumlah kasus, kematian, dan lab per penyakit + total kunjungan' }), // PR 030, label PR 031/035
-    it('mod_laporan_individu', 'Laporan Individu IBS', '/ibs/individu', 'Stethoscope', 4, { description: 'Data satu pasien per laporan — diagnosa, pemeriksaan, dan status akhir pasien' }), // PR 031, label PR 035
-    // PR 034: satu menu "Program MBG" — Pengawasan Gizi (PR 033) + Keracunan Pangan
-    it('mod_program_mbg', 'Program MBG', '#', 'Utensils', 5, { description: 'Program Makan Bergizi Gratis — pengawasan standar gizi SPPG dan laporan keracunan pangan', subItems: [
-      { id: 'mod_dasbor_mbg_program', label: 'Dasbor MBG', href: '/dashboard/mbg/ringkasan', icon: 'LayoutDashboard', order: 0, enabled: true, description: 'Ringkasan & tautan risiko: Keracunan Pangan MBG (kejadian) × Pengawasan Gizi MBG (pencegahan)' }, // PR 052
-      { id: 'mod_pengawasan_gizi', label: 'Pengawasan Gizi MBG', href: '/pengawasan-gizi', icon: 'ClipboardCheck', order: 1, enabled: true, description: 'Kunjungan pengawasan standar gizi MBG ke SPPG — Formulir 1–13 (ketenagaan, SOP, daya terima, rekap)' },
-      { id: 'mod_keracunan_mbg', label: 'Keracunan Pangan MBG', href: '/keracunan-mbg', icon: 'AlertTriangle', order: 2, enabled: true, description: 'Laporan cepat & penyelidikan kejadian keracunan pangan MBG — kasus harian, lingkungan, laboratorium' },
-    ] }),
-  ] },
-  { id: 'grp_integrasi', title: 'Integrasi', order: 6, enabled: true, area: 'tatakelola', permission: 'integrasi', items: [
-    it('mod_ebs_sync', 'Sinkronisasi EBS', '/ebs', 'Radio', 1),
-  ] },
-  { id: 'grp_akses', title: 'Manajemen Akses', order: 8, enabled: true, area: 'tatakelola', requiresAuth: true, permission: 'user_management', items: [
-    it('mod_pengguna', 'Pengguna', '/tatakelola/pengguna', 'Users', 1),
-    it('mod_peran', 'Peran & Hak Akses', '/tatakelola/peran', 'ShieldCheck', 2),
-    it('mod_log_akses', 'Log Akses', '/tatakelola/log-akses', 'History', 3),
-  ] },
-  { id: 'grp_bantuan', title: 'Lainnya', order: 9, enabled: true, area: 'dashboard', items: [
-    {
-      id: 'mod_dokumentasi',
-      label: 'Dokumentasi',
-      href: '/dokumentasi',
-      icon: 'BookText',
-      order: 1,
-      enabled: true,
-      description: 'Dokumentasi komparasi sistem lama vs baru SKDR, MBG, dan Zoonosis',
+  { id: 'grp_dasbor', title: 'Dasbor', order: 1, enabled: true, area: 'dashboard', items: [
+    it('mod_ringkasan', 'Ringkasan', '/dashboard/ringkasan', 'LayoutDashboard', 1, {
+      description: 'Dasbor agregat Pusat Krisis Kesehatan: situasi bencana, layanan 119, tenaga cadangan, logistik, dan asesmen risiko',
+    }),
+    it('mod_dasbor_sumber', 'Dasbor Sumber', '#', 'ExternalLink', 2, {
+      description: 'Tautan ke ketujuh dasbor sumber yang diaggregatkan di Ringkasan',
       subItems: [
-        { id: 'sub_dok_skdr', label: 'Dokumentasi SKDR', href: '/dokumentasi/skdr', icon: 'Activity', order: 1, enabled: true, description: 'Sistem lama vs baru IBS dan EBS, form mingguan, dan dasbor SKDR' },
-        { id: 'sub_dok_mbg', label: 'Dokumentasi MBG', href: '/dokumentasi/mbg', icon: 'Utensils', order: 2, enabled: true, description: 'Sistem lama vs baru Program MBG: Pengawasan Gizi SPPG dan Keracunan Pangan' },
-        { id: 'sub_dok_zoonosis', label: 'Dokumentasi Zoonosis', href: '/dokumentasi/zoonosis', icon: 'Bug', order: 3, enabled: true, description: 'Sistem baru Form PE Zoonosis One Health dan Dasbor Analitik Zoonosis' },
+        { id: 'src_psc', label: 'Dashboard PSC', href: 'https://psc.kemkes.go.id/dashboard', icon: 'PhoneCall', order: 1, enabled: true, description: 'Dasbor PSC 119 — buka sumber asli di tab baru' },
+        { id: 'src_ambulans', label: 'Dashboard Ambulans', href: 'https://psc.kemkes.go.id/dashboard/dashboard-ambulans', icon: 'Ambulance', order: 2, enabled: true, description: 'Dasbor armada ambulans PSC — buka sumber asli di tab baru' },
+        { id: 'src_ncc', label: 'Dashboard NCC Panggilan', href: 'https://psc.kemkes.go.id/dashboard/dashboard-ncc', icon: 'Radio', order: 3, enabled: true, description: 'Dasbor NCC panggilan 119 — buka sumber asli di tab baru' },
+        { id: 'src_eoc', label: 'Dashboard Krisis Kesehatan', href: 'https://pusatkrisis.kemkes.go.id/dashboard-new', icon: 'AlertTriangle', order: 4, enabled: true, description: 'Pantauan bencana / EOC resmi — buka sumber asli di tab baru' },
+        { id: 'src_tck', label: 'Dashboard Tenaga Cadangan', href: 'https://tenagacadangankesehatan.kemkes.go.id/web/site/dashboard-tck', icon: 'Users', order: 5, enabled: true, description: 'Dasbor Tenaga Cadangan Kesehatan — buka sumber asli di tab baru' },
+        { id: 'src_logistik', label: 'Dashboard Logistik', href: 'https://pusatkrisis.kemkes.go.id/logistik/site/landing-page', icon: 'Package', order: 6, enabled: true, description: 'Landing SIMLOGKES — buka sumber asli di tab baru' },
+        { id: 'src_asistensi_prov', label: 'Asistensi Risiko (Provinsi)', href: 'https://pusatkrisis.kemkes.go.id/asistensi/dashboard-provinsi/index?modul=58MFls8WhAeVFGXqpKj9KQ%3D%3D', icon: 'Shield', order: 7, enabled: true, description: 'Dasbor Asistensi Risiko tingkat provinsi — butuh login' },
+        { id: 'src_asistensi_kab', label: 'Asistensi Risiko (Kab/Kota)', href: 'https://pusatkrisis.kemkes.go.id/asistensi/dashboard-kabkot/index?modul=%2FArN8EAs7d%2BDUOevVYliBA%3D%3D', icon: 'MapPin', order: 8, enabled: true, description: 'Dasbor Asistensi Risiko tingkat kabupaten/kota — butuh login' },
       ],
-    },
+    }),
+    it('mod_tv', 'Mode TV', '/tv', 'Tv', 3, { badge: 'Berikutnya', description: 'Mode TV akan memakai variabel agregat Puskris pada tahap berikutnya' }),
   ] },
 ]
 

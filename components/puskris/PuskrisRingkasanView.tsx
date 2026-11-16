@@ -10,7 +10,7 @@ import {
 import SpasialPanel from '@/components/spasial/SpasialPanel'
 import { DEFAULT_LAYERS, type Focus, type Layers as MapLayers } from '@/components/spasial/SpasialMap'
 import { defaultFilter, type AFilter } from '@/lib/analisa-api'
-import { type Area, type Metric, type Titik } from '@/lib/spasial-api'
+import { type Area as SpasialArea, type Metric, type Titik } from '@/lib/spasial-api'
 import { useChoroConfig } from '@/lib/choropleth-classes'
 import { applyDerive, nf, pf } from '@/lib/puskris/derive'
 import { PUBLIC_BASE_PATH } from '@/lib/public-path'
@@ -20,7 +20,6 @@ import {
   type Centroids, type ChoroId,
 } from '@/lib/puskris/to-spasial'
 import { toDeriveFilter, type PuskrisTab, type PuskrisUiFilter } from '@/lib/puskris/ui-filter'
-import JenisCarousel from '@/components/puskris/JenisCarousel'
 import PuskrisSumberSections from '@/components/puskris/PuskrisSumberSections'
 import KejadianTerpaduCard from '@/components/puskris/KejadianTerpaduCard'
 import PeringatanList from '@/components/puskris/PeringatanList'
@@ -29,6 +28,8 @@ import SectionHead from '@/components/puskris/SectionHead'
 import InfoHint from '@/components/puskris/InfoHint'
 import { EMT_LABEL, NCC_LABEL } from '@/lib/puskris/labels'
 import { NASIONAL_NOTE, withQuery } from '@/lib/puskris/pages'
+import { jenisTrendSeries } from '@/lib/puskris/analisis-charts'
+import { Area, AreaChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import {
   attachTimEstimate, buildPeringatan, buildTerpadu, buildTimeline, countRadius, CONTOH_LABEL,
 } from '@/lib/puskris/integrasi'
@@ -67,6 +68,77 @@ function periodeLabel(f: PuskrisUiFilter) {
   if (f.periode === '7hari') return '7 hari terakhir'
   if (f.periode === '30hari') return '30 hari terakhir'
   return 'Tahun 2026'
+}
+
+
+function JenisBars({ items, selected, onSelect }: {
+  items: { nama: string; kejadian: number }[]
+  selected: string | null
+  onSelect: (nama: string | null) => void
+}) {
+  const max = Math.max(1, ...items.map((i) => i.kejadian))
+  return (
+    <div className="skdr-card flex h-full flex-col p-3" data-testid="jenis-bars">
+      <div className="mb-1.5 flex items-center justify-between gap-2">
+        <h3 className="text-[11px] font-black uppercase tracking-wider text-slate-700">Jenis kejadian</h3>
+        {selected ? (
+          <button type="button" onClick={() => onSelect(null)} className="text-[10px] font-bold text-primary hover:underline">Hapus filter</button>
+        ) : null}
+      </div>
+      <ul className="min-h-0 flex-1 space-y-1 overflow-auto">
+        {items.slice(0, 8).map((c) => {
+          const on = selected === c.nama
+          return (
+            <li key={c.nama}>
+              <button
+                type="button"
+                onClick={() => onSelect(on ? null : c.nama)}
+                className={`flex w-full items-center gap-2 rounded-lg px-1 py-0.5 text-left ${on ? "bg-primary/10" : "hover:bg-slate-50"}`}
+              >
+                <span className="w-[46%] truncate text-[11px] font-semibold text-slate-700">{c.nama}</span>
+                <span className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
+                  <span className="block h-full rounded-full bg-primary" style={{ width: `${(c.kejadian / max) * 100}%` }} />
+                </span>
+                <span className="w-9 text-right text-[11px] font-bold tabular-nums text-slate-800">{c.kejadian.toLocaleString("id-ID")}</span>
+              </button>
+            </li>
+          )
+        })}
+      </ul>
+    </div>
+  )
+}
+
+function TrenJenisCard({ raw, f }: { raw: any; f: PuskrisUiFilter }) {
+  const trend = jenisTrendSeries(raw, f)
+  return (
+    <div className="skdr-card flex h-full flex-col p-3" data-testid="tren-jenis-card">
+      <h3 className="text-[11px] font-black uppercase tracking-wider text-slate-700">Tren kejadian per jenis</h3>
+      <div className="mb-1 flex flex-wrap items-center gap-1.5">
+        {trend.contoh ? <span className="rounded-full bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-800">{CONTOH_LABEL}</span> : null}
+        <p className="line-clamp-2 text-[10px] text-slate-500">{trend.catatan}</p>
+      </div>
+      {trend.nasionalOnly ? <p className="mb-1 text-[10px] font-semibold text-amber-800">{NASIONAL_NOTE} Deret bulanan tidak terpecah per provinsi.</p> : null}
+      <div className="h-44">
+        {trend.rows.length ? (
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={trend.rows} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+              <XAxis dataKey="label" tick={{ fontSize: 9 }} />
+              <YAxis tick={{ fontSize: 9 }} width={32} />
+              <Tooltip />
+              <Legend wrapperStyle={{ fontSize: 10 }} />
+              {trend.keys.map((k) => (
+                <Area key={k} type="monotone" dataKey={k} stackId="jenis" stroke={trend.colors[k]} fill={trend.colors[k]} fillOpacity={0.85} />
+              ))}
+            </AreaChart>
+          </ResponsiveContainer>
+        ) : (
+          <p className="py-10 text-center text-xs text-slate-500">Tidak ada deret bulanan untuk filter ini.</p>
+        )}
+      </div>
+    </div>
+  )
 }
 
 export default function PuskrisRingkasanView({
@@ -119,7 +191,7 @@ export default function PuskrisRingkasanView({
   const [layers, setLayers] = useState<MapLayers>({ ...DEFAULT_LAYERS, base: 'osm' })
   const [leftDockOpen, setLeftDockOpen] = useState(true)
   const [rightDockOpen, setRightDockOpen] = useState(true)
-  const [sel, setSel] = useState<Area | null>(null)
+  const [sel, setSel] = useState<SpasialArea | null>(null)
   const [focus, setFocus] = useState<Focus | null>(null)
   const [pointOpacity, setPointOpacity] = useState(1)
   const [adminBoundaries, setAdminBoundaries] = useState(true)
@@ -193,7 +265,7 @@ export default function PuskrisRingkasanView({
     return attachTimEstimate(rawCounts, derived.sdm?.tim ?? null, derived.sdm?.individu || 1)
   }, [radiusCenter, derived.rows, derived.sdm, centroids])
 
-  const pickArea = (a: Area, fromMap = false) => {
+  const pickArea = (a: SpasialArea, fromMap = false) => {
     setSel(a)
     setSelectedEvent((kejadian || []).find((k: any) => k.code === a.code) || null)
     setDockTab('terpadu')
@@ -202,32 +274,32 @@ export default function PuskrisRingkasanView({
     }
   }
   const onUp = f.provinsi ? () => onApply({ ...f, provinsi: null, kabupaten: null }) : null
-  const onDrill = (a: Area) => onApply({ ...f, provinsi: a.code, kabupaten: null })
+  const onDrill = (a: SpasialArea) => onApply({ ...f, provinsi: a.code, kabupaten: null })
 
   return (
-    <div className="space-y-6" data-testid="puskris-ringkasan-view">
+    <div className="space-y-4" data-testid="puskris-ringkasan-view">
       <section className="skdr-section">
-      <SectionHead eyebrow="Indikator utama" title="Kinerja nasional krisis kesehatan" desc="Angka besar mengikuti filter di panel kiri. Catatan keterbatasan data ada di catatan kaki." />
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Link href={withQuery('/dashboard/situasi-krisis', f)} className="skdr-card relative block overflow-hidden border-l-4 border-l-primary p-5 no-underline transition hover:border-primary/60">
+      <SectionHead eyebrow="Indikator utama" title="Kinerja nasional krisis kesehatan" />
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <Link href={withQuery('/dashboard/situasi-krisis', f)} className="skdr-card relative block overflow-hidden border-l-4 border-l-primary p-3 no-underline transition hover:border-primary/60">
           <div className="flex items-center justify-between text-slate-500">
             <span className="text-[11px] font-black uppercase tracking-wider">Kejadian Krisis</span>
-            <div className="rounded-xl bg-primary/10 p-2 text-primary"><AlertTriangle className="h-5 w-5" /></div>
+            <div className="rounded-lg bg-primary/10 p-1.5 text-primary"><AlertTriangle className="h-4 w-4" /></div>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-black tracking-tight text-slate-900">{nf(situasi.terpantau)}</span>
+          <div className="mt-1.5 flex items-baseline gap-2">
+            <span className="text-2xl font-black tracking-tight text-slate-900">{nf(situasi.terpantau)}</span>
             <span className="text-xs font-semibold text-slate-500">kejadian</span>
           </div>
           <div className="mt-2 text-xs font-bold text-slate-600">{nf(situasi.berdampak_krisis)} berdampak krisis</div>
         </Link>
 
-        <Link href={withQuery('/dashboard/layanan-gawat-darurat/panggilan-119', f)} className="skdr-card relative block overflow-hidden border-l-4 border-l-amber-500 p-5 no-underline transition hover:border-amber-400">
+        <Link href={withQuery('/dashboard/layanan-gawat-darurat/panggilan-119', f)} className="skdr-card relative block overflow-hidden border-l-4 border-l-amber-500 p-3 no-underline transition hover:border-amber-400">
           <div className="flex items-center justify-between text-slate-500">
             <span className="text-[11px] font-black uppercase tracking-wider">Panggilan 119</span>
-            <div className="rounded-xl bg-amber-50 p-2 text-amber-600"><PhoneCall className="h-5 w-5" /></div>
+            <div className="rounded-lg bg-amber-50 p-1.5 text-amber-600"><PhoneCall className="h-4 w-4" /></div>
           </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-black tracking-tight text-slate-900">{nf(layanan.panggilan)}</span>
+          <div className="mt-1.5 flex items-baseline gap-2">
+            <span className="text-2xl font-black tracking-tight text-slate-900">{nf(layanan.panggilan)}</span>
             <span className="text-xs font-semibold text-slate-500">panggilan</span>
           </div>
           <div className="mt-2 text-xs font-bold text-amber-700">
@@ -238,12 +310,12 @@ export default function PuskrisRingkasanView({
           {(f.provinsi || f.kabupaten) ? <div className="mt-2 text-[10px] font-medium text-amber-800">{NASIONAL_NOTE}</div> : null}
         </Link>
 
-        <Link href={withQuery('/dashboard/layanan-gawat-darurat', f)} className="skdr-card relative block overflow-hidden border-l-4 border-l-emerald-500 p-5 no-underline transition hover:border-emerald-400">
+        <Link href={withQuery('/dashboard/layanan-gawat-darurat', f)} className="skdr-card relative block overflow-hidden border-l-4 border-l-emerald-500 p-3 no-underline transition hover:border-emerald-400">
           <div className="flex items-center justify-between text-slate-500">
             <span className="text-[11px] font-black uppercase tracking-wider">Kapasitas Respons</span>
-            <div className="rounded-xl bg-emerald-50 p-2 text-emerald-600"><Ambulance className="h-5 w-5" /></div>
+            <div className="rounded-lg bg-emerald-50 p-1.5 text-emerald-600"><Ambulance className="h-4 w-4" /></div>
           </div>
-          <div className="mt-3 flex items-baseline gap-3">
+          <div className="mt-1.5 flex items-baseline gap-3">
             <div>
               <span className="text-2xl font-black text-slate-900">{nf(layanan.pscAktif)}</span>
               <span className="block text-[10px] font-bold uppercase text-slate-500">PSC aktif</span>
@@ -259,12 +331,12 @@ export default function PuskrisRingkasanView({
           </div>
         </Link>
 
-        <Link href={withQuery('/dashboard/kesiapsiagaan/tenaga-cadangan', f)} className="skdr-card relative block overflow-hidden border-l-4 border-l-blue-500 p-5 no-underline transition hover:border-blue-400">
+        <Link href={withQuery('/dashboard/kesiapsiagaan/tenaga-cadangan', f)} className="skdr-card relative block overflow-hidden border-l-4 border-l-blue-500 p-3 no-underline transition hover:border-blue-400">
           <div className="flex items-center justify-between text-slate-500">
             <span className="text-[11px] font-black uppercase tracking-wider">Kesiapsiagaan SDM</span>
-            <div className="rounded-xl bg-blue-50 p-2 text-primary"><Users className="h-5 w-5" /></div>
+            <div className="rounded-lg bg-blue-50 p-1.5 text-primary"><Users className="h-4 w-4" /></div>
           </div>
-          <div className="mt-3 flex items-baseline gap-3">
+          <div className="mt-1.5 flex items-baseline gap-3">
             <div>
               <span className="text-2xl font-black text-slate-900">{nf(sdm.individu)}</span>
               <span className="block text-[10px] font-bold uppercase text-slate-500">Individu</span>
@@ -281,14 +353,10 @@ export default function PuskrisRingkasanView({
           {(f.provinsi || f.kabupaten) && sdm.tim == null ? <div className="mt-2 text-[10px] font-medium text-amber-800">{NASIONAL_NOTE}</div> : null}
         </Link>
       </div>
-      <p className="mt-3 text-[10px] leading-relaxed text-slate-400" title={footnote}>{footnote}</p>
+      <p className="mt-1.5 line-clamp-1 text-[10px] leading-relaxed text-slate-400" title={footnote}>{footnote}</p>
       </section>
 
-      {(tab === 'ringkasan' || tab === 'krisis') ? (
-        <JenisCarousel items={jenisCards} selected={f.jenis} onSelect={(nama) => onApply({ ...f, jenis: nama })} />
-      ) : null}
-
-      <div className="skdr-card flex w-full flex-col p-5" data-testid="peta-skdr-terpadu">
+      <div className="skdr-card flex w-full flex-col p-4" data-testid="peta-skdr-terpadu">
         <div className="flex flex-col gap-3 border-b border-slate-100 pb-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="skdr-eyebrow flex items-center gap-1.5">
@@ -323,7 +391,7 @@ export default function PuskrisRingkasanView({
           </div>
         </div>
 
-        <div className="relative mt-4 flex h-[640px] w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+        <div className="relative mt-3 flex h-[500px] w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
           {leftDockOpen ? (
             <div className="z-20 flex h-full w-[340px] shrink-0 flex-col overflow-hidden border-r border-slate-200 bg-white transition-all duration-300" data-testid="peta-left-dock">
               <div className="flex shrink-0 gap-1 border-b border-slate-200 bg-white px-2 py-1.5">
@@ -577,22 +645,36 @@ export default function PuskrisRingkasanView({
         </div>
       </div>
 
-
-      {(tab === 'ringkasan' || tab === 'krisis' || tab === 'layanan') ? (
-        <LiniMasaRespons rows={timeline.rows} catatan={timeline.catatan} />
-      ) : null}
-
-      <PuskrisSumberSections raw={raw} view={{ ...derived, situasi }} tab={tab} bagian={bagian} kejadian={kejadian} filteredWilayah={Boolean(f.provinsi || f.kabupaten)} />
-
-      {tab === 'ringkasan' && derived.narrative?.length > 0 && (
-        <section className="skdr-section">
-          <SectionHead eyebrow="Catatan analitis" title="Sorotan" />
-          <div className="skdr-card p-4">
-          <ul className="list-disc space-y-1 pl-5 text-xs leading-relaxed text-slate-700">
-            {derived.narrative.map((n: string, i: number) => <li key={i}>{n}</li>)}
-          </ul>
-          </div>
-        </section>
+      {tab === 'ringkasan' ? (
+        <>
+          <section className="grid gap-3 lg:grid-cols-3" aria-label="Rekap ringkas">
+            <JenisBars items={jenisCards} selected={f.jenis} onSelect={(nama) => onApply({ ...f, jenis: nama })} />
+            <TrenJenisCard raw={raw} f={f} />
+            <LiniMasaRespons rows={timeline.rows} catatan={timeline.catatan} compact />
+          </section>
+          <p className="text-[11px] text-slate-500">
+            Detail pilar ada di{' '}
+            <Link href={withQuery('/dashboard/situasi-krisis', f)} className="font-bold text-primary hover:underline">Situasi Krisis</Link>
+            {', '}
+            <Link href={withQuery('/dashboard/layanan-gawat-darurat', f)} className="font-bold text-primary hover:underline">Layanan Gawat Darurat</Link>
+            {', '}
+            <Link href={withQuery('/dashboard/kesiapsiagaan', f)} className="font-bold text-primary hover:underline">Kesiapsiagaan</Link>
+            {', dan analisis lengkap di '}
+            <Link href={withQuery('/dashboard/analisis', f)} className="font-bold text-primary hover:underline">Analisis</Link>.
+          </p>
+        </>
+      ) : (
+        <>
+          {tab === 'krisis' ? (
+            <div className="max-w-xl">
+              <JenisBars items={jenisCards} selected={f.jenis} onSelect={(nama) => onApply({ ...f, jenis: nama })} />
+            </div>
+          ) : null}
+          {(tab === 'krisis' || tab === 'layanan') ? (
+            <LiniMasaRespons rows={timeline.rows} catatan={timeline.catatan} />
+          ) : null}
+          <PuskrisSumberSections raw={raw} view={{ ...derived, situasi }} tab={tab} bagian={bagian} kejadian={kejadian} filteredWilayah={Boolean(f.provinsi || f.kabupaten)} />
+        </>
       )}
     </div>
   )

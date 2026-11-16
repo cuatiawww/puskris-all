@@ -4,12 +4,9 @@ import { ComposedChart, Bar, Line, CartesianGrid, Legend, ResponsiveContainer, T
 import type { TimelinePoint } from '@/lib/puskris/integrasi'
 import SectionHead from '@/components/puskris/SectionHead'
 
-export default function LiniMasaRespons({ rows, catatan }: { rows: TimelinePoint[]; catatan: string }) {
-  return (
-    <section className="skdr-section" data-testid="lini-masa-respons">
-      <SectionHead eyebrow="Integrasi respons" title="Lini masa respons" desc={catatan} />
-      <div className="skdr-card p-4">
-      <div className="h-64">
+export default function LiniMasaRespons({ rows, catatan, compact = false }: { rows: TimelinePoint[]; catatan: string; compact?: boolean }) {
+  const chart = (
+      <div className={compact ? "h-44" : "h-64"}>
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart data={rows}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -25,7 +22,20 @@ export default function LiniMasaRespons({ rows, catatan }: { rows: TimelinePoint
           </ComposedChart>
         </ResponsiveContainer>
       </div>
+  )
+  if (compact) {
+    return (
+      <div className="skdr-card flex h-full flex-col p-3" data-testid="lini-masa-respons">
+        <h3 className="text-[11px] font-black uppercase tracking-wider text-slate-700">Lini masa respons</h3>
+        <p className="mb-1 line-clamp-2 text-[10px] text-slate-500">{catatan}</p>
+        {chart}
       </div>
+    )
+  }
+  return (
+    <section className="skdr-section" data-testid="lini-masa-respons">
+      <SectionHead eyebrow="Integrasi respons" title="Lini masa respons" desc={catatan} />
+      <div className="skdr-card p-4">{chart}</div>
     </section>
   )
 }

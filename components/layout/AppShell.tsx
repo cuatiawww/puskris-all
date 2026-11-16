@@ -39,7 +39,6 @@ export default function AppShell({
   const isLite = pathname === "/dasbor/zoonosis-lite";
   // PR 050: Mode TV (/tv) is a full-viewport spatial epidemiological command center (no breadcrumbs/footer/padding).
   const isTv = pathname === "/tv" || pathname === "/dashboard/spatial-mode";
-  const isExecRingkasan = pathname === "/dashboard/ringkasan";
   const homeWrapRef = useRef<HTMLDivElement>(null);
   const [homeBgH, setHomeBgH] = useState(0);
   useEffect(() => {
@@ -87,7 +86,7 @@ export default function AppShell({
     );
 
   return (
-    <main className={`flex ${isExecRingkasan ? "h-screen overflow-hidden" : "min-h-screen"} flex-col bg-white text-slate-900 transition-[padding] duration-300 print:pl-0 ${collapsed ? "lg:pl-[72px]" : "lg:pl-[280px]"}`}>
+    <main className={`flex min-h-screen flex-col bg-white text-slate-900 transition-[padding] duration-300 print:pl-0 ${collapsed ? "lg:pl-[72px]" : "lg:pl-[280px]"}`}>
       {sidebarOpen && (
         <button
           type="button"
@@ -131,17 +130,17 @@ export default function AppShell({
             authenticated={authenticated}
             consoleMode={consoleMode}
             transparent={isHome}
-            {...(isLite ? { title: t("skdr.lite.title"), subtitle: t("skdr.lite.subtitle"), compact: true } : isTv || isExecRingkasan ? { compact: true } : {})}
+            {...(isLite ? { title: t("skdr.lite.title"), subtitle: t("skdr.lite.subtitle"), compact: true } : isTv ? { compact: true } : {})}
             onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
           />
         </div>
-        <div className={`w-full flex-1 ${isDirectoryPage || isTv || isExecRingkasan ? 'flex min-h-0 flex-col overflow-hidden py-0' : 'pb-3 md:pb-5'}`}>
+        <div className={`w-full flex-1 ${isDirectoryPage || isTv ? 'py-0' : 'pb-3 md:pb-5'}`}>
           {/* PR 018: no breadcrumb on Dasbor Utama or Beranda; PR 027: nor on the one-screen Dasbor Zoonosis Lite; PR 050: nor on Mode TV */}
-          {pathname === "/main-dashboard" || isLite || isHome || isTv || isExecRingkasan ? null : <div className="print:hidden"><Breadcrumbs match={match} /></div>}
-          <div className={isHome || isTv || isExecRingkasan ? "flex min-h-0 flex-1 flex-col" : "pt-3 md:pt-4"}>{children}</div>
+          {pathname === "/main-dashboard" || isLite || isHome || isTv ? null : <div className="print:hidden"><Breadcrumbs match={match} /></div>}
+          <div className={isHome || isTv ? "" : "pt-3 md:pt-4"}>{children}</div>
         </div>
       </div>
-      {!isTv && !isExecRingkasan ? (
+      {!isTv ? (
         <div className="print:hidden">
           <Footer />
         </div>

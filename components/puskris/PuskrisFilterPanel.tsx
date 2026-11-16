@@ -17,7 +17,6 @@ export default function PuskrisFilterPanel({
   jenisOptions,
   hidePilar = false,
   hideJenis = false,
-  compact = false,
 }: {
   f: PuskrisUiFilter
   onApply: (applied: PuskrisUiFilter) => void
@@ -28,7 +27,6 @@ export default function PuskrisFilterPanel({
   jenisOptions: string[]
   hidePilar?: boolean
   hideJenis?: boolean
-  compact?: boolean
 }) {
   const [draft, setDraft] = useState<PuskrisUiFilter>(f)
   useEffect(() => { setDraft(f) }, [f])
@@ -44,7 +42,7 @@ export default function PuskrisFilterPanel({
   void tab
 
   return (
-    <aside className={`flex w-full max-w-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xs box-border ${compact ? "h-full" : ""}`} data-testid="puskris-filter-panel">
+    <aside className="flex w-full max-w-full flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xs box-border" data-testid="puskris-filter-panel">
       <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">
         <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-slate-800">
           <SlidersHorizontal className="h-4 w-4 text-primary" />

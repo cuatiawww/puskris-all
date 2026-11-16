@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 // PR 044: Spasial map (OpenLayers): choropleth provinsi / kab-kota (drill), titik unit pelapor (kluster / titik),
 // heatmap kasus, popup indikator epidemiologi, legenda + ambang, putar ulang per minggu epid.
 // Geometry: public/data GeoJSON (id_provinsi = master_locations.code, kode_kab = master_kabkota.code).
@@ -110,8 +110,6 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
   // OL moves the overlay element into its own container, so it must not be a React-managed node (portal into a detached div)
   const [popNode] = useState<HTMLDivElement | null>(() => (typeof document !== 'undefined' ? document.createElement('div') : null))
   const map = useRef<OlMap | null>(null)
-  const fitToScope = useRef<() => void>(() => {})
-  const viewTouched = useRef(false)
   const tile = useRef<TileLayer<any> | null>(null)
   const choroSrc = useRef(new VectorSource())
   const ptSrc = useRef(new VectorSource())
@@ -145,7 +143,7 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
   const [popup, setPopup] = useState<Popup | null>(null)
   const [hover, setHover] = useState<{ x: number; y: number; text: string } | null>(null)
   const [showLayers, setShowLayers] = useState(false)
-  const [showLegend, setShowLegend] = useState(!hideDefaultToolbar)
+  const [showLegend, setShowLegend] = useState(true)
   const [fs, setFs] = useState(false)
   const weeks = data?.minggu || []
   const level = data?.level || 'provinsi'
@@ -307,16 +305,7 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
     })
     const onFs = () => { setFs(Boolean(document.fullscreenElement)); setTimeout(() => m.updateSize(), 60) }
     document.addEventListener('fullscreenchange', onFs)
-    m.on('pointerdrag', () => { viewTouched.current = true })
-    m.getViewport().addEventListener('wheel', () => { viewTouched.current = true }, { passive: true })
-    let fitTimer: ReturnType<typeof setTimeout> | undefined
-    const ro = new ResizeObserver(() => {
-      m.updateSize()
-      const after = m.getSize()
-      if (!after || after[0] < 120 || after[1] < 120 || viewTouched.current) return
-      clearTimeout(fitTimer)
-      fitTimer = setTimeout(() => fitToScope.current(), 200)
-    })
+    const ro = new ResizeObserver(() => m.updateSize())
     ro.observe(el.current)
     return () => { document.removeEventListener('fullscreenchange', onFs); ro.disconnect(); m.setTarget(undefined); map.current = null }
   }, [])
@@ -642,28 +631,15 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
   // ── fit to scope (selected kab or whole level) ──
   const kabSel = data?.kab?.[0] ?? null
   useEffect(() => {
-    const run = () => {
-      const m = map.current
-      if (!m || !geoReady) return
-      const size = m.getSize()
-      if (!size || size[0] < 120 || size[1] < 120) return
-      let ext = createEmpty()
-      const selA = kabSel ? areas.find((a) => a.id === kabSel) : null
-      choroSrc.current.getFeatures().forEach((f) => { if (!selA || f.get('code') === selA.code) extend(ext, f.getGeometry()!.getExtent()) })
-      if (isEmpty(ext)) return
-      const rightWanted = panelOpen && (wrap.current?.clientWidth || 0) > 900 ? (fullHeight ? 400 : 380) : 40
-      const topWanted = topOffset ? topOffset + 16 : 70
-      const padT = Math.min(topWanted, Math.max(8, Math.floor(size[1] * 0.2)))
-      const padR = Math.min(rightWanted, Math.max(8, Math.floor(size[0] * 0.25)))
-      const padB = Math.min(70, Math.max(8, Math.floor(size[1] * 0.2)))
-      const padL = Math.min(40, Math.max(8, Math.floor(size[0] * 0.2)))
-      m.getView().fit(ext, { padding: [padT, padR, padB, padL], duration: 300, maxZoom: kabSel ? 11 : 9 })
-    }
-    fitToScope.current = run
-    run()
-    const t1 = setTimeout(run, 350)
-    const t2 = setTimeout(run, 1000)
-    return () => { clearTimeout(t1); clearTimeout(t2) }
+    const m = map.current
+    if (!m || !geoReady) return
+    let ext = createEmpty()
+    const selA = kabSel ? areas.find((a) => a.id === kabSel) : null
+    choroSrc.current.getFeatures().forEach((f) => { if (!selA || f.get('code') === selA.code) extend(ext, f.getGeometry()!.getExtent()) })
+    if (isEmpty(ext)) return
+    const right = panelOpen && (wrap.current?.clientWidth || 0) > 900 ? (fullHeight ? 400 : 380) : 40
+    const topPad = topOffset ? topOffset + 16 : 70
+    m.getView().fit(ext, { padding: [topPad, right, 70, 40], duration: 300, maxZoom: kabSel ? 11 : 9 })
   }, [geoReady, kabSel]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── choropleth style context ──

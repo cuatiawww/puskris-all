@@ -83,3 +83,12 @@ Bagian heatmap di Ringkasan memakai grid bergaya heatmap zoonosis SKDR (sel berw
 ## Bahasa antarmuka
 
 Singkatan NCC tidak dipakai di tampilan. Dipakai: Panggilan Masuk, Panggilan Terjawab, Panggilan Tak Terjawab (ditutup penelepon), dan Tingkat Keberhasilan Layanan (%) (terjawab ÷ masuk × 100%). "GADAR" ditulis Gawat Darurat, "EMT" ditulis Tim Medis Darurat (EMT), dan IRBI dijelaskan sebagai Indeks Risiko Bencana Indonesia dengan keterangan.
+
+## Pembaruan 17 November 2026: dampak penduduk, API Intelijen, Open Data
+
+- **Istilah korban (dari HTML dashboard-new):** `LB/RI` = kolom `lukaBerat` (Luka Berat / Rawat Inap), `LR/RJ` = kolom `lukaRingan` (Luka Ringan / Rawat Jalan). Korban total sumber = meninggal + hilang + LB/RI + LR/RJ + pengungsi (325.445 = 543 + 131 + 1.571 + 41.911 + 281.289).
+- **Ringkasan:** pita "Dampak terhadap penduduk" (7 kartu kecil: korban total, meninggal, hilang, luka berat/rawat inap, luka ringan/rawat jalan, pengungsi, penduduk terdampak) di bawah 4 KPI, dengan sparkline 5 tahun dan perubahan vs 2025. Ikuti filter; per provinsi luka & hilang hanya nasional.
+- **Peta:** dropdown variabel arsiran (semua `CHORO_OPTIONS`, termasuk luka berat, luka ringan, hilang per provinsi kumulatif semua tahun). Legenda/tooltip memakai label variabel.
+- **Situasi Krisis:** kartu tren 5 tahun (semua kejadian vs berdampak krisis) per variabel, indikator turunan, provinsi dengan pengungsi/terdampak terbanyak.
+- **API Intelijen Eksternal:** proxy GET `/api/v1/map-layers/{hazards,fires,flights,flight-airports,wildlife,vectors}` (BMKG + GDACS + USGS cadangan, NASA FIRMS CSV publik, adsb.lol/adsb.fi, GBIF, iNaturalist). Aliran angin memakai `/wind-data`. Batas administrasi, opasitas titik, dan peta Medan (OpenTopoMap) kini berfungsi.
+- **Open Data:** `/dashboard/open-data` mendaftar semua API luar + status langsung, dan sumber snapshot dasbor.

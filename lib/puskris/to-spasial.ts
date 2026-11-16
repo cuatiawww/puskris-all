@@ -5,7 +5,7 @@ import type { PuskrisUiFilter } from './ui-filter'
 import { layerValue, nf } from './derive'
 
 export type ChoroId =
-  | 'kejadian' | 'krisis' | 'meninggal' | 'pengungsi' | 'terdampak'
+  | 'kejadian' | 'krisis' | 'meninggal' | 'pengungsi' | 'terdampak' | 'luka_berat' | 'luka_ringan' | 'hilang'
   | 'psc' | 'ambulans' | 'panggilan' | 'tck' | 'logistik' | 'asistensi' | 'kesenjangan'
 
 export const CHORO_OPTIONS: { id: ChoroId; label: string; group: string; kind: 'count' | 'diverge' | 'sparse' }[] = [
@@ -14,6 +14,9 @@ export const CHORO_OPTIONS: { id: ChoroId; label: string; group: string; kind: '
   { id: 'meninggal', label: 'Korban meninggal', group: 'Beban krisis', kind: 'count' },
   { id: 'pengungsi', label: 'Pengungsi', group: 'Beban krisis', kind: 'count' },
   { id: 'terdampak', label: 'Penduduk terdampak', group: 'Beban krisis', kind: 'count' },
+  { id: 'luka_berat', label: 'Luka berat / rawat inap (semua tahun)', group: 'Dampak penduduk', kind: 'count' },
+  { id: 'luka_ringan', label: 'Luka ringan / rawat jalan (semua tahun)', group: 'Dampak penduduk', kind: 'count' },
+  { id: 'hilang', label: 'Korban hilang (semua tahun)', group: 'Dampak penduduk', kind: 'count' },
   { id: 'psc', label: 'PSC aktif', group: 'Kapasitas respons', kind: 'count' },
   { id: 'ambulans', label: 'Armada ambulans', group: 'Kapasitas respons', kind: 'count' },
   { id: 'panggilan', label: 'Panggilan 119', group: 'Kapasitas respons', kind: 'count' },

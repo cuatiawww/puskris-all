@@ -45,6 +45,9 @@ export function applyDerive(data: any, filter: PuskrisFilter) {
       meninggal: Number(e.meninggal_2026 || 0),
       pengungsi: Number(e.pengungsi_2026 || 0),
       terdampak: Number(e.terdampak_2026 || 0),
+      lukaBeratKum: Number(e.luka_berat || 0),
+      lukaRinganKum: Number(e.luka_ringan || 0),
+      hilangKum: Number(e.hilang || 0),
       panggilan: Number(p.panggilan || 0),
       pscTotal: Number(p.psc_total || 0),
       pscAktif: Number(p.psc_aktif || 0),
@@ -115,7 +118,10 @@ export function applyDerive(data: any, filter: PuskrisFilter) {
         berdampak_krisis: sum((r) => r.krisis),
         meninggal: sum((r) => r.meninggal),
         luka: null as number | null,
+        luka_berat: null as number | null,
+        luka_ringan: null as number | null,
         hilang: null as number | null,
+        korban_total: null as number | null,
         pengungsi: sum((r) => r.pengungsi),
         terdampak: sum((r) => r.terdampak),
         sumber: 'agregat marker 2026 per provinsi (bukan KPI resmi nasional)',
@@ -126,7 +132,10 @@ export function applyDerive(data: any, filter: PuskrisFilter) {
         berdampak_krisis: useBulan ? situasiNasional.berdampak_krisis : krisisTahun.kejadian ?? situasiNasional.berdampak_krisis,
         meninggal: useBulan ? situasiNasional.meninggal : tahunKpi.meninggal,
         luka: (situasiNasional.luka_berat || 0) + (situasiNasional.luka_ringan || 0),
-        hilang: null as number | null,
+        luka_berat: (situasiNasional.luka_berat ?? null) as number | null,
+        luka_ringan: (situasiNasional.luka_ringan ?? null) as number | null,
+        hilang: (situasiNasional.hilang ?? null) as number | null,
+        korban_total: (situasiNasional.korban_total ?? null) as number | null,
         pengungsi: situasiNasional.pengungsi,
         terdampak: situasiNasional.terdampak,
         sumber: useBulan ? 'Dashboard EOC resmi, Oktober 2026' : 'Dashboard EOC resmi, tahun 2026',
@@ -306,6 +315,9 @@ export function layerValue(row: ProvinceRow, layer: string): number {
     case 'meninggal': return row.meninggal
     case 'pengungsi': return row.pengungsi
     case 'terdampak': return row.terdampak
+    case 'luka_berat': return row.lukaBeratKum
+    case 'luka_ringan': return row.lukaRinganKum
+    case 'hilang': return row.hilangKum
     case 'psc': return row.pscAktif
     case 'ambulans': return row.ambulans
     case 'panggilan': return row.panggilan

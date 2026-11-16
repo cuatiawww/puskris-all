@@ -20,3 +20,17 @@ export function nccLabel(key: 'cof' | 'acd' | 'abd' | 'scr') {
 export function displayJenisArmada(nama: string) {
   return String(nama || '').replace(/\bGADAR\b/gi, GADAR_LABEL)
 }
+
+/** Istilah korban di dasbor Pantauan Bencana (pusatkrisis.kemkes.go.id/dashboard-new). */
+export const KORBAN_LABEL = {
+  lb: 'Luka Berat / Rawat Inap',
+  lbShort: 'Luka berat (LB/RI)',
+  lbHint: 'LB/RI = Luka Berat / Rawat Inap: korban luka berat yang perlu dirawat inap di fasilitas kesehatan. Di sumber tercatat sebagai kolom "lukaBerat".',
+  lr: 'Luka Ringan / Rawat Jalan',
+  lrShort: 'Luka ringan (LR/RJ)',
+  lrHint: 'LR/RJ = Luka Ringan / Rawat Jalan: korban luka ringan yang cukup dirawat jalan. Di sumber tercatat sebagai kolom "lukaRingan".',
+  pengungsiHint: 'Korban yang mengungsi dari tempat tinggalnya akibat kejadian.',
+  terdampakHint: 'Penduduk di wilayah kejadian yang terkena dampak, termasuk yang tidak menjadi korban langsung.',
+  totalHint: 'Jumlah korban total versi sumber = meninggal + hilang + luka berat/rawat inap + luka ringan/rawat jalan + pengungsi.',
+  hilangHint: 'Korban yang belum ditemukan.',
+} as const

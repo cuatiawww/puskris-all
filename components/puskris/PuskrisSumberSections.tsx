@@ -5,7 +5,8 @@ import type { PuskrisTab } from '@/lib/puskris/ui-filter'
 import { monthLabel } from '@/lib/puskris/to-spasial'
 import SectionHead from '@/components/puskris/SectionHead'
 import InfoHint from '@/components/puskris/InfoHint'
-import { displayJenisArmada, EMT_LABEL, IRBI_HINT, IRBI_LABEL, NCC_LABEL } from '@/lib/puskris/labels'
+import { displayJenisArmada, EMT_LABEL, IRBI_HINT, IRBI_LABEL, KORBAN_LABEL, NCC_LABEL } from '@/lib/puskris/labels'
+import { useState } from 'react'
 import { NASIONAL_NOTE } from '@/lib/puskris/pages'
 import {
   Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
@@ -35,6 +36,91 @@ function Stat({ label, value, sub, hint }: { label: string; value: string; sub?:
       </div>
       <div className="text-lg font-black tabular-nums text-slate-900">{value}</div>
       {sub ? <div className="text-[10px] text-slate-500">{sub}</div> : null}
+    </div>
+  )
+}
+
+const DAMPAK_TABS = [
+  { key: 'meninggal', label: 'Meninggal', color: ROSE, hint: 'Korban meninggal dunia akibat kejadian.' },
+  { key: 'luka_berat', label: 'Luka berat / rawat inap', color: '#ea580c', hint: KORBAN_LABEL.lbHint },
+  { key: 'luka_ringan', label: 'Luka ringan / rawat jalan', color: AMBER, hint: KORBAN_LABEL.lrHint },
+  { key: 'pengungsi', label: 'Pengungsi', color: BLUE, hint: KORBAN_LABEL.pengungsiHint },
+  { key: 'terdampak', label: 'Penduduk terdampak', color: TEAL, hint: KORBAN_LABEL.terdampakHint },
+] as const
+
+/** Situasi Krisis: tren 5 tahun korban & pengungsi (semua kejadian vs berdampak krisis) + indikator turunan + provinsi teratas. */
+function DampakPenduduk({ raw, rows, filtered }: { raw: any; rows: any[]; filtered: boolean }) {
+  const [tabKey, setTabKey] = useState<(typeof DAMPAK_TABS)[number]['key']>('pengungsi')
+  const resmi = raw?.eoc?.nasional || {}
+  const tahun = resmi.kejadian_tahun || {}
+  const krisis = resmi.krisis_tahun || {}
+  const cur = DAMPAK_TABS.find((t) => t.key === tabKey)!
+  const series: any[] = (tabKey === 'meninggal'
+    ? (resmi.tren_5_tahun_meninggal || []).map((t: any, i: number) => ({ tahun: t.tahun, jumlah: t.jumlah, krisis: resmi.tren_5_tahun_meninggal_krisis?.[i]?.jumlah }))
+    : resmi[`tren_5_tahun_${tabKey}`] || [])
+  const ratio = (a: number, b: number, d = 1) => (b ? Math.round((a / b) * 10 ** d) / 10 ** d : null)
+  const lukaTotal = Number(tahun.luka_berat || 0) + Number(tahun.luka_ringan || 0)
+  const indikator = [
+    { label: 'Pengungsi per kejadian krisis', value: ratio(krisis.pengungsi, krisis.kejadian, 0), hint: 'Rata-rata jumlah pengungsi untuk setiap kejadian yang berdampak krisis kesehatan tahun 2026 (pengungsi ÷ kejadian berdampak krisis).' },
+    { label: 'Terdampak per kejadian', value: ratio(tahun.terdampak, tahun.terpantau, 0), hint: 'Rata-rata penduduk terdampak untuk setiap kejadian terpantau tahun 2026.' },
+    { label: 'Porsi luka yang dirawat inap', value: lukaTotal ? ratio(Number(tahun.luka_berat || 0) * 100, lukaTotal, 1) : null, unit: '%', hint: 'Persentase korban luka berat/rawat inap dari seluruh korban luka. Membantu memperkirakan kebutuhan tempat tidur rumah sakit.' },
+    { label: 'Meninggal per 100 rb terdampak', value: ratio(Number(tahun.meninggal || 0) * 100000, tahun.terdampak, 1), hint: 'Jumlah korban meninggal untuk setiap 100.000 penduduk terdampak tahun 2026.' },
+  ]
+  const topPengungsi = [...rows].sort((a, b) => b.pengungsi - a.pengungsi).slice(0, 5)
+  const topTerdampak = [...rows].sort((a, b) => b.terdampak - a.terdampak).slice(0, 5)
+  return (
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3" data-testid="dampak-penduduk-krisis">
+      <div className="lg:col-span-2">
+        <Card eyebrow="Dampak terhadap penduduk" title="Tren 5 tahun korban, pengungsi, dan penduduk terdampak" desc="Semua kejadian terpantau dibanding yang berdampak krisis kesehatan. Sumber: dasbor Pantauan Bencana. Angka nasional.">
+          <div className="mb-2 flex flex-wrap items-center gap-1">
+            {DAMPAK_TABS.map((t) => (
+              <button key={t.key} type="button" onClick={() => setTabKey(t.key)}
+                className={`rounded-lg px-2.5 py-1 text-[11px] font-bold transition ${tabKey === t.key ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                {t.label}
+              </button>
+            ))}
+            <InfoHint text={cur.hint} label={`Penjelasan ${cur.label}`} />
+          </div>
+          <div className="h-52">
+            {series.length ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={series} margin={{ top: 4, right: 8, left: 8, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="tahun" tick={{ fontSize: 10 }} />
+                  <YAxis tick={{ fontSize: 10 }} width={56} tickFormatter={(v) => nf(Number(v))} />
+                  <Tooltip formatter={(v: any) => nf(Number(v))} />
+                  <Legend wrapperStyle={{ fontSize: 10 }} />
+                  <Bar dataKey="jumlah" name="Semua kejadian" fill={cur.color} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="krisis" name="Kejadian berdampak krisis" fill={SLATE} radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : <p className="py-12 text-center text-xs text-slate-500">Deret 5 tahun belum tersedia.</p>}
+          </div>
+          <p className="mt-1 text-[10px] text-slate-500">2026 masih berjalan (data sampai pertengahan November).</p>
+          <div className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
+            {indikator.map((x) => <Stat key={x.label} label={x.label} value={x.value == null ? '—' : `${x.value.toLocaleString('id-ID')}${x.unit || ''}`} hint={x.hint} />)}
+          </div>
+        </Card>
+      </div>
+      <Card eyebrow="Dampak terhadap penduduk" title="Provinsi dengan pengungsi terbanyak" desc={filtered ? 'Filter wilayah aktif: daftar tetap memperlihatkan semua provinsi sebagai pembanding.' : 'Agregat 2026 per provinsi.'}>
+        <ol className="space-y-1.5 text-xs">
+          {topPengungsi.map((r, i) => (
+            <li key={r.code} className="flex items-center justify-between gap-2">
+              <span className="truncate font-semibold"><span className="mr-2 text-slate-400">{i + 1}</span>{r.nama}</span>
+              <span className="tabular-nums text-slate-600">{nf(r.pengungsi)} pengungsi</span>
+            </li>
+          ))}
+        </ol>
+        <div className="mt-3 border-t border-slate-100 pt-2 text-[10px] font-black uppercase tracking-wider text-slate-400">Penduduk terdampak terbanyak</div>
+        <ol className="mt-1 space-y-1.5 text-xs">
+          {topTerdampak.map((r, i) => (
+            <li key={r.code} className="flex items-center justify-between gap-2">
+              <span className="truncate font-semibold"><span className="mr-2 text-slate-400">{i + 1}</span>{r.nama}</span>
+              <span className="tabular-nums text-slate-600">{nf(r.terdampak)} jiwa</span>
+            </li>
+          ))}
+        </ol>
+      </Card>
     </div>
   )
 }
@@ -105,17 +191,19 @@ export default function PuskrisSumberSections({
       {show.krisis && (
         <>
           <Card eyebrow="Pantauan bencana" title="Situasi krisis kesehatan" desc="Angka resmi dashboard Pantauan Bencana / EOC. Filter 7/30 hari tidak memecah KPI tahunan ini.">
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-9">
               <Stat label="Terpantau" value={nf(eoc.terpantau)} />
               <Stat label="Berdampak krisis" value={nf(eoc.berdampak_krisis)} />
               <Stat label="Meninggal" value={nf(eoc.meninggal)} />
-              <Stat label="Luka berat" value={nf(tahun.luka_berat)} sub="LB / RI" />
-              <Stat label="Luka ringan" value={nf(tahun.luka_ringan)} sub="LR / RJ" />
-              <Stat label="Pengungsi" value={nf(eoc.pengungsi)} />
-              <Stat label="Terdampak" value={nf(eoc.terdampak)} />
-              <Stat label="Korban total" value={nf(tahun.korban_total)} />
+              <Stat label="Hilang" value={eoc.hilang == null ? '—' : nf(eoc.hilang)} sub={eoc.hilang == null ? NASIONAL_NOTE : undefined} hint={KORBAN_LABEL.hilangHint} />
+              <Stat label="Luka berat / rawat inap" value={eoc.luka_berat == null ? '—' : nf(eoc.luka_berat)} sub={eoc.luka_berat == null ? NASIONAL_NOTE : 'LB/RI'} hint={KORBAN_LABEL.lbHint} />
+              <Stat label="Luka ringan / rawat jalan" value={eoc.luka_ringan == null ? '—' : nf(eoc.luka_ringan)} sub={eoc.luka_ringan == null ? NASIONAL_NOTE : 'LR/RJ'} hint={KORBAN_LABEL.lrHint} />
+              <Stat label="Pengungsi" value={nf(eoc.pengungsi)} hint={KORBAN_LABEL.pengungsiHint} />
+              <Stat label="Penduduk terdampak" value={nf(eoc.terdampak)} hint={KORBAN_LABEL.terdampakHint} />
+              <Stat label="Korban total" value={eoc.korban_total == null ? '—' : nf(eoc.korban_total)} sub={eoc.korban_total == null ? NASIONAL_NOTE : undefined} hint={KORBAN_LABEL.totalHint} />
             </div>
           </Card>
+          {tab === 'krisis' ? <DampakPenduduk raw={raw} rows={view.rows || []} filtered={filteredWilayah} /> : null}
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <Card eyebrow="Pantauan bencana" title="Jenis kejadian: Alam, Non alam, Sosial" desc="Pembagian resmi tahun 2026, dibanding Oktober, dan yang berdampak krisis.">
               <div className="h-56">

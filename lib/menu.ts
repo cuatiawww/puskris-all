@@ -447,6 +447,9 @@ export const DEFAULT_NAVIGATION_CONFIG: SidebarGroupConfig[] = [
     it('mod_analisis', 'Analisis', '/dashboard/analisis', 'BarChart3', 7, {
       description: 'Indeks kesenjangan, tren jenis kejadian, posisi beban vs kapasitas, dan jam sibuk 119',
     }),
+    it('mod_open_data', 'Open Data', '/dashboard/open-data', 'Database', 7.5, {
+      description: 'Daftar API luar (API Intelijen) yang dipakai peta, lengkap dengan status langsung',
+    }),
     it('mod_spatial', 'Spatial Mode', '/dashboard/spatial-mode', 'Globe2', 8, { badge: 'Berikutnya', description: 'Tampilan peta layar penuh dengan variabel Pusat Krisis Kesehatan' }),
   ] },
 ]

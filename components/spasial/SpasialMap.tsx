@@ -30,7 +30,7 @@ import { nf } from '@/lib/analisa-api'
 import { areaVal, classesFor, classOf, fmtPct, METRICS, STATUS, statusFor, titikVal, type Area, type MapClass, type Metric, type SpasialResp, type Titik } from '@/lib/spasial-api'
 import type { ChoroConfig } from '@/lib/choropleth-classes'
 
-export type BaseMap = 'light' | 'osm' | 'satellite' | 'none'
+export type BaseMap = 'light' | 'osm' | 'satellite' | 'terrain' | 'none'
 export type PointMode = 'kluster' | 'titik' | 'off'
 export interface Layers { base: BaseMap; choro: boolean; opChoro: number; points: PointMode; heat: boolean; status: string[]; kasusMin: number }
 export const DEFAULT_LAYERS: Layers = { base: 'light', choro: true, opChoro: 0.78, points: 'kluster', heat: false, status: [], kasusMin: 0 }
@@ -51,6 +51,7 @@ async function loadGeo(level: 'provinsi' | 'kabkota', provCode: string | null, p
 
 function baseSource(b: BaseMap) {
   if (b === 'satellite') return new XYZ({ url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', crossOrigin: 'anonymous', attributions: 'Esri' })
+  if (b === 'terrain') return new XYZ({ url: 'https://{a-c}.tile.opentopomap.org/{z}/{x}/{y}.png', maxZoom: 17, attributions: '© OpenTopoMap (CC-BY-SA)' })
   if (b === 'osm') return new OSM({ url: `${PUBLIC_BASE_PATH}/osm-tiles/{z}/{x}/{y}.png`, crossOrigin: 'anonymous' })
   // 'light' = the app's own OSM tile proxy, desaturated via CSS (no third-party key needed)
   return new OSM({ url: `${PUBLIC_BASE_PATH}/osm-tiles/{z}/{x}/{y}.png`, crossOrigin: 'anonymous' })
@@ -63,6 +64,12 @@ export interface ExternalIntelLayers {
   wildlife?: boolean
   vectors?: boolean
 }
+
+export type IntelLayerStatus = { state: 'loading' | 'ok' | 'empty' | 'error'; count?: number; message?: string; at?: string }
+type IntelKey = keyof ExternalIntelLayers
+
+const KIND_LABEL: Record<string, string> = { earthquake: 'Gempa Bumi', flood: 'Banjir', volcano: 'Gunung Api', cyclone: 'Siklon Tropis', drought: 'Kekeringan', wildfire: 'Kebakaran Hutan', landslide: 'Tanah Longsor' }
+const KIND_ICON: Record<string, string> = { earthquake: '〰', flood: '🌊', volcano: '🌋', cyclone: '🌀', drought: '☀', wildfire: '🔥', landslide: '⛰' }
 
 export type RadiusSupport = {
   enabled: boolean
@@ -97,14 +104,36 @@ export interface MapHudCtrl {
   setShowLayers: (v: boolean) => void
 }
 
-export default function SpasialMap({ data, titik, metric, setMetric, layers, setLayers, choroCfg, sumber, selectedId, onSelectArea, onDrill, onUp, focus, rightPanel, panelOpen, setPanelOpen, height = 680, fullHeight = false, topHud, leftDock, topOffset, hideDefaultToolbar = false, intelLayers, radiusSupport }: {
+export default function SpasialMap({ data, titik, metric, setMetric, layers, setLayers, choroCfg, sumber, selectedId, onSelectArea, onDrill, onUp, focus, rightPanel, panelOpen, setPanelOpen, height = 680, fullHeight = false, topHud, leftDock, topOffset, hideDefaultToolbar = false, intelLayers, radiusSupport, onIntelStatus, pointOpacity = 1, showBoundaries = true, windFlow = false, metricLabel }: {
   data: SpasialResp | null; titik: Titik[]; metric: Metric; setMetric: (m: Metric) => void; layers: Layers; setLayers: (l: Layers) => void
   choroCfg: ChoroConfig | null; sumber: string; selectedId: number | null; onSelectArea: (a: Area | null) => void; onDrill: (a: Area) => void; onUp: (() => void) | null
   focus: Focus | null; rightPanel: ReactNode; panelOpen: boolean; setPanelOpen: (v: boolean) => void; height?: number
   fullHeight?: boolean; topHud?: ReactNode | ((ctrl: MapHudCtrl) => ReactNode); leftDock?: ReactNode; topOffset?: number; hideDefaultToolbar?: boolean
   intelLayers?: ExternalIntelLayers
   radiusSupport?: RadiusSupport
+  /** Status muat tiap lapisan API intelijen (untuk ditampilkan di panel pengaturan). */
+  onIntelStatus?: (id: IntelKey, st: IntelLayerStatus) => void
+  pointOpacity?: number
+  showBoundaries?: boolean
+  windFlow?: boolean
+  /** Label variabel arsiran (mengganti label metrik bawaan di legenda & tooltip). */
+  metricLabel?: string
 }) {
+  const statusRef = useRef(onIntelStatus)
+  statusRef.current = onIntelStatus
+  const report = (id: IntelKey, st: IntelLayerStatus) => statusRef.current?.(id, st)
+  const getJson = async (path: string) => {
+    const r = await fetch(`${PUBLIC_BASE_PATH}${path}`)
+    let j: any = null
+    try { j = await r.json() } catch { j = null }
+    if (!r.ok) {
+      const up = (j?.upstream || []).filter((u: any) => !u.ok).map((u: any) => `${u.nama}: ${u.error || u.status}`).join('; ')
+      throw new Error(up || `HTTP ${r.status}`)
+    }
+    return j
+  }
+  const fail = (id: IntelKey) => (e: any) => report(id, { state: 'error', message: `Sumber tidak dapat diakses (${String(e?.message || e).slice(0, 140)})` })
+  const done = (id: IntelKey, n: number, j: any) => report(id, { state: n ? 'ok' : 'empty', count: n, at: j?.fetched_at, message: n ? undefined : 'Sumber aktif, tetapi tidak ada data saat ini' })
   const wrap = useRef<HTMLDivElement>(null)
   const el = useRef<HTMLDivElement>(null)
   // OL moves the overlay element into its own container, so it must not be a React-managed node (portal into a detached div)
@@ -126,6 +155,9 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
   const wildlifeSrc = useRef(new VectorSource())
   const vectorsSrc = useRef(new VectorSource())
   const radiusSrc = useRef(new VectorSource())
+  const windSrc = useRef(new VectorSource())
+  const windL = useRef<VectorLayer<any> | null>(null)
+  const [windErr, setWindErr] = useState<string | null>(null)
 
   const flightsL = useRef<VectorLayer<any> | null>(null)
   const firesL = useRef<VectorLayer<any> | null>(null)
@@ -133,7 +165,7 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
   const wildlifeL = useRef<VectorLayer<any> | null>(null)
   const vectorsL = useRef<VectorLayer<any> | null>(null)
   const radiusL = useRef<VectorLayer<any> | null>(null)
-  const styleCtx = useRef<{ byCode: Record<string, Area>; cls: MapClass[]; wi: number; metric: Metric; sel: number | null; hover: string | null; op: number; maxK: number }>({ byCode: {}, cls: [], wi: -1, metric: 'kasus', sel: null, hover: null, op: 0.78, maxK: 1 })
+  const styleCtx = useRef<{ byCode: Record<string, Area>; cls: MapClass[]; wi: number; metric: Metric; sel: number | null; hover: string | null; op: number; maxK: number; bounds: boolean; label: string | null }>({ byCode: {}, cls: [], wi: -1, metric: 'kasus', sel: null, hover: null, op: 0.78, maxK: 1, bounds: true, label: null })
   const onSelectRef = useRef(onSelectArea)
   onSelectRef.current = onSelectArea
   const [geoErr, setGeoErr] = useState(false)
@@ -164,7 +196,7 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
       const r = parseInt(col.slice(1, 3), 16), g = parseInt(col.slice(3, 5), 16), b = parseInt(col.slice(5, 7), 16)
       return new Style({
         fill: new Fill({ color: `rgba(${r},${g},${b},${c.op})` }),
-        stroke: new Stroke({ color: sel ? '#0f172a' : hov ? '#334155' : 'rgba(255,255,255,0.95)', width: sel ? 3 : hov ? 2 : 0.8 }),
+        stroke: new Stroke({ color: sel ? '#0f172a' : hov ? '#334155' : c.bounds ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0)', width: sel ? 3 : hov ? 2 : c.bounds ? 0.8 : 0 }),
         zIndex: sel ? 2 : hov ? 1 : 0,
       })
     }
@@ -212,6 +244,7 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
     hazardsL.current = new VectorLayer({ source: hazardsSrc.current, zIndex: 12 })
     wildlifeL.current = new VectorLayer({ source: wildlifeSrc.current, zIndex: 13 })
     vectorsL.current = new VectorLayer({ source: vectorsSrc.current, zIndex: 14 })
+    windL.current = new VectorLayer({ source: windSrc.current, zIndex: 9, visible: false })
     radiusL.current = new VectorLayer({
       source: radiusSrc.current,
       zIndex: 15,
@@ -232,6 +265,7 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
         heatL.current,
         clL.current,
         ptL.current,
+        windL.current,
         flightsL.current,
         firesL.current,
         hazardsL.current,
@@ -252,13 +286,13 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
         const it = hit.f.get('intelType')
         const t = hit.f.get('title') || ''
         const sub = hit.f.get('subtitle') || ''
-        text = `${it === 'flight' ? '✈️ Penerbangan' : it === 'fire' ? '🔥 Titik Panas FIRMS' : it === 'hazard' ? '⚠️ Bahaya Bencana' : it === 'wildlife' ? '🦅 Satwa Liar GBIF' : '🦟 Vektor Nyamuk'}: ${t}${sub ? ` · ${sub}` : ''}`
+        text = `${it === 'flight' ? '✈️ Penerbangan' : it === 'fire' ? '🔥 Titik Panas FIRMS' : it === 'hazard' ? '⚠️ Bahaya Bencana' : it === 'wildlife' ? '🦅 Satwa Liar GBIF' : it === 'wind' ? '🌬️ Angin' : '🦟 Vektor Nyamuk'}: ${t}${sub ? ` · ${sub}` : ''}`
       } else if (hit?.l === choroL.current) {
         code = String(hit.f.get('code'))
         const a = styleCtx.current.byCode[code]
         const mt = METRICS.find((x) => x.key === styleCtx.current.metric)
         const v = a ? areaVal(a, styleCtx.current.metric, styleCtx.current.wi) : null
-        text = `${hit.f.get('name')}: ${mt?.label} ${v === null ? '–' : styleCtx.current.metric === 'cfr' || styleCtx.current.metric === 'chg_minggu' ? fmtPct(v, styleCtx.current.metric === 'chg_minggu') : nf(v)}`
+        text = `${hit.f.get('name')}: ${styleCtx.current.label || mt?.label} ${v === null ? '–' : styleCtx.current.metric === 'cfr' || styleCtx.current.metric === 'chg_minggu' ? fmtPct(v, styleCtx.current.metric === 'chg_minggu') : nf(v)}`
       } else if (hit) {
         const fs2: Feature[] = hit.f.get('features') || [hit.f]
         const t: Titik | undefined = fs2[0]?.get('t')
@@ -349,284 +383,215 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
     return () => { alive = false }
   }, [geoKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── external intel layers ──
+  // ── external intel layers (tiap lapisan dimuat terpisah lewat proxy GET /api/v1/map-layers/*) ──
+  const dot = (color: string, radius: number, emoji?: string, label?: string) => new Style({
+    image: new CircleStyle({ radius, fill: new Fill({ color }), stroke: new Stroke({ color: '#ffffff', width: 2 }) }),
+    text: emoji || label ? new Text({ text: emoji || label, font: emoji ? '10px Inter, sans-serif' : 'bold 9px Inter, sans-serif', fill: new Fill({ color: '#0f172a' }), stroke: label ? new Stroke({ color: '#ffffff', width: 2 }) : undefined, offsetY: label ? 12 : 0 }) : undefined,
+  })
+  const intelFeat = (lon: number, lat: number, props: Record<string, any>, style: Style) => {
+    const feat = new Feature({ geometry: new Point(fromLonLat([lon, lat])) })
+    Object.entries(props).forEach(([k, v]) => feat.set(k, v))
+    feat.setStyle(style)
+    return feat
+  }
+
   useEffect(() => {
     let alive = true
-
-    // Flights
-    if (intelLayers?.flights) {
-      Promise.all([
-        fetch('/api/v1/map-layers/flight-airports').then((r) => r.ok ? r.json() : null),
-        fetch('/api/v1/map-layers/flights').then((r) => r.ok ? r.json() : null),
-      ]).then(([airportsRes, flightsRes]) => {
-        if (!alive) return
-        flightsSrc.current.clear()
-        const airports: any[] = airportsRes?.airports || []
-        const flights: any[] = flightsRes?.flights || []
-        const airportMap: Record<string, [number, number]> = {}
-
-        // Add airports
-        airports.forEach((ap) => {
-          airportMap[ap.iata] = [ap.longitude, ap.latitude]
-          const coord = fromLonLat([ap.longitude, ap.latitude])
-          const feat = new Feature({ geometry: new Point(coord) })
-          feat.set('intelType', 'flight')
-          feat.set('badgeText', 'BANDARA')
-          feat.set('badgeColor', '#0284c7')
-          feat.set('source', 'Kemenhub / Open Data')
-          feat.set('title', `${ap.name} (${ap.iata})`)
-          feat.set('subtitle', `${ap.city}, Indonesia`)
-          feat.set('details', [
-            { label: 'Kode ICAO', value: ap.icao || '–' },
-            { label: 'Konektivitas', value: `${ap.degree || 0} rute langsung` },
-            { label: 'Tipe', value: ap.band === 'hub' ? 'Major Hub' : ap.band === 'regional' ? 'Regional Hub' : 'Feeder' },
-          ])
-          feat.setStyle(new Style({
-            image: new CircleStyle({
-              radius: ap.band === 'hub' ? 7 : 5,
-              fill: new Fill({ color: ap.band === 'hub' ? '#0284c7' : '#38bdf8' }),
-              stroke: new Stroke({ color: '#ffffff', width: 2 }),
-            }),
-            text: new Text({
-              text: ap.iata,
-              font: 'bold 9px Inter, sans-serif',
-              fill: new Fill({ color: '#0369a1' }),
-              stroke: new Stroke({ color: '#ffffff', width: 2 }),
-              offsetY: 12,
-            }),
-          }))
-          flightsSrc.current.addFeature(feat)
+    const src = flightsSrc.current
+    if (!intelLayers?.flights) { src.clear(); return }
+    report('flights', { state: 'loading' })
+    Promise.allSettled([getJson('/api/v1/map-layers/flight-airports'), getJson('/api/v1/map-layers/flights')]).then(([apR, flR]) => {
+      if (!alive) return
+      src.clear()
+      const airports: any[] = apR.status === 'fulfilled' ? apR.value?.airports || [] : []
+      const flights: any[] = flR.status === 'fulfilled' ? flR.value?.flights || [] : []
+      const airportMap: Record<string, [number, number]> = {}
+      airports.forEach((ap) => {
+        airportMap[ap.iata] = [ap.longitude, ap.latitude]
+        src.addFeature(intelFeat(ap.longitude, ap.latitude, {
+          intelType: 'flight', badgeText: 'BANDARA', badgeColor: '#0284c7', source: 'Daftar bandara utama (statis)',
+          title: `${ap.name} (${ap.iata})`, subtitle: `${ap.city}, Indonesia`,
+          details: [{ label: 'Kode ICAO', value: ap.icao || '–' }, { label: 'Perkiraan konektivitas', value: `${ap.degree || 0} rute langsung` }, { label: 'Tipe', value: ap.band === 'hub' ? 'Bandara pengumpul utama' : ap.band === 'regional' ? 'Bandara regional' : 'Bandara pengumpan' }],
+        }, dot(ap.band === 'hub' ? '#0284c7' : '#38bdf8', ap.band === 'hub' ? 7 : 5, undefined, ap.iata)))
+      })
+      const cgk = airportMap.CGK
+      if (cgk) ['DPS', 'SUB', 'UPG', 'KNO', 'BPN', 'YIA', 'BTH'].forEach((dest) => {
+        const d = airportMap[dest]
+        if (!d) return
+        const lf = new Feature({ geometry: new LineString([fromLonLat(cgk), fromLonLat(d)]) })
+        lf.setStyle(new Style({ stroke: new Stroke({ color: 'rgba(2, 132, 199, 0.45)', width: 1.5, lineDash: [4, 4] }) }))
+        src.addFeature(lf)
+      })
+      flights.forEach((fl) => {
+        const st = new Style({
+          text: new Text({ text: '✈', font: 'bold 14px sans-serif', rotation: ((fl.heading || 0) - 90) * Math.PI / 180, fill: new Fill({ color: '#0369a1' }), stroke: new Stroke({ color: '#ffffff', width: 3 }) }),
         })
-
-        // Add connection lines between major hubs
-        const cgkCoord = airportMap['CGK']
-        if (cgkCoord) {
-          ['DPS', 'SUB', 'UPG', 'KNO', 'BPN', 'YIA', 'BTH'].forEach((dest) => {
-            const destCoord = airportMap[dest]
-            if (destCoord) {
-              const lineFeat = new Feature({
-                geometry: new LineString([fromLonLat(cgkCoord), fromLonLat(destCoord)]),
-              })
-              lineFeat.setStyle(new Style({
-                stroke: new Stroke({
-                  color: 'rgba(2, 132, 199, 0.45)',
-                  width: 1.5,
-                  lineDash: [4, 4],
-                }),
-              }))
-              flightsSrc.current.addFeature(lineFeat)
-            }
-          })
-        }
-
-        // Add live flights
-        flights.forEach((fl) => {
-          const coord = fromLonLat([fl.longitude, fl.latitude])
-          const feat = new Feature({ geometry: new Point(coord) })
-          feat.set('intelType', 'flight')
-          feat.set('badgeText', 'PESAWAT')
-          feat.set('badgeColor', '#0369a1')
-          feat.set('source', 'Radar ADS-B Domestik')
-          feat.set('title', `Penerbangan ${fl.callsign || fl.icao24}`)
-          feat.set('subtitle', `${fl.origin_country || 'Indonesia'}`)
-          feat.set('details', [
-            { label: 'Callsign', value: fl.callsign || '–' },
-            { label: 'Ketinggian', value: fl.altitude_m ? `${Math.round(fl.altitude_m)} m` : '–' },
+        src.addFeature(intelFeat(fl.longitude, fl.latitude, {
+          intelType: 'flight', badgeText: 'PESAWAT', badgeColor: '#0369a1', source: 'ADS-B terbuka (adsb.lol / adsb.fi)',
+          title: `Penerbangan ${fl.callsign || fl.icao24}`, subtitle: [fl.type, fl.registration].filter(Boolean).join(' · ') || 'Indonesia',
+          details: [
+            { label: 'Nomor penerbangan', value: fl.callsign || '–' },
+            { label: 'Ketinggian', value: fl.altitude_m ? `${Math.round(fl.altitude_m).toLocaleString('id-ID')} m` : 'di darat / tidak ada' },
             { label: 'Kecepatan', value: fl.velocity_ms ? `${Math.round(fl.velocity_ms * 3.6)} km/jam` : '–' },
-            { label: 'Heading', value: fl.heading != null ? `${fl.heading}°` : '–' },
-          ])
-          feat.setStyle(new Style({
-            image: new CircleStyle({
-              radius: 6,
-              fill: new Fill({ color: '#0ea5e9' }),
-              stroke: new Stroke({ color: '#ffffff', width: 2 }),
-            }),
-            text: new Text({
-              text: `✈ ${fl.callsign || ''}`,
-              font: 'bold 9px Inter, sans-serif',
-              fill: new Fill({ color: '#0c4a6e' }),
-              stroke: new Stroke({ color: '#ffffff', width: 2 }),
-              offsetY: -10,
-            }),
-          }))
-          flightsSrc.current.addFeature(feat)
-        })
-      }).catch(() => {})
-    } else {
-      flightsSrc.current.clear()
-    }
-
-    // Fires (NASA FIRMS)
-    if (intelLayers?.fires) {
-      fetch('/api/v1/map-layers/fires')
-        .then((r) => r.ok ? r.json() : null)
-        .then((res) => {
-          if (!alive) return
-          firesSrc.current.clear()
-          const hotspots: any[] = res?.hotspots || []
-          hotspots.forEach((hs) => {
-            const coord = fromLonLat([hs.longitude, hs.latitude])
-            const feat = new Feature({ geometry: new Point(coord) })
-            feat.set('intelType', 'fire')
-            feat.set('badgeText', 'HOTSPOT')
-            feat.set('badgeColor', '#ef4444')
-            feat.set('source', 'NASA FIRMS (VIIRS)')
-            feat.set('title', `Titik Panas Termal (${hs.confidence || 'nominal'})`)
-            feat.set('subtitle', `Satelit ${hs.satellite || 'VIIRS'} · ${hs.acq_date || '2026-11'}`)
-            feat.set('details', [
-              { label: 'Brightness', value: hs.brightness ? `${hs.brightness} K` : '–' },
-              { label: 'FRP (Fire Radiative Power)', value: hs.frp ? `${hs.frp} MW` : '–' },
-              { label: 'Waktu Akusisi', value: hs.acq_time ? `${hs.acq_time} UTC` : '–' },
-            ])
-            feat.setStyle(new Style({
-              image: new CircleStyle({
-                radius: 7,
-                fill: new Fill({ color: 'rgba(239, 68, 68, 0.9)' }),
-                stroke: new Stroke({ color: '#ffffff', width: 2 }),
-              }),
-              text: new Text({
-                text: '🔥',
-                font: '10px Inter, sans-serif',
-                offsetY: 0,
-              }),
-            }))
-            firesSrc.current.addFeature(feat)
-          })
-        }).catch(() => {})
-    } else {
-      firesSrc.current.clear()
-    }
-
-    // Hazards (InaRISK BNPB)
-    if (intelLayers?.hazards) {
-      fetch('/api/v1/map-layers/hazards')
-        .then((r) => r.ok ? r.json() : null)
-        .then((res) => {
-          if (!alive) return
-          hazardsSrc.current.clear()
-          const events: any[] = res?.events || []
-          events.forEach((ev) => {
-            const coord = fromLonLat([ev.longitude, ev.latitude])
-            const feat = new Feature({ geometry: new Point(coord) })
-            const color = ev.alert_level === 'red' ? '#dc2626' : ev.alert_level === 'orange' ? '#ea580c' : '#eab308'
-            feat.set('intelType', 'hazard')
-            feat.set('badgeText', `BAHAYA ${String(ev.kind || '').toUpperCase()}`)
-            feat.set('badgeColor', color)
-            feat.set('source', 'BNPB InaRISK')
-            feat.set('title', ev.title || 'Kejadian Bencana')
-            feat.set('subtitle', ev.place || 'Indonesia')
-            feat.set('details', [
-              { label: 'Tingkat Bahaya', value: String(ev.alert_level || '').toUpperCase() },
-              { label: 'Jenis', value: ev.kind === 'flood' ? 'Banjir' : ev.kind === 'landslide' ? 'Tanah Longsor' : ev.kind === 'volcano' ? 'Gunung Api' : 'Gempa Bumi' },
-              { label: 'Magnitudo / Skala', value: ev.magnitude != null ? String(ev.magnitude) : '–' },
-            ])
-            feat.setStyle(new Style({
-              image: new CircleStyle({
-                radius: 8,
-                fill: new Fill({ color }),
-                stroke: new Stroke({ color: '#ffffff', width: 2.5 }),
-              }),
-              text: new Text({
-                text: '⚠️',
-                font: '10px Inter, sans-serif',
-                offsetY: 0,
-              }),
-            }))
-            hazardsSrc.current.addFeature(feat)
-          })
-        }).catch(() => {})
-    } else {
-      hazardsSrc.current.clear()
-    }
-
-    // Wildlife (GBIF)
-    if (intelLayers?.wildlife) {
-      fetch('/api/v1/map-layers/wildlife')
-        .then((r) => r.ok ? r.json() : null)
-        .then((res) => {
-          if (!alive) return
-          wildlifeSrc.current.clear()
-          const items: any[] = res?.results || []
-          items.forEach((item) => {
-            const lat = item.decimalLatitude ?? item.latitude
-            const lon = item.decimalLongitude ?? item.longitude
-            if (lat == null || lon == null) return
-            const coord = fromLonLat([lon, lat])
-            const feat = new Feature({ geometry: new Point(coord) })
-            feat.set('intelType', 'wildlife')
-            feat.set('badgeText', 'AVES / BURUNG LIAR')
-            feat.set('badgeColor', '#059669')
-            feat.set('source', 'GBIF (Aves)')
-            feat.set('title', item.species || item.scientificName || 'Burung Liar')
-            feat.set('subtitle', item.place || item.country || 'Indonesia')
-            feat.set('details', [
-              { label: 'Nama Ilmiah', value: item.scientificName || '–' },
-              { label: 'Genus', value: item.genericName || '–' },
-              { label: 'Tanggal Observasi', value: item.eventDate ? String(item.eventDate).slice(0, 10) : '–' },
-            ])
-            feat.setStyle(new Style({
-              image: new CircleStyle({
-                radius: 6,
-                fill: new Fill({ color: '#059669' }),
-                stroke: new Stroke({ color: '#ffffff', width: 2 }),
-              }),
-              text: new Text({
-                text: '🦅',
-                font: '9px Inter, sans-serif',
-                offsetY: 0,
-              }),
-            }))
-            wildlifeSrc.current.addFeature(feat)
-          })
-        }).catch(() => {})
-    } else {
-      wildlifeSrc.current.clear()
-    }
-
-    // Vectors (iNaturalist / Entomologi)
-    if (intelLayers?.vectors) {
-      fetch('/api/v1/map-layers/vectors')
-        .then((r) => r.ok ? r.json() : null)
-        .then((res) => {
-          if (!alive) return
-          vectorsSrc.current.clear()
-          const sightings: any[] = res?.sightings || []
-          sightings.forEach((sg) => {
-            const coord = fromLonLat([sg.longitude, sg.latitude])
-            const feat = new Feature({ geometry: new Point(coord) })
-            feat.set('intelType', 'vector')
-            feat.set('badgeText', 'VEKTOR NYAMUK')
-            feat.set('badgeColor', '#7c3aed')
-            feat.set('source', 'Surveilans Vektor (iNaturalist)')
-            feat.set('title', sg.species || 'Vektor Nyamuk')
-            feat.set('subtitle', sg.place || 'Indonesia')
-            feat.set('link', sg.url)
-            feat.set('details', [
-              { label: 'Spesies', value: sg.species || '–' },
-              { label: 'Lokasi', value: sg.place || '–' },
-              { label: 'Tanggal Pengamatan', value: sg.observed_on || '–' },
-            ])
-            feat.setStyle(new Style({
-              image: new CircleStyle({
-                radius: 6,
-                fill: new Fill({ color: '#7c3aed' }),
-                stroke: new Stroke({ color: '#ffffff', width: 2 }),
-              }),
-              text: new Text({
-                text: '🦟',
-                font: '9px Inter, sans-serif',
-                offsetY: 0,
-              }),
-            }))
-            vectorsSrc.current.addFeature(feat)
-          })
-        }).catch(() => {})
-    } else {
-      vectorsSrc.current.clear()
-    }
-
+            { label: 'Arah', value: fl.heading != null ? `${fl.heading}°` : '–' },
+          ],
+        }, st))
+      })
+      if (flR.status === 'rejected' && !airports.length) report('flights', { state: 'error', message: `Sumber tidak dapat diakses (${String((flR as any).reason?.message || '').slice(0, 140)})` })
+      else report('flights', {
+        state: flights.length ? 'ok' : 'empty', count: flights.length, at: flR.status === 'fulfilled' ? flR.value?.fetched_at : undefined,
+        message: flR.status === 'rejected' ? `Posisi pesawat gagal dimuat; hanya ${airports.length} bandara ditampilkan` : flights.length ? `${flights.length} pesawat · ${airports.length} bandara` : `Tidak ada pesawat terpantau; ${airports.length} bandara ditampilkan`,
+      })
+    })
     return () => { alive = false }
-  }, [intelLayers?.flights, intelLayers?.fires, intelLayers?.hazards, intelLayers?.wildlife, intelLayers?.vectors])
+  }, [intelLayers?.flights]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    let alive = true
+    const src = firesSrc.current
+    if (!intelLayers?.fires) { src.clear(); return }
+    report('fires', { state: 'loading' })
+    getJson('/api/v1/map-layers/fires').then((res) => {
+      if (!alive) return
+      src.clear()
+      const hotspots: any[] = res?.hotspots || []
+      hotspots.forEach((hs) => {
+        const frp = Number(hs.frp || 0)
+        src.addFeature(intelFeat(hs.longitude, hs.latitude, {
+          intelType: 'fire', badgeText: 'TITIK PANAS', badgeColor: '#ef4444', source: `NASA FIRMS (${hs.satellite || 'VIIRS'})`,
+          title: `Titik panas · keyakinan ${hs.confidence || 'nominal'}`, subtitle: `${hs.acq_date || ''} ${hs.acq_time ? `${String(hs.acq_time).padStart(4, '0').replace(/(\d\d)(\d\d)/, '$1:$2')} UTC` : ''} · ${hs.daynight || ''}`,
+          details: [
+            { label: 'Suhu kecerahan', value: hs.brightness ? `${hs.brightness} K` : '–' },
+            { label: 'Daya radiasi api (FRP)', value: frp ? `${frp} MW` : '–' },
+            { label: 'Koordinat', value: `${Number(hs.latitude).toFixed(3)}, ${Number(hs.longitude).toFixed(3)}` },
+          ],
+          link: `https://firms.modaps.eosdis.nasa.gov/map/#d:24hrs;@${hs.longitude},${hs.latitude},10z`,
+        }, new Style({ image: new CircleStyle({ radius: frp > 50 ? 6 : frp > 10 ? 4.5 : 3.5, fill: new Fill({ color: frp > 50 ? 'rgba(185,28,28,0.95)' : 'rgba(239,68,68,0.85)' }), stroke: new Stroke({ color: '#fff7ed', width: 1 }) }) })))
+      })
+      done('fires', hotspots.length, res)
+    }).catch(fail('fires'))
+    return () => { alive = false }
+  }, [intelLayers?.fires]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    let alive = true
+    const src = hazardsSrc.current
+    if (!intelLayers?.hazards) { src.clear(); return }
+    report('hazards', { state: 'loading' })
+    getJson('/api/v1/map-layers/hazards').then((res) => {
+      if (!alive) return
+      src.clear()
+      const events: any[] = res?.events || []
+      events.forEach((ev) => {
+        const color = ev.alert_level === 'red' ? '#dc2626' : ev.alert_level === 'orange' ? '#ea580c' : '#eab308'
+        const jenis = KIND_LABEL[ev.kind] || 'Bencana'
+        src.addFeature(intelFeat(ev.longitude, ev.latitude, {
+          intelType: 'hazard', badgeText: jenis.toUpperCase(), badgeColor: color, source: ev.source || 'BMKG / GDACS',
+          title: ev.title || jenis, subtitle: ev.place || 'Indonesia',
+          details: [
+            { label: 'Jenis', value: jenis },
+            { label: 'Tingkat peringatan', value: ev.alert_level === 'red' ? 'Merah (tinggi)' : ev.alert_level === 'orange' ? 'Oranye (sedang)' : 'Kuning (rendah)' },
+            ...(ev.magnitude != null && ev.kind === 'earthquake' ? [{ label: 'Magnitudo', value: String(ev.magnitude) }] : []),
+            ...(ev.depth ? [{ label: 'Kedalaman', value: String(ev.depth) }] : []),
+            ...(ev.time ? [{ label: 'Waktu', value: String(ev.time).replace('T', ' ').slice(0, 19) }] : []),
+            ...(ev.potensi ? [{ label: 'Keterangan', value: String(ev.potensi) }] : []),
+          ],
+          link: ev.url,
+        }, new Style({
+          image: new CircleStyle({ radius: ev.kind === 'earthquake' ? Math.max(6, Math.min(12, (Number(ev.magnitude) || 5) * 1.6)) : 9, fill: new Fill({ color: color + 'cc' }), stroke: new Stroke({ color: '#ffffff', width: 2.5 }) }),
+          text: new Text({ text: KIND_ICON[ev.kind] || '⚠', font: '10px sans-serif', fill: new Fill({ color: '#ffffff' }) }),
+        })))
+      })
+      done('hazards', events.length, res)
+    }).catch(fail('hazards'))
+    return () => { alive = false }
+  }, [intelLayers?.hazards]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    let alive = true
+    const src = wildlifeSrc.current
+    if (!intelLayers?.wildlife) { src.clear(); return }
+    report('wildlife', { state: 'loading' })
+    getJson('/api/v1/map-layers/wildlife').then((res) => {
+      if (!alive) return
+      src.clear()
+      let n = 0
+      for (const item of res?.results || []) {
+        const lat = item.decimalLatitude ?? item.latitude, lon = item.decimalLongitude ?? item.longitude
+        if (lat == null || lon == null) continue
+        n++
+        src.addFeature(intelFeat(lon, lat, {
+          intelType: 'wildlife', badgeText: 'BURUNG LIAR', badgeColor: '#059669', source: 'GBIF (kelas Aves)',
+          title: item.species || item.scientificName || 'Burung liar', subtitle: item.place || 'Indonesia',
+          details: [{ label: 'Nama ilmiah', value: item.scientificName || '–' }, { label: 'Genus', value: item.genericName || '–' }, { label: 'Tanggal pengamatan', value: item.eventDate ? String(item.eventDate).slice(0, 10) : '–' }],
+          link: item.url,
+        }, dot('#059669', 5)))
+      }
+      done('wildlife', n, res)
+    }).catch(fail('wildlife'))
+    return () => { alive = false }
+  }, [intelLayers?.wildlife]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    let alive = true
+    const src = vectorsSrc.current
+    if (!intelLayers?.vectors) { src.clear(); return }
+    report('vectors', { state: 'loading' })
+    getJson('/api/v1/map-layers/vectors').then((res) => {
+      if (!alive) return
+      src.clear()
+      const sightings: any[] = res?.sightings || []
+      sightings.forEach((sg) => {
+        src.addFeature(intelFeat(sg.longitude, sg.latitude, {
+          intelType: 'vector', badgeText: 'VEKTOR NYAMUK', badgeColor: '#7c3aed', source: 'iNaturalist (famili Culicidae)',
+          title: sg.species || 'Nyamuk', subtitle: sg.place || 'Indonesia', link: sg.url,
+          details: [{ label: 'Nama ilmiah', value: sg.scientificName || '–' }, { label: 'Lokasi', value: sg.place || '–' }, { label: 'Tanggal pengamatan', value: sg.observed_on || '–' }],
+        }, dot('#7c3aed', 5)))
+      })
+      done('vectors', sightings.length, res)
+    }).catch(fail('vectors'))
+    return () => { alive = false }
+  }, [intelLayers?.vectors]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── aliran angin (GFS u/v lewat /wind-data) → panah arah angin ──
+  useEffect(() => {
+    let alive = true
+    const src = windSrc.current
+    windL.current?.setVisible(Boolean(windFlow))
+    if (!windFlow) { src.clear(); setWindErr(null); return }
+    getJson('/wind-data').then((res) => {
+      if (!alive) return
+      src.clear()
+      const [u, v] = Array.isArray(res) ? res : []
+      const h = u?.header
+      if (!h || !Array.isArray(u?.data) || !Array.isArray(v?.data)) throw new Error('format GFS tidak dikenali')
+      const nx = h.nx, ny = h.ny, lo1 = h.lo1, la1 = h.la1, dx = h.dx, dy = h.dy
+      const step = 3
+      for (let lat = 6; lat >= -11; lat -= step) {
+        for (let lon = 95; lon <= 141; lon += step) {
+          const ix = Math.round((((lon - lo1) % 360) + 360) % 360 / dx)
+          const iy = Math.round((la1 - lat) / dy)
+          if (ix < 0 || ix >= nx || iy < 0 || iy >= ny) continue
+          const uu = Number(u.data[iy * nx + ix]), vv = Number(v.data[iy * nx + ix])
+          if (!Number.isFinite(uu) || !Number.isFinite(vv)) continue
+          const spd = Math.sqrt(uu * uu + vv * vv)
+          const kmh = Math.round(spd * 3.6)
+          const color = spd > 10 ? '#b91c1c' : spd > 6 ? '#ea580c' : spd > 3 ? '#0d9488' : '#64748b'
+          src.addFeature(intelFeat(lon, lat, {
+            intelType: 'wind', badgeText: 'ANGIN', badgeColor: '#0d9488', source: 'GFS NOAA (via Opsroom SIPONGI)',
+            title: `${kmh} km/jam`, subtitle: `Koordinat ${lat}, ${lon}`,
+            details: [{ label: 'Kecepatan', value: `${spd.toFixed(1)} m/detik (${kmh} km/jam)` }, { label: 'Arah ke', value: `${Math.round((Math.atan2(uu, vv) * 180) / Math.PI + 360) % 360}°` }, { label: 'Waktu model', value: String(h.refTime || '–').replace('T', ' ').slice(0, 16) + ' UTC' }],
+          }, new Style({ text: new Text({ text: '➜', font: `bold ${Math.round(10 + Math.min(6, spd * 0.6))}px sans-serif`, rotation: -Math.atan2(vv, uu), fill: new Fill({ color }), stroke: new Stroke({ color: 'rgba(255,255,255,0.85)', width: 2 }) }) })))
+        }
+      }
+      setWindErr(null)
+    }).catch((e) => { if (alive) setWindErr(`Data angin tidak tersedia (${String(e?.message || e).slice(0, 80)})`) })
+    return () => { alive = false }
+  }, [windFlow]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── opasitas titik & garis batas wilayah ──
+  useEffect(() => { clL.current?.setOpacity(pointOpacity); ptL.current?.setOpacity(pointOpacity) }, [pointOpacity])
+  useEffect(() => { styleCtx.current.bounds = showBoundaries; styleCtx.current.label = metricLabel || null; choroL.current?.changed() }, [showBoundaries, metricLabel])
 
   // ── fit to scope (selected kab or whole level) ──
   const kabSel = data?.kab?.[0] ?? null
@@ -716,6 +681,7 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
     <div ref={wrap} className={fullHeight ? "relative h-full w-full overflow-hidden bg-slate-100" : "relative overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-2xs"} style={{ height: fs ? '100vh' : fullHeight ? '100%' : height }} data-testid="spasial-map" data-base={layers.base}>
       <style>{`[data-base="light"] .spasial-base canvas{filter:grayscale(1) brightness(1.08) contrast(0.88)}`}</style>
       <div ref={el} className="absolute inset-0" />
+      {windErr ? <div className="absolute left-1/2 top-28 z-30 -translate-x-1/2 rounded-lg bg-amber-50 px-3 py-1.5 text-[11px] font-bold text-amber-800">{windErr}</div> : null}
       {geoErr ? <div className="absolute left-1/2 top-20 z-30 -translate-x-1/2 rounded-lg bg-red-50 px-3 py-2 text-xs font-bold text-red-700">Batas wilayah gagal dimuat; titik tetap ditampilkan.</div> : null}
 
       {fullHeight ? (
@@ -728,7 +694,7 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
           <div className="flex min-h-0 flex-1 items-start justify-between gap-3">
             <div className="flex max-h-full flex-col gap-2 overflow-y-auto pr-0.5">
               {leftDock}
-              {showLegend ? <Legend metric={metric} cls={cls} lvLabel={lvLabel} sumber={sumber} weekly={wi >= 0} points={layers.points !== 'off'} heat={layers.heat} onClose={() => setShowLegend(false)} inline /> : null}
+              {showLegend ? <Legend metric={metric} label={metricLabel} cls={cls} lvLabel={lvLabel} sumber={sumber} weekly={wi >= 0} points={layers.points !== 'off'} heat={layers.heat} onClose={() => setShowLegend(false)} inline /> : null}
             </div>
             <div className="flex min-w-0 flex-1 flex-col items-center justify-end self-stretch pb-0.5">
               {weeks.length > 1 ? (
@@ -796,7 +762,7 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
           ) : null}
 
           {/* legend */}
-          {showLegend && !showLayers ? <Legend metric={metric} cls={cls} lvLabel={lvLabel} sumber={sumber} weekly={wi >= 0} points={layers.points !== 'off'} heat={layers.heat} onClose={() => setShowLegend(false)} /> : null}
+          {showLegend && !showLayers ? <Legend metric={metric} label={metricLabel} cls={cls} lvLabel={lvLabel} sumber={sumber} weekly={wi >= 0} points={layers.points !== 'off'} heat={layers.heat} onClose={() => setShowLegend(false)} /> : null}
 
           {/* right panel */}
           {panelOpen ? <div className="absolute bottom-3 right-3 z-30 w-[350px] max-w-[calc(100%-24px)] transition-all duration-200" style={{ top: topOffset ?? 64 }} data-testid="spasial-panel">{rightPanel}</div> : null}
@@ -908,7 +874,7 @@ function TitikPopup({ t, wi, label, weeks }: { t: Titik; wi: number; label?: str
   )
 }
 
-function Legend({ metric, cls, lvLabel, sumber, weekly, points, heat, onClose, inline = false }: { metric: Metric; cls: MapClass[]; lvLabel: string; sumber: string; weekly: boolean; points: boolean; heat: boolean; onClose: () => void; inline?: boolean }) {
+function Legend({ metric, label, cls, lvLabel, sumber, weekly, points, heat, onClose, inline = false }: { metric: Metric; label?: string; cls: MapClass[]; lvLabel: string; sumber: string; weekly: boolean; points: boolean; heat: boolean; onClose: () => void; inline?: boolean }) {
   const [col, setCol] = useState(false)
   const mt = METRICS.find((x) => x.key === metric)!
   return (
@@ -920,7 +886,7 @@ function Legend({ metric, cls, lvLabel, sumber, weekly, points, heat, onClose, i
       {!col ? (
         <div className="mt-1.5 space-y-2">
           <div>
-            <p className="font-bold text-slate-700">{mt.label} per {lvLabel}</p>
+            <p className="font-bold text-slate-700">{label || mt.label} per {lvLabel}</p>
             <ul className="mt-1 space-y-0.5">{cls.map((c) => <li key={c.label} className="flex items-center gap-1.5"><span className="h-3 w-5 rounded-[2px] border border-slate-300/70" style={{ background: c.color }} /><span className="tabular-nums">{c.label}</span></li>)}
               <li className="flex items-center gap-1.5"><span className="h-3 w-5 rounded-[2px] border border-slate-300/70" style={{ background: '#e5e7eb' }} />{metric === 'chg_minggu' ? 'Tidak ada pembanding' : metric === 'cfr' ? 'Tidak ada kasus' : 'Tidak ada data'}</li></ul>
             <p className="mt-1 leading-snug text-slate-400">{metric === 'chg_minggu' || metric === 'cfr' ? 'Ambang tetap.' : `Kelas: 0 lalu kuartil wilayah bernilai > 0${weekly ? ' (skala sama untuk semua minggu)' : ''}.`}</p>

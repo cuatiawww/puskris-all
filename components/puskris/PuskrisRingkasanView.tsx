@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import {
@@ -16,7 +16,7 @@ import { applyDerive, nf, pf } from '@/lib/puskris/derive'
 import { PUBLIC_BASE_PATH } from '@/lib/public-path'
 import type { ProvinceRow } from '@/lib/puskris/types'
 import {
-  METRIC_PILLS, buildJenisCards, centroidsFromGeo, toSpasial,
+  CHORO_OPTIONS, METRIC_PILLS, buildJenisCards, centroidsFromGeo, toSpasial,
   type Centroids, type ChoroId,
 } from '@/lib/puskris/to-spasial'
 import { toDeriveFilter, type PuskrisTab, type PuskrisUiFilter } from '@/lib/puskris/ui-filter'
@@ -26,7 +26,10 @@ import PeringatanList from '@/components/puskris/PeringatanList'
 import LiniMasaRespons from '@/components/puskris/LiniMasaRespons'
 import SectionHead from '@/components/puskris/SectionHead'
 import InfoHint from '@/components/puskris/InfoHint'
-import { EMT_LABEL, NCC_LABEL } from '@/lib/puskris/labels'
+import DampakPendudukStrip from '@/components/puskris/DampakPendudukStrip'
+import { INTEL_LAYER_APIS, type IntelLayerId } from '@/lib/puskris/open-data'
+import type { IntelLayerStatus } from '@/components/spasial/SpasialMap'
+import { EMT_LABEL, KORBAN_LABEL, NCC_LABEL } from '@/lib/puskris/labels'
 import { NASIONAL_NOTE, withQuery } from '@/lib/puskris/pages'
 import { jenisTrendSeries } from '@/lib/puskris/analisis-charts'
 import { Area, AreaChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
@@ -45,13 +48,6 @@ const SpasialMap = dynamic(() => import('@/components/spasial/SpasialMap'), {
 
 const GEO_URL = `${PUBLIC_BASE_PATH}/data/indonesia-38-provinces.geojson`
 
-const INTEGRATED_APIS = [
-  { id: 'flights', name: 'Penerbangan Domestik', icon: '✈️', desc: 'Mobilitas antarbandara & rute domestik' },
-  { id: 'fires', name: 'NASA FIRMS Hotspots', icon: '🔥', desc: 'Thermal anomaly kebakaran hutan vs ISPA' },
-  { id: 'hazards', name: 'BNPB InaRISK Bencana', icon: '🌧️', desc: 'Banjir, tanah longsor & bahaya alam' },
-  { id: 'wildlife', name: 'Satwa Liar GBIF', icon: '🦅', desc: 'Pemantauan burung liar / Avian Influenza' },
-  { id: 'vectors', name: 'Vektor Nyamuk iNat', icon: '🦟', desc: 'Surveilans entomologi Aedes & Anopheles' },
-]
 
 function Switch({ on, onChange, color = '#0f766e', label }: { on: boolean; onChange: () => void; color?: string; label: string }) {
   return (
@@ -171,7 +167,10 @@ export default function PuskrisRingkasanView({
       berdampak_krisis: kejadian.length,
       meninggal: sum('meninggal'),
       luka: sum('luka_berat') + sum('luka_ringan'),
+      luka_berat: sum('luka_berat'),
+      luka_ringan: sum('luka_ringan'),
       hilang: null,
+      korban_total: sum('korban') || (sum('meninggal') + sum('luka_berat') + sum('luka_ringan') + sum('pengungsi')),
       pengungsi: sum('pengungsi'),
       terdampak: sum('terdampak'),
       sumber: 'Agregat kejadian terbaru sesuai filter jenis (bukan KPI resmi nasional)',
@@ -197,6 +196,8 @@ export default function PuskrisRingkasanView({
   const [adminBoundaries, setAdminBoundaries] = useState(true)
   const [windFlow, setWindFlow] = useState(false)
   const [intelLayers, setIntelLayers] = useState({ flights: false, fires: false, hazards: false, wildlife: false, vectors: false })
+  const [intelStatus, setIntelStatus] = useState<Partial<Record<IntelLayerId, IntelLayerStatus>>>({})
+  const onIntelStatus = useCallback((id: IntelLayerId, st: IntelLayerStatus) => setIntelStatus((prev) => ({ ...prev, [id]: st })), [])
   const [dockTab, setDockTab] = useState<'analisa' | 'peringatan' | 'terpadu'>('analisa')
   const [radiusOn, setRadiusOn] = useState(true)
   const [selectedEvent, setSelectedEvent] = useState<any | null>(null)
@@ -229,6 +230,7 @@ export default function PuskrisRingkasanView({
     raw,
   }), [derived.rows, derived.narrative, kejadian, choro, centroids, f, logistikByCode, asistensiByCode, raw])
 
+  const choroLabel = CHORO_OPTIONS.find((o) => o.id === choro)?.label || 'Kejadian terpantau'
   const data = mapPack.data
   const titik = mapPack.titik
   const activeMetric = mapPack.metric as Metric
@@ -353,6 +355,7 @@ export default function PuskrisRingkasanView({
           {(f.provinsi || f.kabupaten) && sdm.tim == null ? <div className="mt-2 text-[10px] font-medium text-amber-800">{NASIONAL_NOTE}</div> : null}
         </Link>
       </div>
+      <DampakPendudukStrip raw={raw} situasi={situasi} f={f} />
       <p className="mt-1.5 line-clamp-1 text-[10px] leading-relaxed text-slate-400" title={footnote}>{footnote}</p>
       </section>
 
@@ -369,12 +372,31 @@ export default function PuskrisRingkasanView({
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex items-center rounded-xl bg-slate-100 p-0.5 text-xs font-bold">
               {METRIC_PILLS.map((m) => (
-                <button key={m.key} type="button" onClick={() => setPill(m.key, m.choro)}
+                <button key={`${m.key}-${m.choro}`} type="button" onClick={() => setPill(m.key, m.choro)}
                   className={`rounded-lg px-2.5 py-1 transition ${metric === m.key && choro === m.choro ? 'bg-white text-primary shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}>
                   {m.label}
                 </button>
               ))}
             </div>
+            <label className="flex items-center gap-1 text-[11px] font-bold text-slate-500">
+              <span className="sr-only">Variabel peta lainnya</span>
+              <select value={choro} onChange={(e) => {
+                  const id = e.target.value as ChoroId
+                  const pill = METRIC_PILLS.find((p) => p.choro === id)
+                  setPill((pill?.key || 'kasus') as Metric, id)
+                }}
+                className="max-w-[190px] rounded-xl border border-slate-200 bg-white px-2 py-1 text-xs font-bold text-slate-700 focus:border-primary focus:outline-none"
+                title="Pilih variabel arsiran peta" data-testid="peta-variabel-select">
+                {Array.from(new Set(CHORO_OPTIONS.map((o) => o.group))).map((g) => (
+                  <optgroup key={g} label={g}>
+                    {CHORO_OPTIONS.filter((o) => o.group === g).map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+                  </optgroup>
+                ))}
+              </select>
+              {choro === 'luka_berat' || choro === 'luka_ringan' || choro === 'hilang' ? (
+                <InfoHint text={`${choro === 'luka_berat' ? KORBAN_LABEL.lbHint : choro === 'luka_ringan' ? KORBAN_LABEL.lrHint : KORBAN_LABEL.hilangHint} Sebaran per provinsi memakai jumlah kumulatif semua tahun karena sumber belum merilis rincian 2026 per provinsi.`} label="Penjelasan variabel peta" />
+              ) : null}
+            </label>
             <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">{periodeLabel(f)}</span>
             <div className="flex items-center gap-1.5 border-l border-slate-200 pl-2">
               <button type="button" onClick={() => setLeftDockOpen(!leftDockOpen)}
@@ -420,6 +442,7 @@ export default function PuskrisRingkasanView({
                     onClear={() => { setSel(null); setSelectedEvent(null) }}
                     className="h-full rounded-none border-none bg-slate-50/70 shadow-none"
                     closeIcon="left"
+                    metricLabel={choroLabel}
                   />
                 )}
                 {dockTab === 'peringatan' && (
@@ -479,6 +502,11 @@ export default function PuskrisRingkasanView({
               fullHeight={true}
               rightPanel={null}
               intelLayers={intelLayers}
+              onIntelStatus={onIntelStatus as any}
+              pointOpacity={pointOpacity}
+              showBoundaries={adminBoundaries}
+              windFlow={windFlow}
+              metricLabel={choroLabel}
               radiusSupport={{ enabled: radiusOn && Boolean(radiusCenter), center: radiusCenter, ringsKm: [50, 100, 200] }}
             />
           </div>
@@ -551,22 +579,33 @@ export default function PuskrisRingkasanView({
                   </div>
 
                   <div>
-                    <div className="mb-2 text-[10px] font-black uppercase tracking-wider text-slate-400">API Intelijen Eksternal</div>
+                    <div className="mb-2 flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-slate-400">
+                      <span>API Intelijen Eksternal</span>
+                      <Link href="/dashboard/open-data" className="normal-case tracking-normal text-primary hover:underline">Lihat Open Data</Link>
+                    </div>
                     <div className="space-y-1.5">
-                      {INTEGRATED_APIS.map((api) => {
+                      {INTEL_LAYER_APIS.map((api) => {
                         const active = Boolean((intelLayers as any)[api.id])
+                        const st = intelStatus[api.id]
                         return (
                           <div key={api.id}
                             className={`cursor-pointer rounded-xl border p-2 transition ${active ? 'border-teal-300 bg-teal-50/50' : 'border-slate-100 bg-white hover:border-slate-200'}`}
-                            onClick={() => setIntelLayers((prev) => ({ ...prev, [api.id]: !(prev as any)[api.id] }))}>
+                            onClick={() => setIntelLayers((prev) => ({ ...prev, [api.id]: !(prev as any)[api.id] }))}
+                            data-testid={`intel-${api.id}`}>
                             <div className="flex items-center justify-between">
-                              <span className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
-                                <span>{api.icon}</span><span className="truncate">{api.name}</span>
+                              <span className="flex min-w-0 items-center gap-1.5 text-xs font-bold text-slate-800">
+                                <span>{api.icon}</span><span className="truncate">{api.nama}</span>
                               </span>
-                              <Switch on={active} color="#00705a" label={api.name}
+                              <Switch on={active} color="#00705a" label={api.nama}
                                 onChange={() => setIntelLayers((prev) => ({ ...prev, [api.id]: !(prev as any)[api.id] }))} />
                             </div>
-                            <p className="mt-0.5 text-[10px] leading-tight text-slate-500">{api.desc}</p>
+                            <p className="mt-0.5 line-clamp-2 text-[10px] leading-tight text-slate-500">{api.deskripsi}</p>
+                            {active && st ? (
+                              <p className={`mt-1 text-[10px] font-bold leading-tight ${st.state === 'error' ? 'text-red-700' : st.state === 'empty' ? 'text-amber-700' : st.state === 'loading' ? 'text-slate-500' : 'text-emerald-700'}`} data-testid={`intel-status-${api.id}`}>
+                                {st.state === 'loading' ? 'Memuat data langsung…' : st.state === 'error' ? st.message : st.message || `${(st.count || 0).toLocaleString('id-ID')} titik dimuat`}
+                                {st.at && st.state !== 'error' ? <span className="font-medium text-slate-400"> · {st.at}</span> : null}
+                              </p>
+                            ) : null}
                           </div>
                         )
                       })}
@@ -581,7 +620,7 @@ export default function PuskrisRingkasanView({
                           <Layers className="mt-0.5 h-4 w-4 shrink-0 text-slate-600" />
                           <div>
                             <span className="block text-xs font-bold text-slate-800">Batas Administrasi</span>
-                            <span className="block text-[10px] leading-tight text-slate-500">Lapisan GeoJSON provinsi dan kabupaten/kota Indonesia</span>
+                            <span className="block text-[10px] leading-tight text-slate-500">Garis batas provinsi dan kabupaten/kota (GeoJSON) di atas arsiran</span>
                           </div>
                         </div>
                         <input type="checkbox" checked={adminBoundaries} onChange={(e) => setAdminBoundaries(e.target.checked)} className="mt-1 h-4 w-4 cursor-pointer rounded border-slate-300 text-teal-700 focus:ring-teal-500" />
@@ -591,7 +630,7 @@ export default function PuskrisRingkasanView({
                           <Wind className="mt-0.5 h-4 w-4 shrink-0 text-slate-600" />
                           <div>
                             <span className="block text-xs font-bold text-slate-800">Aliran Angin</span>
-                            <span className="block text-[10px] leading-tight text-slate-500">Animasi arah angin sebagai konteks risiko</span>
+                            <span className="block text-[10px] leading-tight text-slate-500">Panah arah &amp; kecepatan angin model GFS (NOAA) sebagai konteks sebaran asap/abu</span>
                           </div>
                         </div>
                         <input type="checkbox" checked={windFlow} onChange={(e) => setWindFlow(e.target.checked)} className="mt-1 h-4 w-4 cursor-pointer rounded border-slate-300 text-teal-700 focus:ring-teal-500" />
@@ -602,7 +641,7 @@ export default function PuskrisRingkasanView({
                   <div>
                     <div className="mb-2 text-[10px] font-black uppercase tracking-wider text-slate-400">Peta Dasar</div>
                     <div className="grid grid-cols-2 gap-2">
-                      {[{ id: 'osm', label: 'OSM' }, { id: 'none', label: 'Medan' }, { id: 'satellite', label: 'Satelit' }, { id: 'light', label: 'Terang' }].map((b) => (
+                      {[{ id: 'osm', label: 'OpenStreetMap' }, { id: 'terrain', label: 'Medan' }, { id: 'satellite', label: 'Satelit' }, { id: 'light', label: 'Terang' }].map((b) => (
                         <button key={b.id} type="button" onClick={() => setLayers({ ...layers, base: b.id as any })}
                           className={`rounded-xl border px-3 py-2 text-left text-xs font-bold transition ${layers.base === b.id ? 'border-teal-700 bg-teal-50/70 text-teal-800 shadow-2xs ring-1 ring-teal-700/30' : 'border-slate-200 bg-slate-50/60 text-slate-600 hover:border-slate-300 hover:bg-white'}`}>
                           {b.label}
@@ -624,6 +663,7 @@ export default function PuskrisRingkasanView({
                       setAdminBoundaries(true)
                       setWindFlow(false)
                       setIntelLayers({ flights: false, fires: false, hazards: false, wildlife: false, vectors: false })
+                      setIntelStatus({})
                       setRadiusOn(true)
                       setPill('kasus', 'kejadian')
                     }}

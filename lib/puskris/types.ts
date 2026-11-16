@@ -36,6 +36,10 @@ export type ProvinceRow = {
   meninggal: number
   pengungsi: number
   terdampak: number
+  /** Kumulatif semua tahun (sumber belum merilis rincian 2026 per provinsi). */
+  lukaBeratKum: number
+  lukaRinganKum: number
+  hilangKum: number
   panggilan: number
   pscTotal: number
   pscAktif: number

@@ -29,9 +29,9 @@ function Curve({ rows, h = 120 }: { rows: { label: string; kasus: number; alert?
 
 const chgCls = (v: number | null) => (v === null ? 'text-slate-400' : v > 0 ? 'text-red-600' : v < 0 ? 'text-emerald-600' : 'text-slate-500')
 
-export default function SpasialPanel({ f, data, titik, metric, selected, onPickArea, onPickTitik, onClose, onClear, className, closeIcon = 'right' }: {
+export default function SpasialPanel({ f, data, titik, metric, selected, onPickArea, onPickTitik, onClose, onClear, className, closeIcon = 'right', metricLabel }: {
   f: AFilter; data: SpasialResp | null; titik: Titik[]; metric: Metric; selected: Area | null
-  onPickArea: (a: Area) => void; onPickTitik: (t: Titik) => void; onClose: () => void; onClear: () => void; className?: string; closeIcon?: 'left' | 'right'
+  onPickArea: (a: Area) => void; onPickTitik: (t: Titik) => void; onClose: () => void; onClear: () => void; className?: string; closeIcon?: 'left' | 'right'; metricLabel?: string
 }) {
   const [tab, setTab] = useState<Tab>('ringkasan')
   const [hs, setHs] = useState<'wilayah' | 'unit'>('wilayah')
@@ -110,7 +110,7 @@ export default function SpasialPanel({ f, data, titik, metric, selected, onPickA
         {data && tab === 'hotspot' ? (
           <section className="rounded-xl border border-slate-200 bg-white p-3" data-testid="spasial-hotspot">
             <div className="mb-2 flex items-center justify-between gap-2">
-              <p className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wide text-slate-500">Hotspot<InfoTip text={`Peringkat menurut indikator warna peta (${mt.label}). Perubahan dihitung hanya untuk wilayah dengan ≥ 5 kasus minggu ini; CFR hanya untuk wilayah dengan ≥ 20 kasus. Unit pelapor diurutkan menurut kasus.`} /></p>
+              <p className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wide text-slate-500">Hotspot<InfoTip text={`Peringkat menurut indikator warna peta (${(metricLabel || mt.label)}). Perubahan dihitung hanya untuk wilayah dengan ≥ 5 kasus minggu ini; CFR hanya untuk wilayah dengan ≥ 20 kasus. Unit pelapor diurutkan menurut kasus.`} /></p>
               <Seg value={hs} onChange={(v) => setHs(v)} options={[{ value: 'wilayah', label: lvLabel }, { value: 'unit', label: 'Unit pelapor' }]} testId="spasial-hotspot-jenis" />
             </div>
             {hs === 'wilayah' ? (

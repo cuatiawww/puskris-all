@@ -22,11 +22,6 @@ if (backend) {
 const nextConfig = {
   output: process.env.VERCEL ? undefined : 'standalone',
   basePath: process.env.NEXT_PUBLIC_BASE_PATH || '',
-  // PR 040: hide bottom-left Next.js DevTools "Static route" & build indicators in dev-mode containers
-  devIndicators: {
-    appIsrStatus: false,
-    buildActivity: false,
-  },
   experimental: {
     proxyTimeout: 90_000,
   },

@@ -20,6 +20,7 @@ import Point from 'ol/geom/Point'
 import LineString from 'ol/geom/LineString'
 import { Circle as CircleStyle, Fill, Stroke, Style, Text } from 'ol/style'
 import { fromLonLat } from 'ol/proj'
+import { circular } from 'ol/geom/Polygon'
 import { boundingExtent, createEmpty, extend, isEmpty } from 'ol/extent'
 import type { FeatureLike } from 'ol/Feature'
 import 'ol/ol.css'
@@ -63,6 +64,12 @@ export interface ExternalIntelLayers {
   vectors?: boolean
 }
 
+export type RadiusSupport = {
+  enabled: boolean
+  center: { lat: number; lon: number } | null
+  ringsKm?: number[]
+}
+
 type Popup =
   | { kind: 'area'; area: Area }
   | { kind: 'titik'; t: Titik }
@@ -90,12 +97,13 @@ export interface MapHudCtrl {
   setShowLayers: (v: boolean) => void
 }
 
-export default function SpasialMap({ data, titik, metric, setMetric, layers, setLayers, choroCfg, sumber, selectedId, onSelectArea, onDrill, onUp, focus, rightPanel, panelOpen, setPanelOpen, height = 680, fullHeight = false, topHud, leftDock, topOffset, hideDefaultToolbar = false, intelLayers }: {
+export default function SpasialMap({ data, titik, metric, setMetric, layers, setLayers, choroCfg, sumber, selectedId, onSelectArea, onDrill, onUp, focus, rightPanel, panelOpen, setPanelOpen, height = 680, fullHeight = false, topHud, leftDock, topOffset, hideDefaultToolbar = false, intelLayers, radiusSupport }: {
   data: SpasialResp | null; titik: Titik[]; metric: Metric; setMetric: (m: Metric) => void; layers: Layers; setLayers: (l: Layers) => void
   choroCfg: ChoroConfig | null; sumber: string; selectedId: number | null; onSelectArea: (a: Area | null) => void; onDrill: (a: Area) => void; onUp: (() => void) | null
   focus: Focus | null; rightPanel: ReactNode; panelOpen: boolean; setPanelOpen: (v: boolean) => void; height?: number
   fullHeight?: boolean; topHud?: ReactNode | ((ctrl: MapHudCtrl) => ReactNode); leftDock?: ReactNode; topOffset?: number; hideDefaultToolbar?: boolean
   intelLayers?: ExternalIntelLayers
+  radiusSupport?: RadiusSupport
 }) {
   const wrap = useRef<HTMLDivElement>(null)
   const el = useRef<HTMLDivElement>(null)
@@ -117,12 +125,14 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
   const hazardsSrc = useRef(new VectorSource())
   const wildlifeSrc = useRef(new VectorSource())
   const vectorsSrc = useRef(new VectorSource())
+  const radiusSrc = useRef(new VectorSource())
 
   const flightsL = useRef<VectorLayer<any> | null>(null)
   const firesL = useRef<VectorLayer<any> | null>(null)
   const hazardsL = useRef<VectorLayer<any> | null>(null)
   const wildlifeL = useRef<VectorLayer<any> | null>(null)
   const vectorsL = useRef<VectorLayer<any> | null>(null)
+  const radiusL = useRef<VectorLayer<any> | null>(null)
   const styleCtx = useRef<{ byCode: Record<string, Area>; cls: MapClass[]; wi: number; metric: Metric; sel: number | null; hover: string | null; op: number; maxK: number }>({ byCode: {}, cls: [], wi: -1, metric: 'kasus', sel: null, hover: null, op: 0.78, maxK: 1 })
   const onSelectRef = useRef(onSelectArea)
   onSelectRef.current = onSelectArea
@@ -202,6 +212,16 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
     hazardsL.current = new VectorLayer({ source: hazardsSrc.current, zIndex: 12 })
     wildlifeL.current = new VectorLayer({ source: wildlifeSrc.current, zIndex: 13 })
     vectorsL.current = new VectorLayer({ source: vectorsSrc.current, zIndex: 14 })
+    radiusL.current = new VectorLayer({
+      source: radiusSrc.current,
+      zIndex: 15,
+      style: (f) => {
+        const km = Number(f.get('km') || 0)
+        const fill = km <= 50 ? 'rgba(13,107,103,0.10)' : km <= 100 ? 'rgba(217,119,6,0.08)' : 'rgba(190,18,60,0.07)'
+        const stroke = km <= 50 ? '#0D6B67' : km <= 100 ? '#d97706' : '#be123c'
+        return new Style({ fill: new Fill({ color: fill }), stroke: new Stroke({ color: stroke, width: 2, lineDash: [6, 4] }) })
+      },
+    })
 
     overlay.current = new Overlay({ element: popNode!, positioning: 'bottom-center', offset: [0, -12], stopEvent: true, autoPan: { animation: { duration: 200 }, margin: 60 } })
     const m = new OlMap({
@@ -217,6 +237,7 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
         hazardsL.current,
         wildlifeL.current,
         vectorsL.current,
+        radiusL.current,
       ],
       overlays: [overlay.current],
       view: new View({ center: fromLonLat([118, -2.5]), zoom: 4.6, minZoom: 3.5, maxZoom: 17 }),
@@ -288,6 +309,24 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
     ro.observe(el.current)
     return () => { document.removeEventListener('fullscreenchange', onFs); ro.disconnect(); m.setTarget(undefined); map.current = null }
   }, [])
+
+
+  // ── radius dukungan (lingkaran 50/100/200 km) ──
+  useEffect(() => {
+    const src = radiusSrc.current
+    src.clear()
+    const on = Boolean(radiusSupport?.enabled && radiusSupport.center)
+    if (radiusL.current) radiusL.current.setVisible(on)
+    if (!on || !radiusSupport?.center) return
+    const rings = radiusSupport.ringsKm?.length ? radiusSupport.ringsKm : [50, 100, 200]
+    const { lon, lat } = radiusSupport.center
+    for (const km of rings) {
+      const geom = circular([lon, lat], km * 1000, 64).transform('EPSG:4326', 'EPSG:3857')
+      const f = new Feature({ geometry: geom })
+      f.set('km', km)
+      src.addFeature(f)
+    }
+  }, [radiusSupport?.enabled, radiusSupport?.center?.lat, radiusSupport?.center?.lon, radiusSupport?.ringsKm])
 
   // ── base map ──
   useEffect(() => { if (!tile.current) return; tile.current.setVisible(layers.base !== 'none'); if (layers.base !== 'none') tile.current.setSource(baseSource(layers.base)) }, [layers.base])

@@ -367,7 +367,7 @@ export async function validateServerSession(): Promise<{ valid: boolean; user?: 
   }
 
   try {
-    const basePath = (PUBLIC_BASE_PATH || "/nlp").replace(/\/$/, "");
+    const basePath = (PUBLIC_BASE_PATH ?? '').replace(/\/$/, "");
     const res = await fetch(`${basePath}/api/auth/session`, {
       method: "GET",
       headers: authHeaders(),
@@ -426,7 +426,7 @@ export function clearAuthSession() {
 }
 
 export function logout() {
-  const basePath = (PUBLIC_BASE_PATH || "/nlp").replace(/\/$/, "");
+  const basePath = (PUBLIC_BASE_PATH ?? '').replace(/\/$/, "");
   const token = getToken();
   clearAuthSession();
   if (token) {

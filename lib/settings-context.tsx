@@ -62,7 +62,10 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       if (res.ok) {
         const json = await res.json();
         if (json.success && json.data?.config_data) {
-          const config = json.data.config_data;
+          const config = { ...json.data.config_data };
+          if (typeof config.sidebar_logo_url === 'string') config.sidebar_logo_url = config.sidebar_logo_url.replace(/^\/nlp\//, '/');
+          if (typeof config.login_logo_url === 'string') config.login_logo_url = config.login_logo_url.replace(/^\/nlp\//, '/');
+          if (typeof config.favicon_url === 'string') config.favicon_url = config.favicon_url.replace(/^\/nlp\//, '/');
           const navMenu = Array.isArray(config.navigation_menu) && config.navigation_menu.length > 0
             ? config.navigation_menu
             : DEFAULT_SETTINGS.navigation_menu;

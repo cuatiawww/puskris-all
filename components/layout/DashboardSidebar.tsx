@@ -48,7 +48,8 @@ export default function DashboardSidebar({ open, collapsed, menuGroups, match, o
     if (match.sub) setItemOpen((p) => ({ ...p, [ik(match.item)]: true }));
   }, [match]);
 
-  const logoSrc = settings.sidebar_logo_url || `${PUBLIC_BASE_PATH}/Logo-Kemenkes.png`;
+  const rawLogo = settings.sidebar_logo_url || `${PUBLIC_BASE_PATH}/Logo-Kemenkes.png`;
+  const logoSrc = rawLogo.replace(/^\/nlp\//, '/');
   const appTitle = settings.app_name || tr("skdr.layout.appName");
   const appSubtitle = settings.app_tagline || tr("skdr.layout.appTagline");
   // icon-only applies to the desktop rail only; the mobile drawer is always full width

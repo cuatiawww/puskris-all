@@ -1,28 +1,85 @@
-# Ringkasan Pusat Krisis Kesehatan
+# Dasbor Ringkasan Pusat Krisis Kesehatan
 
-Halaman `/dashboard/ringkasan` adalah dasbor agregat statis yang menyatukan tujuh sumber kesiapsiagaan dan respons krisis. Semua angka berasal dari `data/puskris-data.json` (mode statis, snapshot 16 November 2026, 11.00 WIB). Tidak ada pemanggilan API live.
+Halaman `/dashboard/ringkasan` memakai layout Ringkasan SKDR: judul dan tombol Sembunyikan Filter, pil tab, panel filter kiri, empat kartu KPI, slider jenis kejadian, lalu satu peta SpasialMap (komponen yang sama dengan dasbor SKDR).
 
-## Sumber dan variabel
+## Sumber data
 
-| Sumber | Variabel utama di Ringkasan | Catatan filter |
-| --- | --- | --- |
-| EOC resmi (Pantauan Bencana) | Kejadian terpantau, berdampak krisis, meninggal, luka, pengungsi, penduduk terdampak, tren bulanan | KPI resmi nasional untuk tahun 2026 dan Oktober 2026. Jika provinsi dipilih, angka memakai agregat marker 2026 (bukan KPI resmi). Filter 7/30 hari hanya memengaruhi tabel kejadian. |
-| Marker EOC (Vercel) | Peta beban per provinsi, tabel kejadian krisis terbaru, kab/kota | Dipakai untuk sebaran 38 provinsi dan daftar kejadian. |
-| PSC 119 | Panggilan, pangsa emergency, waktu respons, PSC aktif, armada dan kondisi ambulans | Snapshot kumulatif; filter periode sumber belum tersedia. Peta dan KPI per provinsi tersedia. `total_panggilan` tidak boleh dicampur dengan `total_bencana` EOC. |
-| NCC Panggilan | SCR (ACD/COF), tren harian November 2026 | Nasional saja. Filter 7/30 hari dan Oktober memotong hari yang tersedia. Oktober tidak punya data NCC (NCC hanya November). |
-| Tenaga Cadangan Kesehatan | Individu, nakes, non-nakes, tim, EMT, pertumbuhan bulan berjalan | Tim dan EMT hanya nasional. Peta individu per provinsi tersedia. |
-| Logistik (SIMLOGKES) | Stok, penerimaan, pengeluaran, rincian 11 regional | Bukan 38 provinsi. Jika provinsi yang dipilih bukan salah satu 11 regional, stok ditandai kosong. |
-| Asistensi Risiko | Cakupan pengisian kapasitas provinsi (5/38 = 13,2%) dan kab/kota (77/514 = 15,0%), status Tinggi/Sedang/Rendah/Belum mengisi, dua contoh wilayah | Snapshot manual; sumber butuh login. Peta koroplek per provinsi tidak ditampilkan karena nilai per wilayah tidak tersedia secara lengkap. Tahun 2026. |
+Semua angka berasal dari berkas statis `data/puskris-data.json` (snapshot 16 November 2026, Asia/Jakarta). Filter dihitung ulang di klien; API `GET /api/puskris/ringkasan` hanya mengembalikan JSON itu. Variabel di bawah ini diambil dari apa yang benar-benar tampil di masing-masing dasbor sumber.
 
-Tautan sumber: PSC `https://psc.kemkes.go.id/dashboard`, Ambulans `https://psc.kemkes.go.id/dashboard/dashboard-ambulans`, NCC `https://psc.kemkes.go.id/dashboard/dashboard-ncc`, TCK `https://tenagacadangankesehatan.kemkes.go.id/web/site/dashboard-tck`, EOC `https://pusatkrisis.kemkes.go.id/dashboard-new` dan `https://dashboard-eoc.vercel.app/dashboard-eoc/`, Logistik `https://pusatkrisis.kemkes.go.id/logistik/site/landing-page`, Asistensi provinsi dan kab/kota di Pusat Krisis (butuh login).
+## Filter
 
-## Indeks kesenjangan
+Panel samping memuat Sumber/Pilar, Periode (tahun 2026, Oktober 2026, 30 hari, 7 hari), Provinsi, Kabupaten/Kota, dan Jenis Kejadian. Tombol Terapkan membarui KPI, peta, slider, grafik, dan tabel.
 
-Indeks Kesenjangan = skor beban dinormalisasi (0–1, rata-rata min-max kejadian 2026, krisis 2026, meninggal 2026, pengungsi 2026, dan penduduk terdampak 2026) dikurangi skor kapasitas dinormalisasi (0–1, rata-rata min-max PSC aktif, armada ambulans, dan tenaga cadangan individu). Nilai mendekati +1 berarti beban tinggi dengan kapasitas relatif rendah. Perhitungan memakai angka absolut, bukan per 10.000 penduduk, karena data penduduk resmi belum masuk ke berkas statis.
+- Panggilan PSC bersifat kumulatif dan tidak mengikuti filter periode.
+- Data NCC hanya ada untuk November 2026; filter 7/30 hari memotong rentang itu.
+- KPI EOC resmi memakai angka tahun atau Oktober. Filter 7/30 hari hanya memengaruhi tabel kejadian, titik peta, dan tren NCC.
+- Jika provinsi, kabupaten, atau jenis kejadian dipilih, kartu Kejadian Krisis memakai agregat kejadian terbaru yang terfilter, bukan KPI resmi nasional.
 
-## Batasan
+## Empat kartu KPI
 
-- Data pribadi dari API sumber (nama, telepon, pelat, dan sejenisnya) tidak masuk ke berkas statis maupun tampilan.
-- Angka Asistensi adalah snapshot manual bertanggal 16 November 2026, diberi label "snapshot manual, sumber butuh login".
-- Filter kab/kota hanya memengaruhi tabel kejadian, bukan peta atau KPI nasional.
-- Mode TV dan halaman turunan ketujuh dasbor sumber belum dirampungkan pada tahap ini; menu Dasbor Sumber membuka dasbor asli di tab baru.
+1. Kejadian Krisis — jumlah kejadian terpantau, dengan sub-baris “x berdampak krisis”.
+2. Panggilan 119 — total panggilan, dengan sub-baris tingkat keberhasilan layanan dan porsi darurat.
+3. Kapasitas Respons — dua angka: PSC aktif dan ambulans.
+4. Kesiapsiagaan SDM — dua angka: individu TCK dan tim, plus sub-baris Tim Medis Darurat (EMT).
+
+Catatan keterbatasan data dikumpulkan dalam satu catatan kaki, bukan lencana pada kartu.
+
+## Peta
+
+Komponen yang sama dengan “Peta Spasial Klaster Surveilans Nasional” di dasbor SKDR (`SpasialMap` + `SpasialPanel`):
+
+- Header: judul, pil variabel (Kejadian / Korban / Pengungsi / Layanan 119 / Kapasitas), chip periode, tombol Analisa Wilayah dan Pengaturan Lapisan.
+- Panel kiri: tab Ringkasan (narasi + kurva bulanan + perbandingan bulan), Hotspot, Detail wilayah.
+- Legenda yang bisa dilipat (kelas arsiran, warna status titik, catatan klaster).
+- Klaster titik berwarna dan arsiran provinsi.
+- Panel kanan “Pengaturan Peta & Lapisan”: toggle titik/arsiran + opasitas, API eksternal (Penerbangan, NASA FIRMS, BNPB InaRISK, GBIF, iNat), batas administrasi, aliran angin, peta dasar, dan “Atur Ulang Pengaturan Lapisan”.
+- Slider waktu di bawah peta, dengan tombol putar, mengikuti tren bulanan nasional 2026. Arsiran per provinsi tetap angka tahunan karena sumber tidak merilis deret bulanan per wilayah.
+- Titik diletakkan di pusat provinsi (daftar kejadian belum punya koordinat tepat).
+
+## Agregat per dasbor sumber
+
+Tab di bawah peta menampilkan variabel yang sama dengan dasbor aslinya:
+
+- **Krisis Kesehatan / EOC** — terpantau vs berdampak krisis, meninggal, luka berat (LB/RI), luka ringan (LR/RJ), pengungsi, terdampak, pembagian Alam/Non alam/Sosial, 5 provinsi teratas, tren bulanan dan 5 tahun.
+- **PSC** — total panggilan, darurat / non-darurat / non-kategori, per jenis dan spesifikasi, provinsi teratas, waktu respons, jumlah PSC aktif/total.
+- **Ambulans** — gawat darurat vs transport, kondisi baik/rusak, unit ber-GPS.
+- **NCC Panggilan** — tren panggilan masuk, terjawab, tak terjawab, dan tingkat keberhasilan layanan.
+- **Tenaga Cadangan** — individu / tim / Tim Medis Darurat (EMT), nakes vs non-nakes, sebaran provinsi, delta bulan berjalan. Pengalaman dan pelatihan tidak ada di snapshot.
+- **Logistik** — stok, penerimaan, pengeluaran, matriks 11 regional × Obat / Sarpras / Alkes / BMHP.
+- **Asistensi Risiko** — status kapasitas dan kelengkapan modul di provinsi dan kab/kota (snapshot manual, sumber butuh login).
+
+Tab Ringkasan Utama menampilkan gabungan semua blok itu. Tab lain memfokuskan satu kelompok sumber.
+
+## Slider jenis kejadian
+
+“Ringkasan per Jenis Kejadian/Bencana” meniru carousel penyakit SKDR. Pada filter nasional tahun 2026, jumlah kejadian memakai angka resmi `jenis_2026`. Korban dan pengungsi diambil dari kejadian terbaru bila ada. Klik kartu memasang filter jenis.
+
+
+## Fitur integrasi (satu kejadian, banyak sumber)
+
+1. **Kartu Kejadian Terpadu** — klik provinsi atau titik kejadian untuk membuka panel yang menyatukan korban/pengungsi EOC, panggilan 119 PSC, armada ambulans, TCK, stok logistik regional, dan status Asistensi.
+2. **Indeks Kesenjangan Respons (0–100)** — bisa dipilih sebagai arsiran peta (warna merah = kesenjangan tinggi).
+   - Beban = rata-rata normalisasi min-max dari kejadian terpantau, meninggal, dan pengungsi.
+   - Kapasitas = rata-rata normalisasi PSC aktif, ambulans baik, dan TCK individu. Stok regional hanya dihitung di 11 regional yang ada datanya; poin Asistensi hanya di wilayah yang ada di snapshot (saat ini dua contoh). Indikator yang kosong tidak diisi angka rekaan, melainkan dihilangkan dari rata-rata wilayah itu.
+   - Indeks = ((beban − kapasitas + 1) / 2) × 100.
+3. **Radius Dukungan** — toggle di Pengaturan Peta & Lapisan menampilkan lingkaran 50/100/200 km. Jumlah PSC, ambulans, TCK, dan gudang dihitung dari pusat provinsi. Koordinat fasilitas memakai **data contoh** (pusat provinsi) karena sumber belum menyediakan lokasi persis.
+4. **Lini Masa Respons** — kurva 14 hari: waktu kejadian, korban/pengungsi, dan panggilan 119. Bila tanggal tidak ada di NCC, panggilan memakai **data contoh**.
+5. **Peringatan Otomatis** — tab Peringatan di panel kiri: lonjakan panggilan masuk di atas 1,5× rata-rata, stok regional menipis plus jejak kejadian, kesenjangan ≥ 70, serta provinsi berisiko tinggi menurut Indeks Risiko Bencana Indonesia yang belum mengisi Asistensi (**data contoh** IRBI).
+6. **Narasi Otomatis** — satu paragraf di atas kartu KPI, mengikuti filter aktif.
+
+Semua blok ini dihitung ulang saat filter periode, provinsi, kab/kota, atau jenis kejadian berubah.
+
+
+## Heatmap dinamik
+
+Bagian heatmap di Ringkasan memakai grid bergaya heatmap zoonosis SKDR (sel berwarna, legenda, tooltip, judul section besar) dengan menu pilihan tampilan:
+
+1. Provinsi × Bulan — jumlah kejadian krisis (baku). Sumber: jejak marker kejadian; angka resmi bulanan bersifat nasional dan tidak dipecah.
+2. Provinsi × Jenis kejadian — jejak marker, mengikuti filter.
+3. Hari × Jam (interval 30 menit) — panggilan masuk 119, untuk melihat jam sibuk. Pembagian interval memakai **data contoh** dari total harian resmi dan jam tersibuk yang tercatat, karena rincian interval belum ada di berkas statis.
+4. Provinsi × Pilar kesiapsiagaan (PSC, ambulans layak, Tenaga Cadangan, logistik, Asistensi) dinormalisasi sebagai kesenjangan. Sel kosong = data tidak tersedia. Asistensi per wilayah terbatas, bertanda **data contoh**.
+5. Regional × Kategori logistik (Obat / Sarpras / Alkes / BMHP) — stok resmi 11 regional.
+
+## Bahasa antarmuka
+
+Singkatan NCC tidak dipakai di tampilan. Dipakai: Panggilan Masuk, Panggilan Terjawab, Panggilan Tak Terjawab (ditutup penelepon), dan Tingkat Keberhasilan Layanan (%) (terjawab ÷ masuk × 100%). "GADAR" ditulis Gawat Darurat, "EMT" ditulis Tim Medis Darurat (EMT), dan IRBI dijelaskan sebagai Indeks Risiko Bencana Indonesia dengan keterangan.

@@ -43,7 +43,14 @@ export type ProvinceRow = {
   tck: number
   tckNakes: number
   tckNonNakes: number
+  ambulansBaik: number
+  ambulansRusakRingan: number
+  ambulansRusakBerat: number
+  ambulansGps: number
+  stok: number | null
+  asistensiPct: number | null
   beban: number
   kapasitas: number
   kesenjangan: number
+  indeksRespons: number
 }

@@ -41,7 +41,8 @@ export default function DashboardHeader({
   const { t } = useTranslation();
   const { settings } = useSettings();
 
-  const logoSrc = settings.sidebar_logo_url || `${PUBLIC_BASE_PATH}/Logo-Kemenkes.png`;
+  const rawLogo = settings.sidebar_logo_url || `${PUBLIC_BASE_PATH}/Logo-Kemenkes.png`;
+  const logoSrc = rawLogo.replace(/^\/nlp\//, '/');
   
 
   const appTitle = title ? title : consoleMode

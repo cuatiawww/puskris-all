@@ -52,28 +52,49 @@ export function applyDerive(data: any, filter: PuskrisFilter) {
       tck: Number(t.individu || 0),
       tckNakes: Number(t.nakes || 0),
       tckNonNakes: Number(t.non_nakes || 0),
+      ambulansBaik: Number(p.ambulans_baik || 0),
+      ambulansRusakRingan: Number(p.ambulans_rusak_ringan || 0),
+      ambulansRusakBerat: Number(p.ambulans_rusak_berat || 0),
+      ambulansGps: Number(p.ambulans_gps || 0),
+      stok: null,
+      asistensiPct: null,
       beban: 0,
       kapasitas: 0,
       kesenjangan: 0,
+      indeksRespons: 0,
     }
   })
 
+  const logBy = Object.fromEntries((data.logistik?.regional || []).map((r) => [r.code, Number(r.total || 0)]))
+  const asisBy = Object.fromEntries((data.asistensi?.contoh_wilayah || [])
+    .filter((x) => x.level === 'provinsi')
+    .map((x) => [String(x.kode_wilayah).padStart(2, '0'), Number(x.poin_kapasitas_pct)]))
+  rows = rows.map((r) => ({ ...r, stok: logBy[r.code] ?? null, asistensiPct: asisBy[r.code] ?? null }))
+
+  // Indeks Kesenjangan Respons 0–100.
+  // Beban = rata-rata min-max (kejadian, meninggal, pengungsi).
+  // Kapasitas = rata-rata min-max indikator yang tersedia: PSC aktif, ambulans baik, TCK individu,
+  // stok regional (hanya 11 regional), dan poin Asistensi (hanya wilayah yang ada di snapshot).
+  // Indeks = ((beban - kapasitas + 1) / 2) × 100. Semakin tinggi (mendekati 100, merah) semakin besar kesenjangannya.
   const nBeban = [
     minMaxNorm(rows.map((r) => r.kejadian)),
-    minMaxNorm(rows.map((r) => r.krisis)),
     minMaxNorm(rows.map((r) => r.meninggal)),
     minMaxNorm(rows.map((r) => r.pengungsi)),
-    minMaxNorm(rows.map((r) => r.terdampak)),
   ]
-  const nKap = [
-    minMaxNorm(rows.map((r) => r.pscAktif)),
-    minMaxNorm(rows.map((r) => r.ambulans)),
-    minMaxNorm(rows.map((r) => r.tck)),
-  ]
+  const nPsc = minMaxNorm(rows.map((r) => r.pscAktif))
+  const nAmb = minMaxNorm(rows.map((r) => r.ambulansBaik))
+  const nTck = minMaxNorm(rows.map((r) => r.tck))
+  const stokVals = rows.filter((r) => r.stok != null).map((r) => r.stok || 0)
+  const nStok = stokVals.length ? minMaxNorm(stokVals) : null
   rows = rows.map((r) => {
-    const beban = (nBeban[0](r.kejadian) + nBeban[1](r.krisis) + nBeban[2](r.meninggal) + nBeban[3](r.pengungsi) + nBeban[4](r.terdampak)) / 5
-    const kapasitas = (nKap[0](r.pscAktif) + nKap[1](r.ambulans) + nKap[2](r.tck)) / 3
-    return { ...r, beban, kapasitas, kesenjangan: beban - kapasitas }
+    const beban = (nBeban[0](r.kejadian) + nBeban[1](r.meninggal) + nBeban[2](r.pengungsi)) / 3
+    const kapParts = [nPsc(r.pscAktif), nAmb(r.ambulansBaik), nTck(r.tck)]
+    if (nStok && r.stok != null) kapParts.push(nStok(r.stok))
+    if (r.asistensiPct != null) kapParts.push(r.asistensiPct / 100)
+    const kapasitas = kapParts.reduce((a, b) => a + b, 0) / kapParts.length
+    const kesenjangan = beban - kapasitas
+    const indeksRespons = Math.round(Math.max(0, Math.min(100, ((kesenjangan + 1) / 2) * 100)) * 10) / 10
+    return { ...r, beban, kapasitas, kesenjangan, indeksRespons }
   })
 
   const selected = filter.provinsi ? rows.find((r) => r.code === filter.provinsi) || null : null
@@ -225,7 +246,7 @@ export function applyDerive(data: any, filter: PuskrisFilter) {
     tren5Tahun: { terpantau: resmi.tren_5_tahun_terpantau || [], krisis: resmi.tren_5_tahun_krisis || [] },
     freshness,
     narrative,
-    rumusKesenjangan: 'Indeks Kesenjangan = skor beban dinormalisasi (0–1, rata-rata peringkat kejadian 2026, krisis 2026, meninggal 2026, pengungsi 2026, dan penduduk terdampak 2026) dikurangi skor kapasitas dinormalisasi (0–1, rata-rata peringkat PSC aktif, armada ambulans, dan tenaga cadangan individu). Nilai mendekati +1 berarti beban tinggi dengan kapasitas relatif rendah. Perhitungan memakai angka absolut (bukan per 10.000 penduduk) karena data penduduk resmi belum masuk ke berkas statis ini.',
+    rumusKesenjangan: 'Indeks Kesenjangan = skor beban dinormalisasi (0–1, rata-rata peringkat kejadian 2026, krisis 2026, meninggal 2026, pengungsi 2026, dan penduduk terdampak 2026) dikurangi skor kapasitas dinormalisasi (0–1, rata-rata peringkat PSC aktif, armada ambulans, dan tenaga cadangan individu). Nilai mendekati +1 berarti beban tinggi dengan kapasitas relatif rendah. Indeks Kesenjangan Respons (0–100) = ((beban − kapasitas + 1) / 2) × 100, dengan beban = rata-rata normalisasi min-max kejadian, meninggal, dan pengungsi; kapasitas = rata-rata normalisasi PSC aktif, ambulans baik, TCK individu, plus stok regional dan poin Asistensi jika data wilayah itu ada. Semakin tinggi (merah) semakin besar kesenjangan. Perhitungan memakai angka absolut (bukan per 10.000 penduduk) karena data penduduk resmi belum masuk ke berkas statis ini.',
   }
 }
 
@@ -250,10 +271,10 @@ function buildNarrative(ctx: any): string[] {
     bullets.push(`Kesenjangan terbesar (beban tinggi, kapasitas relatif rendah) terlihat di ${gap.map((r: ProvinceRow) => r.nama).join(', ')}.`)
   }
   if (nccScr !== null && !selected) {
-    bullets.push(`Layanan 119 pada periode terpilih menjawab ${pf(nccScr)} dari ${nf(nccTot.cof)} panggilan masuk (SCR), dengan waktu respons rata-rata ${layanan.waktuRespons ?? '—'} menit pada snapshot PSC.`)
+    bullets.push(`Layanan 119 pada periode terpilih menjawab ${pf(nccScr)} dari ${nf(nccTot.cof)} panggilan masuk (tingkat keberhasilan layanan), dengan waktu respons rata-rata ${layanan.waktuRespons ?? 0} menit pada snapshot PSC.`)
   }
   if (!selected && sdm.deltaIndividu) {
-    bullets.push(`Tenaga cadangan individu ${nf(sdm.individu)} orang, bertambah ${nf(sdm.deltaIndividu)} pada bulan berjalan, didukung ${nf(sdm.tim)} tim dan ${nf(sdm.emt)} EMT.`)
+    bullets.push(`Tenaga cadangan individu ${nf(sdm.individu)} orang, bertambah ${nf(sdm.deltaIndividu)} pada bulan berjalan, didukung ${nf(sdm.tim)} tim dan ${nf(sdm.emt)} Tim Medis Darurat (EMT).`)
   }
   if (!selected && asisCakupan.provinsi_pct !== undefined) {
     bullets.push(`Asistensi Risiko masih menipis pada sisi pelaporan: baru ${asisCakupan.provinsi_pct}% provinsi dan ${asisCakupan.kabkot_pct}% kabupaten/kota yang mengisi status kapasitas (snapshot manual 16 November 2026, sumber butuh login).`)
@@ -279,6 +300,7 @@ export const RIGHT_LAYERS = [
 
 export function layerValue(row: ProvinceRow, layer: string): number {
   switch (layer) {
+
     case 'kejadian': return row.kejadian
     case 'krisis': return row.krisis
     case 'meninggal': return row.meninggal
@@ -288,7 +310,7 @@ export function layerValue(row: ProvinceRow, layer: string): number {
     case 'ambulans': return row.ambulans
     case 'panggilan': return row.panggilan
     case 'tck': return row.tck
-    case 'kesenjangan': return row.kesenjangan
+    case 'kesenjangan': return row.indeksRespons
     default: return 0
   }
 }

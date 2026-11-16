@@ -25,7 +25,7 @@ import type {
 // Server-side: use internal Docker DNS
 function baseURL(): string {
   if (typeof window !== "undefined") {
-    return process.env.NEXT_PUBLIC_BASE_PATH || "/nlp";
+    return (process.env.NEXT_PUBLIC_BASE_PATH ?? '').replace(/\/$/, '');
   }
 
   return process.env.API_INTERNAL_URL || "http://backend-rust:8081";

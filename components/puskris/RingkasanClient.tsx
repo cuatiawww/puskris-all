@@ -54,7 +54,7 @@ export default function RingkasanClient() {
     downloadXlsx('puskris-ringkasan.xlsx', [
       { name: 'Provinsi', rows: [['Kode', 'Nama', 'Kejadian 2026', 'Krisis 2026', 'Meninggal', 'Pengungsi', 'Terdampak', 'Panggilan 119', 'PSC aktif', 'Ambulans', 'TCK', 'Indeks kesenjangan'], ...view.rows.map((r) => [r.code, r.nama, r.kejadian, r.krisis, r.meninggal, r.pengungsi, r.terdampak, r.panggilan, r.pscAktif, r.ambulans, r.tck, Number(r.kesenjangan.toFixed(3))])] },
       { name: 'Kejadian krisis', rows: [['Tanggal', 'Jenis', 'Provinsi', 'Kabupaten', 'Terdampak', 'Meninggal', 'Luka berat', 'Luka ringan', 'Pengungsi'], ...view.kejadian.map((k: any) => [k.tanggal, k.jenis, k.provinsi, k.kabupaten, k.terdampak, k.meninggal, k.luka_berat, k.luka_ringan, k.pengungsi])] },
-      { name: 'NCC harian', rows: [['Tanggal', 'COF', 'ACD', 'ABD', 'SCR'], ...view.ncc.days.map((d: any) => [d.date, d.cof, d.acd, d.abd, d.scr])] },
+      { name: 'NCC harian', rows: [['Tanggal', 'Panggilan Masuk', 'Panggilan Terjawab', 'Panggilan Tak Terjawab (ditutup penelepon)', 'Tingkat Keberhasilan Layanan (%)'], ...view.ncc.days.map((d: any) => [d.date, d.cof, d.acd, d.abd, d.scr])] },
       { name: 'Logistik regional', rows: [['Regional', 'Kode', 'Obat', 'Sarpras', 'Alkes', 'BMHP', 'Total'], ...view.logistik.rows.map((r: any) => [r.nama, r.code, r.obat, r.sarpras, r.alkes, r.bmhp, r.total])] },
     ])
   }
@@ -136,11 +136,11 @@ export default function RingkasanClient() {
         <p className="text-[11px] text-slate-500">{view.situasi.sumber}. Filter kab/kota hanya memengaruhi tabel kejadian di bawah.{view.situasi.catatanPeriode ? ` ${view.situasi.catatanPeriode}` : ''}</p>
       </Section>
 
-      <Section title="Layanan Gawat Darurat" desc="Panggilan dan armada dari snapshot PSC 119; rasio terjawab (SCR) dari Dashboard NCC.">
+      <Section title="Layanan Gawat Darurat" desc="Panggilan dan armada dari snapshot PSC 119; tingkat keberhasilan layanan dari Dashboard NCC.">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
           <KpiCard icon={PhoneCall} label="Panggilan 119" value={nf(view.layanan.panggilan)} tone="teal" sub={!view.freshness.psc.filterable.periode ? <Badge tone="amber">periode tidak terfilter</Badge> : null} />
           <KpiCard icon={Activity} label="Pangsa emergency" value={pf(view.layanan.emergencyShare)} tone="amber" sub={view.layanan.emergencyShare === null ? <Badge tone="amber">nasional saja</Badge> : `${nf(view.layanan.emergency)} panggilan`} />
-          <KpiCard icon={PhoneCall} label="SCR NCC" value={pf(view.layanan.scr)} tone="blue" sub={view.selected ? <Badge tone="amber">nasional saja</Badge> : view.ncc.period?.label} />
+          <KpiCard icon={PhoneCall} label="Tingkat Keberhasilan Layanan" value={pf(view.layanan.scr)} tone="blue" sub={view.selected ? <Badge tone="amber">nasional saja</Badge> : view.ncc.period?.label} />
           <KpiCard icon={Activity} label="Waktu respons" value={view.layanan.waktuRespons != null ? `${view.layanan.waktuRespons} mnt` : '—'} tone="slate" sub={<Badge tone="amber">nasional, snapshot</Badge>} />
           <KpiCard icon={Building2} label="PSC aktif" value={`${nf(view.layanan.pscAktif)}/${nf(view.layanan.pscTotal)}`} tone="teal" />
           <KpiCard icon={Ambulance} label="Armada ambulans" value={nf(view.layanan.ambulans)} tone="blue" />
@@ -148,13 +148,13 @@ export default function RingkasanClient() {
         </div>
       </Section>
 
-      <Section title="Kesiapsiagaan SDM" desc="Tenaga Cadangan Kesehatan: individu, tim, dan EMT.">
+      <Section title="Kesiapsiagaan SDM" desc="Tenaga Cadangan Kesehatan: individu, tim, dan Tim Medis Darurat (EMT).">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <KpiCard icon={Users} label="Individu TCK" value={nf(view.sdm.individu)} tone="teal" sub={view.tckGrowth ? `+${nf(view.tckGrowth.delta)} bulan ini (${pf(view.tckGrowth.deltaPct)})` : <Badge>per provinsi</Badge>} />
           <KpiCard icon={Shield} label="Nakes" value={nf(view.sdm.nakes)} tone="blue" />
           <KpiCard icon={Users} label="Non-nakes" value={nf(view.sdm.nonNakes)} tone="slate" />
           <KpiCard icon={Users} label="Tim" value={view.sdm.tim == null ? '—' : nf(view.sdm.tim)} tone="teal" sub={view.sdm.tim == null ? <Badge tone="amber">nasional saja</Badge> : null} />
-          <KpiCard icon={Users} label="EMT" value={view.sdm.emt == null ? '—' : nf(view.sdm.emt)} tone="blue" sub={view.sdm.emt == null ? <Badge tone="amber">nasional saja</Badge> : null} />
+          <KpiCard icon={Users} label="Tim Medis Darurat (EMT)" value={view.sdm.emt == null ? '—' : nf(view.sdm.emt)} tone="blue" sub={view.sdm.emt == null ? <Badge tone="amber">nasional saja</Badge> : null} />
         </div>
       </Section>
 
@@ -237,8 +237,8 @@ export default function RingkasanClient() {
                     <YAxis tick={{ fontSize: 10 }} />
                     <Tooltip />
                     <Legend />
-                    <Area type="monotone" dataKey="cof" name="Masuk (COF)" stroke="#0D6B67" fill="#B8EDEA" />
-                    <Area type="monotone" dataKey="acd" name="Terjawab (ACD)" stroke="#3899FE" fill="#CEE6FE" />
+                    <Area type="monotone" dataKey="cof" name="Panggilan Masuk" stroke="#0D6B67" fill="#B8EDEA" />
+                    <Area type="monotone" dataKey="acd" name="Panggilan Terjawab" stroke="#3899FE" fill="#CEE6FE" />
                   </AreaChart>
                 </ResponsiveContainer>
               ) : <div className="flex h-full items-center justify-center text-xs text-slate-500">Tidak ada data NCC pada periode ini (NCC saat ini hanya mencakup November 2026).</div>}
@@ -289,3 +289,4 @@ export default function RingkasanClient() {
     </div>
   )
 }
+

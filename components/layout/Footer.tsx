@@ -1,0 +1,31 @@
+'use client'
+
+import { Globe2, Mail, MessageCircle } from 'lucide-react'
+import { useTranslation } from '@/lib/i18n/LanguageContext'
+
+const links=[['Instagram','https://www.instagram.com/kemenkes_ri'],['YouTube','https://www.youtube.com/KementerianKesehatanRI'],['WhatsApp','https://wa.me/628111500567'],['skdr.footer.email','mailto:kontak@kemkes.go.id'],['skdr.footer.website','https://kemkes.go.id']]
+
+export default function Footer(){
+  const { t } = useTranslation();
+  return (
+    <footer className="border-t border-blue-100 bg-white">
+      <div className="h-1 bg-gradient-to-r from-primary via-brand-500 to-transparent"/>
+      <div className="flex min-h-16 w-full flex-col items-center justify-between gap-3 px-4 py-3 sm:px-6 md:flex-row">
+        <p className="text-center text-xs text-slate-500 md:text-left">
+          {t("footer.copyright")}
+        </p>
+        <nav>
+          <ul className="flex items-center gap-1.5">
+            {links.map(([key,href],i)=>{ const label = key.startsWith('skdr.') ? t(key) : key; return (
+              <li key={label}>
+                <a href={href} target={href.startsWith('http')?'_blank':undefined} rel="noopener noreferrer" aria-label={label} title={label} className="flex h-8 w-8 items-center justify-center rounded-lg border border-blue-100 bg-blue-50/70 text-primary transition hover:-translate-y-0.5 hover:border-blue-300 hover:bg-primary hover:text-white">
+                  {i===2?<MessageCircle className="h-4 w-4"/>:i===3?<Mail className="h-4 w-4"/>:<Globe2 className="h-4 w-4"/>}
+                </a>
+              </li>
+            )})}
+          </ul>
+        </nav>
+      </div>
+    </footer>
+  );
+}

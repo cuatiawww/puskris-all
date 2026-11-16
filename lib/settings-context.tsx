@@ -1,0 +1,144 @@
+'use client';
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { SidebarGroupConfig, DEFAULT_NAVIGATION_CONFIG } from '@/lib/menu';
+import { setNavigationCache } from '@/lib/auth';
+import { PUBLIC_BASE_PATH } from '@/lib/public-path';
+import { applyPalette } from '@/lib/theme';
+
+export interface SystemSettings {
+  app_name: string;
+  app_tagline: string;
+  sidebar_logo_url: string;
+  login_logo_url: string;
+  favicon_url: string;
+  footer_text: string;
+  ticker_text: string;
+  navigation_menu?: SidebarGroupConfig[];
+}
+
+const DEFAULT_SETTINGS: SystemSettings = {
+  // PR 014: SKDR branding defaults = first paint / SSR fallback (no legacy-branding flash before /console/settings loads).
+  app_name: 'SKDR INDONESIA',
+  app_tagline: 'Sistem Kewaspadaan Dini dan Respons',
+  sidebar_logo_url: '',
+  login_logo_url: '',
+  favicon_url: '',
+  footer_text: 'SKDR Indonesia',
+  ticker_text: '',
+  navigation_menu: DEFAULT_NAVIGATION_CONFIG,
+};
+
+interface SettingsContextType {
+  settings: SystemSettings;
+  loading: boolean;
+  refetch: () => void;
+  updateSettings: (partial: Partial<SystemSettings>) => void;
+  saveNavigationMenu: (menu: SidebarGroupConfig[]) => Promise<{ ok: boolean; error?: string }>;
+  resetNavigationMenu: () => Promise<{ ok: boolean; error?: string }>;
+}
+
+const SettingsContext = createContext<SettingsContextType>({
+  settings: DEFAULT_SETTINGS,
+  loading: false,
+  refetch: () => {},
+  updateSettings: () => {},
+  saveNavigationMenu: async () => ({ ok: false }),
+  resetNavigationMenu: async () => ({ ok: false }),
+});
+
+export function SettingsProvider({ children }: { children: React.ReactNode }) {
+  const [settings, setSettings] = useState<SystemSettings>(DEFAULT_SETTINGS);
+  const [loading, setLoading] = useState(true);
+
+  const fetchSettings = useCallback(async () => {
+    try {
+      const res = await fetch(`${PUBLIC_BASE_PATH}/api/v1/console/settings?_t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          Pragma: 'no-cache',
+        },
+      });
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data?.config_data) {
+          const config = json.data.config_data;
+          const navMenu = Array.isArray(config.navigation_menu) && config.navigation_menu.length > 0
+            ? config.navigation_menu
+            : DEFAULT_SETTINGS.navigation_menu;
+          setNavigationCache(navMenu);
+          // PR 016: theme colours live in app_settings.theme_palette (migration 024); CSS defaults in globals.css.
+          try {
+            const pal = typeof config.theme_palette === 'string' ? JSON.parse(config.theme_palette) : config.theme_palette;
+            applyPalette(pal);
+          } catch {
+            // keep CSS defaults
+          }
+          setSettings({
+            ...DEFAULT_SETTINGS,
+            ...config,
+            navigation_menu: navMenu,
+            app_name: config.app_name || DEFAULT_SETTINGS.app_name,
+            app_tagline: config.app_tagline === 'Real-time Multilingual Disease Monitoring'
+              ? DEFAULT_SETTINGS.app_tagline
+              : config.app_tagline,
+            footer_text: config.footer_text === 'Disease Surveillance AI'
+              ? DEFAULT_SETTINGS.footer_text
+              : config.footer_text,
+          });
+        }
+      }
+    } catch {
+      // use defaults silently
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const updateSettings = useCallback((partial: Partial<SystemSettings>) => {
+    if (partial.navigation_menu) {
+      setNavigationCache(partial.navigation_menu);
+    }
+    setSettings((prev) => ({ ...prev, ...partial }));
+  }, []);
+
+  const saveNavigationMenu = useCallback(async (newMenu: SidebarGroupConfig[]) => {
+    try {
+      const res = await fetch(`${PUBLIC_BASE_PATH}/api/v1/console/settings`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          navigation_menu: newMenu,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || data.success === false) {
+        return { ok: false, error: data.error || 'Gagal menyimpan pengaturan navigasi' };
+      }
+      updateSettings({ navigation_menu: newMenu });
+      return { ok: true };
+    } catch (e: any) {
+      return { ok: false, error: e?.message || 'Gagal menghubungi server' };
+    }
+  }, [updateSettings]);
+
+  const resetNavigationMenu = useCallback(async () => {
+    return saveNavigationMenu(DEFAULT_NAVIGATION_CONFIG);
+  }, [saveNavigationMenu]);
+
+  useEffect(() => {
+    fetchSettings();
+  }, [fetchSettings]);
+
+  return (
+    <SettingsContext.Provider value={{ settings, loading, refetch: fetchSettings, updateSettings, saveNavigationMenu, resetNavigationMenu }}>
+      {children}
+    </SettingsContext.Provider>
+  );
+}
+
+export function useSettings() {
+  return useContext(SettingsContext);
+}

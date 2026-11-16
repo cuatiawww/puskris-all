@@ -37,3 +37,7 @@ _build-out.txt
 *.tsbuildinfo
 next-env.d.ts
 
+# archives
+*.zip
+
+

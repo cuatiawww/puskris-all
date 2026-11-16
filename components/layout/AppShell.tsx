@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
@@ -131,7 +131,7 @@ export default function AppShell({
             authenticated={authenticated}
             consoleMode={consoleMode}
             transparent={isHome}
-            {...(isLite ? { title: t("skdr.lite.title"), subtitle: t("skdr.lite.subtitle"), compact: true } : isTv ? { compact: true } : {})}
+            {...(isLite ? { title: t("skdr.lite.title"), subtitle: t("skdr.lite.subtitle"), compact: true } : isTv || isExecRingkasan ? { compact: true } : {})}
             onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
           />
         </div>

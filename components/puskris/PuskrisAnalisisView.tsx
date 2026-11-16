@@ -14,7 +14,7 @@ import { CONTOH_LABEL } from '@/lib/puskris/integrasi'
 import type { ProvinceRow } from '@/lib/puskris/types'
 import SectionHead from '@/components/puskris/SectionHead'
 import InfoHint from '@/components/puskris/InfoHint'
-import { busyHourSeries, gapRankRows, jenisTrendSeries, scatterRows } from '@/lib/puskris/analisis-charts'
+import { busyHourSeries, GAP_COLOR_CLASSES, gapRankRows, jenisTrendSeries, scatterRows } from '@/lib/puskris/analisis-charts'
 
 const ChoroplethMap = dynamic(() => import('@/components/analytics/ChoroplethMap'), {
   ssr: false,
@@ -63,7 +63,7 @@ export default function PuskrisAnalisisView({
           <div className="skdr-card p-3 sm:p-4">
             <h3 className="text-sm font-black text-slate-900">Peta indeks per provinsi</h3>
             <p className="mb-2 text-[11px] text-slate-500">Klik provinsi untuk memfilter seluruh halaman Analisis.</p>
-            <ChoroplethMap level="province" values={choroValues} hue="pe" height={420} onPick={pickProv} />
+            <ChoroplethMap level="province" values={choroValues} hue="pe" classes={GAP_COLOR_CLASSES} height={420} onPick={pickProv} />
           </div>
           <div className="skdr-card overflow-hidden p-0">
             <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3">

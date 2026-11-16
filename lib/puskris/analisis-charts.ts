@@ -158,4 +158,11 @@ export function scatterRows(rows: ProvinceRow[]) {
   }))
 }
 
+/** Ambang sama dengan lencana tabel: hijau < 55, kuning 55–69, merah ≥ 70. */
+export const GAP_COLOR_CLASSES = [
+  { min: 0, max: 54.999, label: '< 55', color: '#10B981' },
+  { min: 55, max: 69.999, label: '55–69', color: '#F59E0B' },
+  { min: 70, max: null, label: '≥ 70', color: '#DC2626' },
+]
+
 export { PALETTE }

@@ -105,9 +105,9 @@ export default function DashboardSidebar({ open, collapsed, menuGroups, match, o
             <img src={logoSrc} alt={tr("skdr.layout.logo")} className="h-auto max-h-8 w-full object-contain" onError={(e) => { e.currentTarget.style.display = "none"; }} />
           </div>
           {!rail && (
-            <div className="min-w-0">
-              <p className="truncate text-sm font-bold tracking-wide text-slate-800">{appTitle}</p>
-              <p className="mt-0.5 truncate text-[11px] text-slate-500">{appSubtitle}</p>
+            <div className="min-w-0 flex-1">
+              <p className="text-[12px] font-bold leading-snug tracking-tight text-slate-800">{appTitle}</p>
+              <p className="mt-0.5 text-[10px] leading-snug text-slate-500">{appSubtitle}</p>
             </div>
           )}
         </div>

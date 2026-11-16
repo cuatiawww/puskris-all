@@ -17,9 +17,10 @@ async function load(level: 'province' | 'kabkota') {
   return cache[f]
 }
 
-export default function ChoroplethMap({ level, provinceCode, values, hue, onPick, height = 360 }: {
+export default function ChoroplethMap({ level, provinceCode, values, hue, onPick, height = 360, classes: classesProp }: {
   level: 'province' | 'kabkota'; provinceCode?: string | null; values: Record<string, number>; hue: 'ebs' | 'pe'
   onPick?: (code: string) => void; height?: number
+  classes?: { min: number; max: number | null; label: string; color: string }[]
 }) {
   const { t } = useTranslation()
   const cfg = useChoroConfig()
@@ -54,8 +55,17 @@ export default function ChoroplethMap({ level, provinceCode, values, hue, onPick
     return { list, H }
   }, [geo, level, provinceCode])
   const max = Math.max(0, ...Object.values(values))
-  const classes = useMemo(() => buildChoroClasses(cfg, feats.list.map((f) => values[f.code] || 0)), [cfg, feats.list, values])
-  const fillFor = (v: number) => (classes ? choroClassFor(v, classes).color : shade(v, max, hue))
+  const classes = useMemo(
+    () => (classesProp?.length ? classesProp : buildChoroClasses(cfg, feats.list.map((f) => values[f.code] || 0))),
+    [classesProp, cfg, feats.list, values],
+  )
+  const fillFor = (v: number) => {
+    if (classesProp?.length) {
+      const hit = classesProp.find((c) => v >= c.min && (c.max == null || v <= c.max))
+      return (hit || classesProp[classesProp.length - 1]).color
+    }
+    return classes ? choroClassFor(v, classes).color : shade(v, max, hue)
+  }
   if (err) return <div className="p-6 text-center text-xs text-red-600">{t('skdr.penyakit.mapFailed')}</div>
   if (!geo) return <div className="flex items-center justify-center text-xs text-slate-400" style={{ height }}>{t('skdr.penyakit.mapLoading')}</div>
   if (!feats.list.length) return <div className="flex items-center justify-center text-xs text-slate-400" style={{ height }}>{t('skdr.penyakit.mapNoGeometry')}</div>

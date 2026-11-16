@@ -94,7 +94,7 @@ export default function DashboardHeader({
               />
               <div className="min-w-0 border-brand-200 md:border-l md:pl-5">
                 <div className="flex items-center gap-2">
-                  <h1 className={`font-extrabold leading-tight text-brand-900 ${title ? "max-w-[900px] text-lg sm:text-xl md:text-2xl" : "max-w-[720px] text-lg sm:text-2xl md:text-3xl"}`} data-testid="app-header-title">
+                  <h1 className={`whitespace-nowrap font-extrabold leading-none text-brand-900 ${title ? "text-lg sm:text-xl lg:text-2xl" : "text-lg sm:text-xl lg:text-[1.65rem] xl:text-2xl"}`} data-testid="app-header-title">
                     {appTitle}
                   </h1>
                   {consoleMode && (
@@ -103,7 +103,7 @@ export default function DashboardHeader({
                     </span>
                   )}
                 </div>
-                <p className={`hidden text-xs leading-relaxed text-slate-600 sm:block md:text-sm ${subtitle ? "mt-1 max-w-[980px]" : "mt-2 max-w-[760px] lg:text-base"}`} data-testid="app-header-subtitle">
+                <p className={`mt-1 hidden truncate text-xs leading-snug text-slate-600 sm:block md:text-sm ${subtitle ? "max-w-[980px]" : "max-w-[760px]"}`} data-testid="app-header-subtitle">
                   {appSubtitle}
                 </p>
               </div>

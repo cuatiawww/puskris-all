@@ -26,7 +26,6 @@ import KejadianTerpaduCard from '@/components/puskris/KejadianTerpaduCard'
 import PeringatanList from '@/components/puskris/PeringatanList'
 import LiniMasaRespons from '@/components/puskris/LiniMasaRespons'
 import SectionHead from '@/components/puskris/SectionHead'
-import PuskrisHeatmap from '@/components/puskris/PuskrisHeatmap'
 import InfoHint from '@/components/puskris/InfoHint'
 import { EMT_LABEL, NCC_LABEL } from '@/lib/puskris/labels'
 import { NASIONAL_NOTE, withQuery } from '@/lib/puskris/pages'
@@ -578,15 +577,6 @@ export default function PuskrisRingkasanView({
         </div>
       </div>
 
-      {tab === 'ringkasan' ? (
-        <div className="space-y-2">
-          <PuskrisHeatmap raw={raw} rows={derived.rows} kejadian={kejadian} nccDays={derived.ncc?.days || []} filter={f} />
-          <p className="text-xs text-slate-500">
-            Tampilan lengkap indeks kesenjangan, peta, dan perbandingan antar-pilar ada di{' '}
-            <Link href={withQuery('/dashboard/analisis', f)} className="font-bold text-primary hover:underline">Analisis</Link>.
-          </p>
-        </div>
-      ) : null}
 
       {(tab === 'ringkasan' || tab === 'krisis' || tab === 'layanan') ? (
         <LiniMasaRespons rows={timeline.rows} catatan={timeline.catatan} />

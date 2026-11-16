@@ -9,6 +9,7 @@ import { jenisOptions } from '@/lib/puskris/to-spasial'
 import { filterQuery, matchPuskrisPath } from '@/lib/puskris/pages'
 import PuskrisFilterPanel from '@/components/puskris/PuskrisFilterPanel'
 import PuskrisRingkasanView from '@/components/puskris/PuskrisRingkasanView'
+import PuskrisExecutiveView from '@/components/puskris/PuskrisExecutiveView'
 import PuskrisAnalisisView from '@/components/puskris/PuskrisAnalisisView'
 import PuskrisPageShell from '@/components/puskris/PuskrisPageShell'
 
@@ -102,12 +103,15 @@ export default function PuskrisDasborClient() {
           jenisOptions={jenisList}
           hidePilar
           hideJenis={item.key === 'layanan' || item.key === 'kesiapsiagaan' || item.key === 'asistensi'}
+          compact={item.key === 'ringkasan'}
         />
       }
     >
       {item.key === 'analisis'
         ? <PuskrisAnalisisView raw={raw} f={f} onApply={handleApply} />
-        : <PuskrisRingkasanView raw={raw} f={f} tab={item.key} bagian={bagian} onApply={handleApply} />}
+        : item.key === 'ringkasan'
+          ? <PuskrisExecutiveView raw={raw} f={f} onApply={handleApply} />
+          : <PuskrisRingkasanView raw={raw} f={f} tab={item.key} bagian={bagian} onApply={handleApply} />}
     </PuskrisPageShell>
   )
 }

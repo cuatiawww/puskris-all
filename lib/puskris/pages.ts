@@ -97,7 +97,7 @@ export const PUSKRIS_NAV: PuskrisNavItem[] = [
     shortLabel: 'Analisis',
     eyebrow: 'Analisis terpadu',
     title: 'Analisis Krisis Kesehatan',
-    desc: 'Heatmap dinamik, indeks kesenjangan respons, dan perbandingan tren antar-pilar. Semua bagian mengikuti filter di panel kiri.',
+    desc: 'Indeks kesenjangan respons, tren jenis kejadian, posisi beban vs kapasitas, dan jam sibuk panggilan 119. Semua bagian mengikuti filter di panel kiri.',
     sources: [],
   },
 ]

@@ -445,7 +445,7 @@ export const DEFAULT_NAVIGATION_CONFIG: SidebarGroupConfig[] = [
       ],
     }),
     it('mod_analisis', 'Analisis', '/dashboard/analisis', 'BarChart3', 7, {
-      description: 'Heatmap, indeks kesenjangan respons, dan perbandingan tren antar-pilar',
+      description: 'Indeks kesenjangan, tren jenis kejadian, posisi beban vs kapasitas, dan jam sibuk 119',
     }),
     it('mod_spatial', 'Spatial Mode', '/dashboard/spatial-mode', 'Globe2', 8, { badge: 'Berikutnya', description: 'Tampilan peta layar penuh dengan variabel Pusat Krisis Kesehatan' }),
   ] },

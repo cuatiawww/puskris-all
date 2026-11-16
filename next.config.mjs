@@ -15,7 +15,7 @@ const cspDirectives = [
 
 // SKDR: copied from NLP-PENYAKIT next.config.mjs (same CSP). Base path and backend URL come from env.
 const backend = process.env.BACKEND_INTERNAL_URL;
-if (!backend) console.warn('[skdr] BACKEND_INTERNAL_URL is not set; API proxy disabled');
+if (!backend) console.warn('[puskris] BACKEND_INTERNAL_URL is not set; API proxy disabled (expected for the static frontend)');
 
 const nextConfig = {
   output: 'standalone',

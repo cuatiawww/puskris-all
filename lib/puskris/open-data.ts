@@ -176,7 +176,7 @@ export type IntelStatus = { state: 'loading' | 'ok' | 'empty' | 'error'; count?:
 
 /** API resmi Pusat Krisis Kesehatan yang dipakai langsung (token hanya di server, keluaran agregat). */
 export type OfficialApi = {
-  id: 'asistensi' | 'psc' | 'panggilan' | 'tck' | 'eoc' | 'logistik'
+  id: 'asistensi' | 'psc' | 'panggilan' | 'tck' | 'eoc' | 'logistik' | 'ncc'
   nama: string
   icon: string
   deskripsi: string
@@ -186,6 +186,18 @@ export type OfficialApi = {
   belum?: string
 }
 export const OFFICIAL_APIS: OfficialApi[] = [
+  {
+    id: 'ncc',
+    nama: 'NCC 119 — Pusat Panggilan Nasional (Apps Script)',
+    icon: '☎️',
+    deskripsi: 'Rekap panggilan 119 nasional per hari dan per 30 menit: panggilan masuk, terjawab, tak terjawab, tingkat layanan, rata-rata penanganan (AHT) dan kecepatan menjawab (ASA).',
+    dipakai: 'Halaman Panggilan 119, KPI Ringkasan (tingkat keberhasilan layanan), tren NCC di Kartu Eksekutif, Matriks Panggilan Darurat 119 Harian, linimasa.',
+    proxy: '/api/puskris/live/ncc',
+    upstream: [
+      { nama: 'Web App Apps Script (spreadsheet "Puskris – Data NCC 119 (API)")', metode: 'GET (kunci server PUSKRIS_NCC_KEY)', url: 'PUSKRIS_NCC_URL …/exec?action=ringkasan|meta|harian|interval|per_jam', parameter: 'tanggal1, tanggal2 (YYYY-MM-DD); data hanya nasional' },
+    ],
+    belum: 'Sumber laporan interval pusat panggilan tidak memuat provinsi, kategori panggilan, atau data penelepon; jadi filter provinsi tidak berlaku. Bila PUSKRIS_NCC_URL belum diatur, bagian NCC menampilkan "belum terhubung" (tanpa angka cadangan).',
+  },
   {
     id: 'logistik',
     nama: 'Logistik Kesehatan (SIMLOGKES)',

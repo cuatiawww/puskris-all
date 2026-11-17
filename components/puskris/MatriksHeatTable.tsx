@@ -105,7 +105,7 @@ export default function MatriksHeatTable({
       <tbody>
         {rows.length === 0 ? (
           <tr>
-            <td colSpan={def.cols.length + 2} className="py-12 text-center text-slate-500">Tidak ada data yang cocok dengan filter.</td>
+            <td colSpan={def.cols.length + 2} className="py-12 text-center text-slate-500">{def.kosong || "Tidak ada data yang cocok dengan filter."}</td>
           </tr>
         ) : (
           rows.map((r, i) => (

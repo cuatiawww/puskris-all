@@ -212,6 +212,9 @@ export function applyDerive(data: any, filter: PuskrisFilter) {
   }
   const nccTot = nccDays.reduce((a: any, d: any) => ({ cof: a.cof + d.cof, acd: a.acd + d.acd, abd: a.abd + d.abd }), { cof: 0, acd: 0, abd: 0 })
   const nccScr = nccTot.cof ? (nccTot.acd / nccTot.cof) * 100 : null
+  const wAvg = (k: string) => { const w = nccDays.reduce((x: number, d: any) => x + (d[k] != null ? Number(d.acd || 0) : 0), 0); return w ? Math.round(nccDays.reduce((x: number, d: any) => x + (d[k] != null ? Number(d[k]) * Number(d.acd || 0) : 0), 0) / w) : null }
+  const nccAht = wAvg('aht')
+  const nccAsa = wAvg('asa')
   if (!selected && nccScr !== null && (filter.periode === '7hari' || filter.periode === '30hari' || filter.periode === 'bulan')) {
     layanan.scr = nccScr
   }
@@ -269,7 +272,7 @@ export function applyDerive(data: any, filter: PuskrisFilter) {
   const freshness: Record<string, Freshness> = {
     eoc: { sumber: 'Krisis Kesehatan / Pantauan Bencana', status: evLive ? 'langsung' : 'snapshot', at: data.eoc?.fetched_at_wib, label: data.eoc?.label, url: data.eoc?.sumber_resmi, filterable: { periode: !selected, provinsi: true, kabupaten: true } },
     psc: { sumber: 'PSC 119 & Ambulans', status: data.psc?.data_source === 'langsung' ? 'langsung' : 'snapshot', at: data.psc?.fetched_at_wib, label: data.psc?.data_source === 'langsung' ? data.psc.label : 'Snapshot kumulatif; filter periode sumber belum tersedia', url: data.psc?.sumber, filterable: { periode: false, provinsi: true, kabupaten: false } },
-    ncc: { sumber: 'NCC Panggilan', status: 'snapshot', at: data.ncc?.fetched_at_wib, label: data.ncc?.label, url: data.ncc?.sumber, filterable: { periode: true, provinsi: false, kabupaten: false } },
+    ncc: { sumber: 'NCC Panggilan', status: data.ncc?.data_source === 'langsung' ? 'langsung' : 'tidak_tersedia', at: data.ncc?.fetched_at_wib, label: data.ncc?.data_source === 'langsung' ? data.ncc.label : (data.ncc?.error || 'Data belum tersedia dari API NCC'), url: data.ncc?.sumber, filterable: { periode: true, provinsi: false, kabupaten: false } },
     tck: { sumber: 'Tenaga Cadangan Kesehatan', status: data.tck?.data_source === 'langsung' ? 'langsung' : 'snapshot', at: data.tck?.fetched_at_wib, label: data.tck?.label, url: data.tck?.sumber, filterable: { periode: false, provinsi: true, kabupaten: false } },
     logistik: { sumber: 'Logistik', status: logLive ? 'langsung' : 'snapshot', at: data.logistik?.fetched_at_wib, label: data.logistik?.label, url: data.logistik?.sumber, filterable: { periode: false, provinsi: Boolean(logLive), kabupaten: false } },
     asistensi: { sumber: 'Asistensi Risiko', status: data.asistensi?.data_source === 'langsung' ? 'langsung' : 'snapshot', at: data.asistensi?.fetched_at_wib, label: data.asistensi?.label, url: data.asistensi?.sumber_provinsi, filterable: { periode: false, provinsi: false, kabupaten: false } },
@@ -285,7 +288,7 @@ export function applyDerive(data: any, filter: PuskrisFilter) {
     selected,
     situasi,
     layanan,
-    ncc: { days: nccDays, totals: { ...nccTot, scr: nccScr }, period: data.ncc?.period, busiest: data.ncc?.busiest_interval, quality: data.ncc?.quality },
+    ncc: { live: data.ncc?.data_source === 'langsung', error: data.ncc?.data_source === 'langsung' ? null : (data.ncc?.error || 'Data belum tersedia dari API NCC'), days: nccDays, totals: { ...nccTot, scr: nccScr, aht: nccAht, asa: nccAsa }, period: data.ncc?.period, busiest: data.ncc?.busiest_interval, perJam: data.ncc?.per_jam || [], quality: data.ncc?.quality },
     sdm,
     tckGrowth: selected ? null : { individuBulanIni: tckS.individu_bulan_ini, delta: tckS.individu_delta_bulan, deltaPct: tckS.individu_delta_pct, tim: tckS.tim, emt: tckS.emt },
     logistik,

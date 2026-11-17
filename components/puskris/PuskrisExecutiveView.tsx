@@ -457,11 +457,11 @@ export default function PuskrisExecutiveView({
           <div className="grid grid-cols-3 gap-2">
             <div>
               <p className="text-[9px] font-bold uppercase text-slate-400">Masuk</p>
-              <p className="text-lg font-black leading-tight text-slate-900">{nf(derived.ncc?.totals?.cof ?? layanan.panggilan)}</p>
+              <p className="text-lg font-black leading-tight text-slate-900">{derived.ncc?.live ? nf(derived.ncc.totals?.cof) : '—'}</p>
             </div>
             <div>
               <p className="text-[9px] font-bold uppercase text-slate-400">Terjawab</p>
-              <p className="text-lg font-black leading-tight text-slate-900">{nf(derived.ncc?.totals?.acd ?? 0)}</p>
+              <p className="text-lg font-black leading-tight text-slate-900">{derived.ncc?.live ? nf(derived.ncc.totals?.acd) : '—'}</p>
             </div>
             <div>
               <p className="text-[9px] font-bold uppercase text-slate-400">PSC aktif</p>

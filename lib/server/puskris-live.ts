@@ -9,6 +9,7 @@
 import KAB_CENTROID from '../../data/kab-centroid.json'
 import { fetchTckInti, fetchTckRelawan, TCK_PROFESI } from './tck-live'
 import { fetchLogistik, LOG_KATEGORI } from './logistik-live'
+import { nccEnabled, fetchNcc, type NccRingkasan } from './ncc-live'
 import { eocEnabled, fetchEocTahun, rekapEoc, type EocEvent } from './eoc-live'
 
 const TTL_MS = 15 * 60_000
@@ -440,9 +441,11 @@ export async function getEocLive(budgetMs = 5000) {
   return swr('eoc:tahun', () => fetchEocTahun(), budgetMs)
 }
 
-export type LiveStatus = { status: 'langsung' | 'snapshot'; at?: string; error?: string; pending?: boolean }
+export type LiveStatus = { status: 'langsung' | 'snapshot' | 'tidak_tersedia'; at?: string; error?: string; pending?: boolean }
 
 export async function getLiveOverlay(provCodes: string[], budgetMs = 7000) {
+  const nccOff = { fresh: false, pending: false, error: 'API NCC belum terhubung (PUSKRIS_NCC_URL belum diatur di server)' } as LiveResult<NccRingkasan>
+  const nccP = nccEnabled() ? swr('ncc:ringkasan', () => fetchNcc(), budgetMs) : Promise.resolve(nccOff)
   const tahun = Number(new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 4))
   const eocOff = { fresh: false, pending: false, error: 'Akun API EOC (PUSKRIS_EOC_AUTH) belum diatur di server' } as LiveResult<Awaited<ReturnType<typeof fetchEocTahun>>>
   const eocP = eocEnabled() ? swr('eoc:tahun', () => fetchEocTahun(), budgetMs) : Promise.resolve(eocOff)
@@ -451,10 +454,10 @@ export async function getLiveOverlay(provCodes: string[], budgetMs = 7000) {
   if (!liveEnabled()) {
     const stOff: LiveStatus = { status: 'snapshot', error: 'Token API belum diatur di server' }
     const e = { fresh: false, pending: false } as LiveResult<any>
-    const eoc = await eocP
-    return { asistensi: e, psc: e, panggilan: e, tck: e, tckRelawan: e, logistik: e as LiveResult<Awaited<ReturnType<typeof fetchLogistik>>>, eoc, status: { asistensi: stOff, psc: stOff, panggilan: stOff, tck: stOff, tckRelawan: stOff, logistik: stOff, eoc: st(eoc) }, jobs: [eoc.job].filter(Boolean) as Promise<any>[] }
+    const [eoc, ncc] = await Promise.all([eocP, nccP])
+    return { asistensi: e, psc: e, panggilan: e, tck: e, tckRelawan: e, logistik: e as LiveResult<Awaited<ReturnType<typeof fetchLogistik>>>, eoc, ncc, status: { asistensi: stOff, psc: stOff, panggilan: stOff, tck: stOff, tckRelawan: stOff, logistik: stOff, eoc: st(eoc), ncc: st(ncc) }, jobs: [eoc.job, ncc.job].filter(Boolean) as Promise<any>[] }
   }
-  const [asistensi, psc, panggilan, tck, tckRelawan, eoc, logistik] = await Promise.all([
+  const [asistensi, psc, panggilan, tck, tckRelawan, eoc, logistik, ncc] = await Promise.all([
     swr(`asistensi:${tahun}`, () => fetchAsistensi(tahun), budgetMs),
     swr('psc:master', () => fetchPscMaster(), budgetMs),
     swr(`psc:panggilan:${tahun}`, () => fetchPanggilan(tahun, provCodes), budgetMs),
@@ -462,11 +465,12 @@ export async function getLiveOverlay(provCodes: string[], budgetMs = 7000) {
     swr('tck:relawan', () => fetchTckRelawan(provCodes), budgetMs),
     eocP,
     swr('logistik:stok', () => fetchLogistik(), budgetMs),
+    nccP,
   ])
   return {
-    asistensi, psc, panggilan, tck, tckRelawan, eoc, logistik,
-    status: { asistensi: st(asistensi), psc: st(psc), panggilan: st(panggilan), tck: st(tck), tckRelawan: st(tckRelawan), eoc: st(eoc), logistik: st(logistik) },
-    jobs: [asistensi.job, psc.job, panggilan.job, tck.job, tckRelawan.job, eoc.job, logistik.job].filter(Boolean) as Promise<any>[],
+    asistensi, psc, panggilan, tck, tckRelawan, eoc, logistik, ncc,
+    status: { asistensi: st(asistensi), psc: st(psc), panggilan: st(panggilan), tck: st(tck), tckRelawan: st(tckRelawan), eoc: st(eoc), logistik: st(logistik), ncc: st(ncc) },
+    jobs: [asistensi.job, psc.job, panggilan.job, tck.job, tckRelawan.job, eoc.job, logistik.job, ncc.job].filter(Boolean) as Promise<any>[],
   }
 }
 
@@ -562,7 +566,8 @@ export function mergeLive(snapshot: any, ov: Awaited<ReturnType<typeof getLiveOv
   mergeTck(data, snapshot, ov)
   mergeEoc(data, snapshot, ov)
   mergeLogistik(data, snapshot, ov)
-  const { tckRelawan: _rel, eoc: stEoc, logistik: stLog, ...stRest } = ov.status
+  mergeNcc(data, ov)
+  const { tckRelawan: _rel, eoc: stEoc, logistik: stLog, ncc: stNcc, ...stRest } = ov.status
   data.live_status = {
     ...stRest,
     tck: ov.tck.value || ov.tckRelawan.value
@@ -570,7 +575,7 @@ export function mergeLive(snapshot: any, ov: Awaited<ReturnType<typeof getLiveOv
       : { ...ov.status.tck, at: ov.status.tck.at || snapshot.tck?.fetched_at_wib },
     logistik: ov.logistik.value ? stLog : { ...stLog, at: snapshot.logistik?.fetched_at_wib },
     eoc: ov.eoc.value ? stEoc : { ...stEoc, at: snapshot.eoc?.fetched_at_wib },
-    ncc: { status: 'snapshot', at: snapshot.ncc?.fetched_at_wib },
+    ncc: ov.ncc.value ? stNcc : { status: 'tidak_tersedia', error: stNcc.error || ov.ncc.error, pending: stNcc.pending },
   }
   return data
 }
@@ -765,5 +770,47 @@ function mergeLogistik(data: any, snapshot: any, ov: Awaited<ReturnType<typeof g
     asal_teratas: v.asal_teratas,
     pergerakan: v.pergerakan,
     gagal_regional: v.gagal,
+  }
+}
+
+
+/** NCC 119 hanya dari API Apps Script; tanpa API -> kosong (tidak ada angka cadangan). */
+function mergeNcc(data: any, ov: Awaited<ReturnType<typeof getLiveOverlay>>) {
+  const v = ov.ncc.value
+  const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
+  const tglLabel = (d: string | null) => (d ? `${Number(d.slice(8, 10))} ${BULAN[Number(d.slice(5, 7)) - 1]} ${d.slice(0, 4)}` : '')
+  if (!v) {
+    data.ncc = {
+      data_source: 'tidak_tersedia',
+      error: ov.ncc.error || (ov.ncc.pending ? 'Sedang mengambil data dari API NCC' : 'API NCC belum terhubung'),
+      pending: ov.ncc.pending || undefined,
+      label: 'Data belum tersedia dari API NCC',
+      days: [], totals: null, per_jam: [], busiest_interval: null, period: null,
+    }
+    return
+  }
+  let prev: number | null = null
+  const days = v.days.map((d) => {
+    const change = prev ? ((d.cof - prev) / prev) * 100 : null
+    prev = d.cof
+    return {
+      date: d.tanggal, cof: d.cof, acd: d.acd, abd: d.abd, scr: d.cof ? (d.acd / d.cof) * 100 : null, available: true, change,
+      pct_sl: d.pct_sl, aht: d.aht_detik, asa: d.asa_detik, avg_aban: d.avg_aban_detik, max_delay: d.max_delay_detik, staf: d.avg_pos_staff, staf_maks: d.max_staffed, okupansi: d.pct_occ_acw,
+    }
+  })
+  const start = v.meta.tanggal_awal, end = v.meta.tanggal_akhir
+  data.ncc = {
+    data_source: 'langsung',
+    sumber: process.env.PUSKRIS_NCC_SHEET_URL || null,
+    fetched_at_wib: ov.status.ncc.at,
+    label: `langsung dari API NCC 119 (Apps Script)${v.meta.terakhir_sinkron ? `, sinkron sumber ${v.meta.terakhir_sinkron}` : ''}`,
+    sumber_api: v.meta.sumber,
+    terakhir_sinkron: v.meta.terakhir_sinkron,
+    period: { start, end, label: start && end ? `${tglLabel(start)} – ${tglLabel(end)}` : '' },
+    totals: { cof: v.totals.cof, acd: v.totals.acd, abd: v.totals.abd, scr: v.totals.cof ? (v.totals.acd / v.totals.cof) * 100 : null, hari_tersedia: v.totals.hari, pct_sl: v.totals.pct_sl, aht: v.totals.aht_detik, asa: v.totals.asa_detik },
+    days,
+    per_jam: v.per_jam,
+    busiest_interval: v.busiest_interval ? { date: v.busiest_interval.tanggal, time: v.busiest_interval.interval_mulai, time_end: v.busiest_interval.interval_selesai, cof: v.busiest_interval.cof, acd: v.busiest_interval.acd, abd: v.busiest_interval.abd, scr: v.busiest_interval.pct_acd } : null,
+    quality: null,
   }
 }

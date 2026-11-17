@@ -80,52 +80,26 @@ export function jenisTrendSeries(raw: any, filter: PuskrisUiFilter): {
 }
 
 const HOURS = Array.from({ length: 24 }, (_, h) => String(h).padStart(2, '0') + ':00')
-const HOUR_CURVE = [1, 1, 1, 1, 2, 3, 5, 8, 10, 12, 11, 10, 12, 14, 16, 15, 13, 10, 8, 6, 4, 3, 2, 1]
 
-export function busyHourSeries(raw: any, nccDays: { date: string; cof: number; acd?: number; available?: boolean }[], filter: PuskrisUiFilter): {
+/** Pola panggilan per jam dari API NCC (slot 30 menit asli, dijumlah per jam). Tanpa API -> kosong. */
+export function busyHourSeries(raw: any, _nccDays: { date: string; cof: number; acd?: number; available?: boolean }[], filter: PuskrisUiFilter): {
   rows: { jam: string; 'Panggilan masuk': number; 'Panggilan terjawab': number }[]
   catatan: string
   contoh: boolean
   nasionalOnly: boolean
 } {
-  const days = (nccDays || []).filter((d) => d.available !== false)
-  const busiest = raw?.ncc?.busiest_interval || null
+  const slots: any[] = raw?.ncc?.data_source === 'langsung' ? raw.ncc.per_jam || [] : []
+  if (!slots.length) return { rows: [], contoh: false, nasionalOnly: Boolean(filter.provinsi || filter.kabupaten), catatan: 'Data belum tersedia dari API NCC.' }
   const hours = HOURS.map((jam) => ({ jam, cof: 0, acd: 0 }))
-  const sumW = HOUR_CURVE.reduce((a, n) => a + n, 0) || 1
-  for (const d of days) {
-    const total = Number(d.cof || 0)
-    const answered = Number(d.acd || 0)
-    let weights = HOUR_CURVE.slice()
-    if (busiest?.date === d.date && typeof busiest.time === 'string') {
-      const h = Number(String(busiest.time).slice(0, 2))
-      if (h >= 0 && h < 24 && busiest.cof != null) {
-        const rest = Math.max(0, total - Number(busiest.cof))
-        const restW = sumW - weights[h] || 1
-        weights = weights.map((w, i) => (i === h ? 0 : w))
-        hours[h].cof += Number(busiest.cof)
-        hours[h].acd += answered * (Number(busiest.cof) / (total || 1))
-        hours.forEach((row, i) => {
-          if (i === h) return
-          row.cof += (rest * HOUR_CURVE[i]) / restW
-          row.acd += answered * (rest / (total || 1)) * (HOUR_CURVE[i] / restW)
-        })
-        continue
-      }
-    }
-    hours.forEach((row, i) => {
-      row.cof += (total * HOUR_CURVE[i]) / sumW
-      row.acd += (answered * HOUR_CURVE[i]) / sumW
-    })
+  for (const x of slots) {
+    const h = Number(String(x.interval_mulai).slice(0, 2))
+    if (h >= 0 && h < 24) { hours[h].cof += Number(x.cof || 0); hours[h].acd += Number(x.acd || 0) }
   }
   return {
-    rows: hours.map((r) => ({
-      jam: r.jam,
-      'Panggilan masuk': Math.round(r.cof),
-      'Panggilan terjawab': Math.round(r.acd),
-    })),
-    contoh: true,
+    rows: hours.map((r) => ({ jam: r.jam, 'Panggilan masuk': r.cof, 'Panggilan terjawab': r.acd })),
+    contoh: false,
     nasionalOnly: Boolean(filter.provinsi || filter.kabupaten),
-    catatan: `Pembagian per jam memakai ${CONTOH_LABEL}, disusun dari total harian resmi dan jam tersibuk yang tercatat. Rincian interval 30 menit asli belum ada di berkas statis.`,
+    catatan: `Jumlah panggilan per jam dari slot 30 menit API NCC, seluruh rentang ${raw.ncc.period?.label || ''}.`,
   }
 }
 

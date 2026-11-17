@@ -571,7 +571,7 @@ export default function PuskrisRingkasanView({
     raw.psc?.summary?.tahun_panggilan
       ? `Panggilan PSC 119 adalah hitungan tahun ${raw.psc.summary.tahun_panggilan} langsung dari API PSC 119 (belum bisa disaring per bulan/minggu).`
       : 'Panggilan PSC bersifat kumulatif dan tidak mengikuti filter periode.',
-    'Data NCC hanya tersedia untuk November 2026.',
+    raw.ncc?.data_source === 'langsung' ? `Data NCC 119 langsung dari API NCC (${raw.ncc.period?.label || ''}), tingkat nasional.` : 'Data NCC 119 belum tersedia dari API NCC.',
     raw.asistensi?.data_source === 'langsung'
       ? `Asistensi Risiko diambil langsung dari API rekapitulasi Asistensi ${raw.asistensi.tahun || ''}.`
       : 'Asistensi Risiko adalah snapshot manual 16 November 2026; peta arsiran hanya memuat dua contoh wilayah.',

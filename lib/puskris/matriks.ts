@@ -21,6 +21,8 @@ export type MatriksDef = {
   cols: MatriksCol[]
   rows: MatriksRow[]
   notes: string[]
+  /** pesan bila sumber API belum tersedia (bukan sekadar filter kosong) */
+  kosong?: string | null
   contoh?: boolean
   provinsiRows?: boolean
 }
@@ -240,8 +242,11 @@ export function matriksNcc(raw: any, periode: PeriodeMatriks): MatriksDef {
     rows,
     notes: [
       'Data hanya tersedia di tingkat nasional. Filter provinsi tidak berlaku untuk matriks ini.',
-      `Baru tersedia ${days.length} hari (${days[0]?.date || '-'} s.d. ${days[days.length - 1]?.date || '-'}); rincian per jam belum ada.`,
+      raw?.ncc?.data_source === 'langsung'
+        ? `Sumber: API NCC 119 (Apps Script, langsung), ${days.length} hari (${days[0]?.date || '-'} s.d. ${days[days.length - 1]?.date || '-'}). Rincian per 30 menit ada di halaman Panggilan 119.`
+        : 'Sumber: API NCC 119 (Apps Script), belum terhubung.',
     ],
+    kosong: raw?.ncc?.data_source === 'langsung' ? null : `Data belum tersedia dari API NCC${raw?.ncc?.error ? ` (${raw.ncc.error})` : ''}.`,
   }
 }
 

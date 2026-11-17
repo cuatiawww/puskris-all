@@ -5,6 +5,7 @@ import type { PuskrisTab } from '@/lib/puskris/ui-filter'
 import { monthLabel } from '@/lib/puskris/to-spasial'
 import SectionHead from '@/components/puskris/SectionHead'
 import InfoHint from '@/components/puskris/InfoHint'
+import ApiKosong from '@/components/puskris/ApiKosong'
 import { displayJenisArmada, EMT_LABEL, IRBI_HINT, IRBI_LABEL, KORBAN_LABEL, NCC_LABEL } from '@/lib/puskris/labels'
 import { useState } from 'react'
 import { NASIONAL_NOTE } from '@/lib/puskris/pages'
@@ -377,31 +378,61 @@ export default function PuskrisSumberSections({
           </Card>
 
           )}
-          {show.ncc && (
-          <Card eyebrow="Layanan 119" title="Panggilan 119 (NCC)" desc={`Panggilan masuk, terjawab, dan tak terjawab (ditutup penelepon), plus tingkat keberhasilan layanan. Snapshot November 2026; filter 7/30 hari memotong rentang ini.${filteredWilayah ? " " + NASIONAL_NOTE : ""}`}>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-              <Stat label={NCC_LABEL.cof} value={nf(view.ncc?.totals?.cof)} />
-              <Stat label={NCC_LABEL.acd} value={nf(view.ncc?.totals?.acd)} />
-              <Stat label={NCC_LABEL.abd} value={nf(view.ncc?.totals?.abd)} />
-              <Stat label={NCC_LABEL.scr} value={view.ncc?.totals?.scr != null ? pf(view.ncc.totals.scr, 1) : '0'} hint={NCC_LABEL.scrHint} />
-              <Stat label="Hari terisi" value={nf(raw.ncc?.totals?.hari_tersedia)} sub={raw.ncc?.period?.label} />
+          {show.ncc && (() => {
+          const nc = view.ncc || {}
+          const mmss = (d: any) => (d == null ? '–' : `${Math.floor(Number(d) / 60)}:${String(Math.round(Number(d) % 60)).padStart(2, '0')}`)
+          const jam = (nc.perJam || []).map((x: any) => ({ ...x, label: x.interval_mulai }))
+          return (
+          <Card eyebrow="Layanan 119" title="Panggilan 119 (NCC)" desc={nc.live ? `Panggilan masuk, terjawab, dan tak terjawab (ditutup penelepon) di Pusat Panggilan Nasional 119, langsung dari API NCC (Apps Script, ${raw.ncc?.period?.label || ''}). Filter periode memotong rentang ini.${filteredWilayah ? ' ' + NASIONAL_NOTE : ''}` : 'Rekap panggilan 119 nasional dari API NCC (Apps Script).'}>
+            {!nc.live ? (
+              <ApiKosong pesan="Data NCC belum tersedia dari API" detail={nc.error} pending={Boolean(raw.ncc?.pending)} />
+            ) : (<>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+              <Stat label={NCC_LABEL.cof} value={nf(nc.totals?.cof)} />
+              <Stat label={NCC_LABEL.acd} value={nf(nc.totals?.acd)} />
+              <Stat label={NCC_LABEL.abd} value={nf(nc.totals?.abd)} />
+              <Stat label={NCC_LABEL.scr} value={nc.totals?.scr != null ? pf(nc.totals.scr, 1) : '–'} hint={NCC_LABEL.scrHint} />
+              <Stat label="Rata-rata penanganan" value={mmss(nc.totals?.aht)} sub="menit:detik" hint="Average Handling Time (AHT): rata-rata lama bicara ditambah kerja setelah panggilan, dibobot jumlah panggilan terjawab." />
+              <Stat label="Kecepatan menjawab" value={mmss(nc.totals?.asa)} sub="menit:detik" hint="Average Speed of Answer (ASA): rata-rata waktu tunggu penelepon sampai dijawab petugas." />
+              <Stat label="Hari terisi" value={nf(nc.days?.length)} sub={raw.ncc?.period?.label} />
             </div>
-            <div className="mt-4 h-56">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={nccDays}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="date" tick={{ fontSize: 9 }} />
-                  <YAxis tick={{ fontSize: 10 }} />
-                  <Tooltip />
-                  <Legend />
-                  <Line type="monotone" dataKey="cof" name={NCC_LABEL.cof} stroke={SLATE} strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="acd" name={NCC_LABEL.acd} stroke={TEAL} strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="abd" name={NCC_LABEL.abd} stroke={ROSE} strokeWidth={2} dot={false} />
-                </LineChart>
-              </ResponsiveContainer>
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              <div className="h-56">
+                <p className="mb-1 text-[10px] font-black uppercase tracking-wider text-slate-400">Tren harian</p>
+                <ResponsiveContainer width="100%" height="90%">
+                  <LineChart data={nc.days || []}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="date" tick={{ fontSize: 9 }} />
+                    <YAxis tick={{ fontSize: 10 }} />
+                    <Tooltip />
+                    <Legend />
+                    <Line type="monotone" dataKey="cof" name={NCC_LABEL.cof} stroke={SLATE} strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="acd" name={NCC_LABEL.acd} stroke={TEAL} strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="abd" name={NCC_LABEL.abd} stroke={ROSE} strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="h-56">
+                <p className="mb-1 flex items-center text-[10px] font-black uppercase tracking-wider text-slate-400">Pola per 30 menit (seluruh rentang API)<InfoHint text="Jumlah panggilan per slot 30 menit, dijumlah atas semua hari yang tersedia di API NCC. Tidak ikut filter periode." label="Penjelasan pola per 30 menit" /></p>
+                {jam.length ? (
+                <ResponsiveContainer width="100%" height="90%">
+                  <BarChart data={jam}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="label" tick={{ fontSize: 8 }} interval={3} />
+                    <YAxis tick={{ fontSize: 10 }} />
+                    <Tooltip />
+                    <Bar dataKey="acd" stackId="a" name={NCC_LABEL.acd} fill={TEAL} />
+                    <Bar dataKey="abd" stackId="a" name={NCC_LABEL.abd} fill={ROSE} />
+                  </BarChart>
+                </ResponsiveContainer>
+                ) : <ApiKosong compact pesan="Pola per 30 menit belum tersedia (tab Interval kosong; jalankan sinkronkan())" />}
+              </div>
             </div>
+            {nc.busiest ? <p className="mt-2 text-[10.5px] text-slate-500">Slot tersibuk: {nc.busiest.date} pukul {nc.busiest.time}{nc.busiest.time_end ? `–${nc.busiest.time_end}` : ''} WIB, {nf(nc.busiest.cof)} panggilan masuk ({nf(nc.busiest.acd)} terjawab).</p> : null}
+            </>)}
           </Card>
-          )}
+          )
+          })()}
       </>
 
       <>

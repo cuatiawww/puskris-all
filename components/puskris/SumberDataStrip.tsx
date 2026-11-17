@@ -22,15 +22,16 @@ export default function SumberDataStrip({ status, pending, compact = false }: { 
       {ORDER.filter((k) => status[k]).map((k) => {
         const s = status[k]
         const live = s.status === 'langsung'
-        const tip = [live ? 'Diambil langsung dari API resmi' : 'Memakai snapshot tersimpan', s.at ? `per ${s.at}` : null, s.error ? `(${s.error})` : null].filter(Boolean).join(' ')
+        const kosong = s.status === 'tidak_tersedia'
+        const tip = [live ? 'Diambil langsung dari API resmi' : kosong ? 'Data belum tersedia dari API' : 'Memakai snapshot tersimpan', s.at ? `per ${s.at}` : null, s.error ? `(${s.error})` : null].filter(Boolean).join(' ')
         return (
           <span
             key={k}
             title={tip}
-            className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-semibold ${live ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : 'border-amber-200 bg-amber-50 text-amber-800'}`}
+            className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-semibold ${live ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : kosong ? 'border-slate-200 bg-slate-50 text-slate-500' : 'border-amber-200 bg-amber-50 text-amber-800'}`}
           >
-            <span className={`h-1.5 w-1.5 rounded-full ${live ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-            {LABEL[k] || k}: {live ? 'langsung' : 'snapshot'}
+            <span className={`h-1.5 w-1.5 rounded-full ${live ? 'bg-emerald-500' : kosong ? 'bg-slate-400' : 'bg-amber-500'}`} />
+            {LABEL[k] || k}: {live ? 'langsung' : kosong ? (s.pending ? 'memuat' : 'belum terhubung') : 'snapshot'}
             {s.pending ? <RefreshCw className="h-3 w-3 animate-spin" aria-label="sedang memuat" /> : null}
           </span>
         )

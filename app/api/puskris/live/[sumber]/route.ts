@@ -1,6 +1,7 @@
 import { after, NextResponse } from 'next/server'
 import { loadPuskrisData } from '@/lib/puskris/load-data'
 import { getEocLive, getLiveOverlay, swr, wibStamp } from '@/lib/server/puskris-live'
+import { nccEnabled, fetchNcc } from '@/lib/server/ncc-live'
 import { eocEnabled, fetchEocRange, rekapEoc, type EocEvent } from '@/lib/server/eoc-live'
 
 /**
@@ -10,12 +11,13 @@ import { eocEnabled, fetchEocRange, rekapEoc, type EocEvent } from '@/lib/server
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
-const ALLOWED = ['asistensi', 'psc', 'panggilan', 'tck', 'eoc', 'logistik'] as const
+const ALLOWED = ['asistensi', 'psc', 'panggilan', 'tck', 'eoc', 'logistik', 'ncc'] as const
 
 export async function GET(req: Request, ctx: { params: Promise<{ sumber: string }> }) {
   const { sumber } = await ctx.params
   if (!ALLOWED.includes(sumber as any)) return NextResponse.json({ ok: false, error: 'Sumber tidak dikenal' }, { status: 404 })
   if (sumber === 'eoc') return eocResponse(req)
+  if (sumber === 'ncc') return nccResponse(req)
   const snapshot = loadPuskrisData()
   const codes = (snapshot.regions || []).map((r: any) => String(r.code))
   const ov = await getLiveOverlay(codes, 45000)
@@ -103,4 +105,26 @@ async function eocResponse(req: Request) {
       catatan: 'Agregat per kejadian dari data_krisis.php; field perkembangan, kecamatan dan content_html dibuang di server.',
     },
   }, { headers: { 'Cache-Control': 'no-store' } })
+}
+
+
+/**
+ * GET /api/puskris/live/ncc?tanggal1=YYYY-MM-DD&tanggal2=YYYY-MM-DD
+ * Proksi Web App Apps Script NCC 119 (kunci hanya di server). Data nasional saja.
+ */
+async function nccResponse(req: Request) {
+  const sp = new URL(req.url).searchParams
+  const t1 = sp.get('tanggal1') || ''
+  const t2 = sp.get('tanggal2') || ''
+  if ((t1 && !D.test(t1)) || (t2 && !D.test(t2))) return NextResponse.json({ ok: false, sumber: 'ncc', error: 'tanggal1/tanggal2 harus YYYY-MM-DD' }, { status: 400 })
+  if (!nccEnabled()) return NextResponse.json({ ok: false, sumber: 'ncc', status: 'tidak_tersedia', error: 'API NCC belum terhubung (PUSKRIS_NCC_URL belum diatur di server)', data: null }, { status: 503, headers: { 'Cache-Control': 'no-store' } })
+  const r = await swr(`ncc:${t1 && t2 ? `${t1}:${t2}` : t1 || t2 ? `${t1}:${t2}` : 'ringkasan'}`, () => fetchNcc({ tanggal1: t1 || null, tanggal2: t2 || null }), 30000)
+  if (r.job) after(() => r.job)
+  const v = r.value
+  if (!v) return NextResponse.json({ ok: false, sumber: 'ncc', status: 'tidak_tersedia', error: r.error || (r.pending ? 'Sedang mengambil data dari API NCC' : 'Data belum tersedia'), data: null }, { status: 502, headers: { 'Cache-Control': 'no-store' } })
+  const ringkas = { dari: v.meta.tanggal_awal, sampai: v.meta.tanggal_akhir, hari: v.totals.hari, cof: v.totals.cof, acd: v.totals.acd, abd: v.totals.abd, pct_acd: v.totals.pct_acd, pct_sl: v.totals.pct_sl, aht_detik: v.totals.aht_detik, asa_detik: v.totals.asa_detik, terakhir_sinkron: v.meta.terakhir_sinkron }
+  return NextResponse.json(
+    { ok: true, sumber: 'ncc', status: 'langsung', cakupan: 'nasional', fetched_at: r.at ? wibStamp(r.at) : null, count: v.days.length, error: null, ringkas, data: v },
+    { headers: { 'Cache-Control': 'no-store' } },
+  )
 }

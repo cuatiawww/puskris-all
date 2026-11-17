@@ -81,25 +81,6 @@ export default function PuskrisPageShell({
             )
           })}
         </nav>
-        {item.children?.length ? (
-          <nav className="mt-2 flex flex-wrap items-center gap-1.5" aria-label={`Bagian ${item.label}`}>
-            <Link
-              href={`${item.href}${qs}`}
-              className={`rounded-lg px-2.5 py-1 text-[11px] font-bold transition ${!bagian ? 'bg-slate-800 text-white' : 'text-slate-500 hover:bg-slate-100'}`}
-            >
-              Semua
-            </Link>
-            {item.children.map((ch) => (
-              <Link
-                key={ch.key}
-                href={`${ch.href}${qs}`}
-                className={`rounded-lg px-2.5 py-1 text-[11px] font-bold transition ${bagian === ch.key ? 'bg-slate-800 text-white' : 'text-slate-500 hover:bg-slate-100'}`}
-              >
-                {ch.label}
-              </Link>
-            ))}
-          </nav>
-        ) : null}
       </div>
 
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start">

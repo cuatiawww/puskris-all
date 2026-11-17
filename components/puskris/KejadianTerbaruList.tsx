@@ -1,11 +1,13 @@
 'use client'
 
+import { periodeRange } from '@/lib/puskris/derive'
+import { toDeriveFilter } from '@/lib/puskris/ui-filter'
 import { useEffect, useMemo, useState } from 'react'
 import { Info, MapPin, RefreshCw } from 'lucide-react'
 import { PUBLIC_BASE_PATH } from '@/lib/public-path'
 import { fromEocKrisis, fromHazards, titleCase, type KejadianTerbaru } from '@/lib/puskris/kejadian-terbaru'
 
-type Filter = { provinsi?: string | null; kabupaten?: string | null; jenis?: string | null; periode?: string; tahun?: number; bulan?: number | null }
+type Filter = { provinsi?: string | null; kabupaten?: string | null; jenis?: string | null; periode?: string; tahun?: number; bulan?: number | null; dari?: string | null; sampai?: string | null }
 type Chip = 'semua' | 'krisis' | 'terpantau' | 'gempa' | 'gdacs'
 
 const CHIPS: [Chip, string, string][] = [
@@ -36,16 +38,10 @@ const jenisMatch = (filterJenis: string, k: KejadianTerbaru) => {
   const a = normJ(filterJenis), b = normJ(k.jenis)
   return a === b || (b.length > 3 && a.includes(b)) || (a.length > 3 && b.includes(a))
 }
-const todayWib = () => new Date().toLocaleString('sv-SE', { timeZone: 'Asia/Jakarta' }).slice(0, 10)
-const minusDays = (iso: string, n: number) => { const d = new Date(`${iso}T00:00:00+07:00`); d.setDate(d.getDate() - n); return d.toLocaleString('sv-SE', { timeZone: 'Asia/Jakarta' }).slice(0, 10) }
 
 function inPeriode(k: KejadianTerbaru, f: Filter) {
-  const today = todayWib()
-  if (f.periode === '7hari') return k.tanggal >= minusDays(today, 7)
-  if (f.periode === '30hari') return k.tanggal >= minusDays(today, 30)
-  const y = String(f.tahun || new Date(Date.now() + 7 * 3600_000).getUTCFullYear())
-  if (f.periode === 'bulan') return k.tanggal.startsWith(`${y}-${String(f.bulan || 10).padStart(2, '0')}`)
-  return k.tanggal.startsWith(y)
+  const r = periodeRange(toDeriveFilter(f as any))
+  return k.tanggal >= r.from && k.tanggal <= r.to
 }
 
 export default function KejadianTerbaruList({ f, eocKrisis, onPick, onCount }: {

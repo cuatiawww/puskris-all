@@ -5,7 +5,7 @@ import InfoHint from '@/components/puskris/InfoHint'
 import { nf } from '@/lib/puskris/derive'
 import { KORBAN_LABEL } from '@/lib/puskris/labels'
 import { NASIONAL_NOTE, withQuery } from '@/lib/puskris/pages'
-import type { PuskrisUiFilter } from '@/lib/puskris/ui-filter'
+import { tahunIni, type PuskrisUiFilter } from '@/lib/puskris/ui-filter'
 
 type Situasi = {
   meninggal?: number | null
@@ -46,7 +46,7 @@ function Spark({ values, color }: { values: number[]; color: string }) {
 export default function DampakPendudukStrip({ raw, situasi, f }: { raw: any; situasi: Situasi; f: PuskrisUiFilter }) {
   const resmi = raw?.eoc?.nasional || {}
   const krisis = resmi.krisis_tahun || {}
-  const nasionalTahun = !f.provinsi && !f.kabupaten && !f.jenis && f.periode !== 'bulan'
+  const nasionalTahun = !f.provinsi && !f.kabupaten && !f.jenis && f.periode === 'tahun' && f.tahun === tahunIni() && !raw?.eoc?.rentang
   const provinsiScoped = Boolean(f.provinsi || f.kabupaten)
   const tiles: Tile[] = [
     { key: 'korban', label: 'Korban total', hint: KORBAN_LABEL.totalHint, value: situasi.korban_total, tone: '#0D6B67', krisis: krisis.korban_total },

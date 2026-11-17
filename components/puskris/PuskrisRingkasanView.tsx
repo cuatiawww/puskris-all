@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 import { applyDerive, nf, pf, situasiTerfilter } from '@/lib/puskris/derive'
 import { buildJenisCards } from '@/lib/puskris/to-spasial'
-import { toDeriveFilter, type PuskrisTab, type PuskrisUiFilter } from '@/lib/puskris/ui-filter'
+import { tahunIni, toDeriveFilter, type PuskrisTab, type PuskrisUiFilter } from '@/lib/puskris/ui-filter'
 import PuskrisSumberSections from '@/components/puskris/PuskrisSumberSections'
 import PuskrisPetaTerpadu from '@/components/puskris/PuskrisPetaTerpadu'
 import LiniMasaRespons from '@/components/puskris/LiniMasaRespons'
@@ -558,7 +558,7 @@ export default function PuskrisRingkasanView({
   }, [derived.kejadian, f.jenis])
 
   const jenisScoped = Boolean(f.jenis)
-  const useOfficialJenis = !f.provinsi && !f.kabupaten && f.periode === 'tahun' && !f.jenis
+  const useOfficialJenis = !f.provinsi && !f.kabupaten && f.periode === 'tahun' && f.tahun === tahunIni() && !raw?.eoc?.rentang && !f.jenis
   const jenisCards = useMemo(
     () => buildJenisCards(useOfficialJenis ? raw : { ...raw, eoc: { ...raw.eoc, jenis_2026: [] } }, derived.kejadianSemua || derived.kejadian || []),
     [raw, derived.kejadian, derived.kejadianSemua, useOfficialJenis],
@@ -628,7 +628,7 @@ export default function PuskrisRingkasanView({
           {(tab === 'krisis' || tab === 'layanan') ? (
             <LiniMasaRespons rows={timeline.rows} catatan={timeline.catatan} />
           ) : null}
-          <PuskrisSumberSections raw={raw} view={{ ...derived, situasi }} tab={tab} bagian={bagian} kejadian={kejadian} filteredWilayah={Boolean(f.provinsi || f.kabupaten)} />
+          <PuskrisSumberSections raw={raw} view={{ ...derived, situasi }} tab={tab} bagian={bagian} kejadian={kejadian} filteredWilayah={Boolean(f.provinsi || f.kabupaten)} f={f} />
         </>
       )}
     </div>

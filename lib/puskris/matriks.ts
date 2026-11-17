@@ -28,7 +28,8 @@ export type MatriksDef = {
 }
 export type MatriksRow = { id: string; code?: string; label: string; sub?: string; tanggal?: string; [k: string]: any }
 
-export type PeriodeMatriks = 'semua' | '2026' | '30hari' | '7hari'
+/** 'semua' = tanpa batas waktu; selain itu rentang tanggal (YYYY-MM-DD) dari filter periode global. */
+export type PeriodeMatriks = 'semua' | { from: string; to: string }
 
 const sum = (rows: any[], k: string) => rows.reduce((a, r) => a + (Number(r[k]) || 0), 0)
 const pct = (a: number, b: number) => (b > 0 ? (a / b) * 100 : 0)
@@ -41,10 +42,7 @@ export function inPeriode(tanggal: string | null | undefined, p: PeriodeMatriks,
   if (p === 'semua') return true
   if (!tanggal) return false
   const t = String(tanggal).slice(0, 10)
-  if (p === '2026') return t.startsWith('2026')
-  const days = p === '30hari' ? 30 : 7
-  const from = new Date(new Date(`${ref}T00:00:00Z`).getTime() - (days - 1) * 86400_000).toISOString().slice(0, 10)
-  return t >= from && t <= ref
+  return t >= p.from && t <= (p.to < ref ? p.to : ref)
 }
 
 const HARI = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
@@ -71,7 +69,14 @@ const PROFESI_HINT: Record<string, string> = {
 }
 const slugP = (s: string) => 'pr_' + s.toLowerCase().replace(/[^a-z]+/g, '_')
 const tckLive = (raw: any) => raw?.tck?.data_source === 'langsung'
-const periodeTahun = (p: PeriodeMatriks) => (p === 'semua' ? null : todayWib().slice(0, 4))
+/** Tahun-tahun yang dicakup periode (data tim/EMT hanya tersedia per tahun pembentukan). */
+const periodeTahun = (p: PeriodeMatriks): string[] | null => {
+  if (p === 'semua') return null
+  const out: string[] = []
+  for (let y = Number(p.from.slice(0, 4)); y <= Number(p.to.slice(0, 4)); y++) out.push(String(y))
+  return out
+}
+const sumTahun = (d: Record<string, number> | undefined, th: string[]) => th.reduce((a, y) => a + Number(d?.[y] || 0), 0)
 const sumberTck = (raw: any) => tckLive(raw)
   ? `Sumber: API Tenaga Cadangan Kesehatan (langsung), diambil ${raw?.tck?.fetched_at_wib || '-'}.`
   : 'Sumber: API Tenaga Cadangan Kesehatan, belum tersedia.'
@@ -117,12 +122,12 @@ function matriksTckInner(raw: any, view: TckView, periode: PeriodeMatriks): Matr
       const code = String(p.code)
       return {
         id: `tcke-${code}`, code, label: names.get(code) || p.nama, sub: `Kode ${code}`,
-        tim: Number(p.tim || 0), tim_baru: th ? Number(p.tim_per_tahun?.[th] || 0) : Number(p.tim || 0), tim_individu: Number(p.tim_individu || 0),
-        emt: Number(p.emt || 0), emt_baru: th ? Number(p.emt_per_tahun?.[th] || 0) : Number(p.emt || 0), emt_standar: Number(p.emt_standar || 0), emt_sk: Number(p.emt_sk || 0),
+        tim: Number(p.tim || 0), tim_baru: th ? sumTahun(p.tim_per_tahun, th) : Number(p.tim || 0), tim_individu: Number(p.tim_individu || 0),
+        emt: Number(p.emt || 0), emt_baru: th ? sumTahun(p.emt_per_tahun, th) : Number(p.emt || 0), emt_standar: Number(p.emt_standar || 0), emt_sk: Number(p.emt_sk || 0),
         emt_respon_24: Number(p.emt_respon_24 || 0), emt_individu: Number(p.emt_individu || 0),
       }
     })
-    const lbl = th ? `Terdaftar ${th}` : 'Terdaftar (semua tahun)'
+    const lbl = th ? `Terdaftar ${th.length > 1 ? `${th[0]}–${th[th.length - 1]}` : th[0]}` : 'Terdaftar (semua tahun)'
     return {
       id: 'tck-tim-emt', provinsiRows: true,
       title: `Matriks Tim & Tim Medis Darurat (EMT) per Provinsi${th ? ` · pendaftaran ${th}` : ''}`,
@@ -142,7 +147,7 @@ function matriksTckInner(raw: any, view: TckView, periode: PeriodeMatriks): Matr
       rows,
       notes: [
         `Nasional: ${nfm(s.tim)} tim dan ${nfm(s.emt)} EMT (${nfm(s.emt_standar)} memenuhi standar, ${nfm(s.emt_sk)} memiliki SK).`,
-        periode === '30hari' || periode === '7hari' ? 'Rentang 7/30 hari tidak tersedia untuk tim/EMT; kolom "Terdaftar" memakai tahun berjalan.' : 'Kolom "Terdaftar" mengikuti filter rentang waktu per tahun bergabung.',
+        periode === 'semua' ? 'Kolom "Terdaftar" memakai semua tahun.' : 'Data tim/EMT hanya tersedia per tahun bergabung: kolom "Terdaftar" menjumlahkan seluruh tahun yang tercakup periode (bukan per tanggal).',
         'Kode provinsi tim/EMT memakai kode Kemendagri; beberapa tim tanpa provinsi tidak masuk baris mana pun.',
         sumberTck(raw),
       ],

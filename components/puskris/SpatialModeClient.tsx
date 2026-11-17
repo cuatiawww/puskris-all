@@ -6,7 +6,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, Filter, Globe2, X } from 'lucide-react'
-import { PUBLIC_BASE_PATH } from '@/lib/public-path'
+import { usePuskrisRaw } from '@/components/puskris/usePuskrisRaw'
+import { buildFilterOptions } from '@/lib/puskris/filter-options'
 import { applyDerive, nf, situasiTerfilter } from '@/lib/puskris/derive'
 import { activeFilterCount, defaultUiFilter, toDeriveFilter, type PuskrisUiFilter } from '@/lib/puskris/ui-filter'
 import { jenisOptions } from '@/lib/puskris/to-spasial'
@@ -31,37 +32,17 @@ function Kpi({ label, value, sub, hint, tone = 'slate' }: { label: string; value
 }
 
 export default function SpatialModeClient() {
-  const [raw, setRaw] = useState<any>(null)
-  const [error, setError] = useState<string | null>(null)
   const [f, setF] = useState<PuskrisUiFilter>(defaultUiFilter())
   const [ready, setReady] = useState(false)
   const [filterOpen, setFilterOpen] = useState(false)
   const [selectedEvent, setSelectedEvent] = useState<any | null>(null)
-
-  const [tries, setTries] = useState(0)
-  const [pending, setPending] = useState(false)
-  useEffect(() => {
-    let on = true
-    fetch(`${PUBLIC_BASE_PATH}/api/puskris/ringkasan`, { cache: 'no-store' })
-      .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json() })
-      .then((j) => { if (on) { setRaw(j.data || j); setPending(Boolean(j.pending)) } })
-      .catch((e) => { if (on && tries === 0) setError(e.message || 'Gagal memuat data') })
-    if (tries === 0) {
-      setF(readFilterFromSearch())
-      setReady(true)
-    }
-    return () => { on = false }
-  }, [tries])
-  useEffect(() => {
-    if (!pending || tries >= 4) return
-    const t = setTimeout(() => setTries((n) => n + 1), 20000)
-    return () => clearTimeout(t)
-  }, [pending, tries])
+  const { raw, error, loadingRange } = usePuskrisRaw(f, ready)
+  useEffect(() => { setF(readFilterFromSearch()); setReady(true) }, [])
 
   const onApply = useCallback((next: PuskrisUiFilter) => {
     setF(next)
     setSelectedEvent(null)
-    window.history.replaceState(null, '', `${window.location.pathname}${filterQuery(next)}`)
+    window.history.replaceState(null, '', `${window.location.pathname}${filterQuery(next, true)}`)
   }, [])
 
   const derived = useMemo(() => (raw ? applyDerive(raw, toDeriveFilter(f)) : null), [raw, f])
@@ -72,6 +53,7 @@ export default function SpatialModeClient() {
   const situasi = useMemo(() => (derived ? situasiTerfilter(derived.situasi, derived.kejadianSemua ? derived.kejadianSemua.filter((k: any) => k.jenis === f.jenis) : kejadian, Boolean(f.jenis)) : null), [derived, kejadian, f.jenis])
   const provinces = useMemo(() => (raw?.regions || []).map((r: any) => ({ code: r.code, nama: r.name || r.nama })), [raw])
   const jenisList = useMemo(() => (raw ? jenisOptions(raw) : []), [raw])
+  const options = useCallback((d: PuskrisUiFilter) => buildFilterOptions(raw, d, 'ringkasan', null, jenisList), [raw, jenisList])
   const count = activeFilterCount({ ...f, pilar: 'semua' })
   const wilayahNama = f.provinsi ? (provinces.find((p: any) => p.code === f.provinsi)?.nama || f.provinsi) : 'Seluruh Indonesia'
 
@@ -89,7 +71,7 @@ export default function SpatialModeClient() {
       <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary"><Globe2 className="h-4 w-4" /></div>
       <div className="min-w-0">
         <p className="truncate text-[9.5px] font-black uppercase tracking-widest text-primary">Pusat Krisis Kesehatan · Spatial Mode</p>
-        <h1 className="truncate text-sm font-black leading-tight text-slate-900">{wilayahNama} · {periodeLabel(f)}{f.jenis ? ` · ${f.jenis}` : ''}</h1>
+        <h1 className="truncate text-sm font-black leading-tight text-slate-900">{wilayahNama} · {periodeLabel(f)}{f.jenis ? ` · ${f.jenis}` : ''}{loadingRange ? ' · memuat rentang…' : ''}</h1>
       </div>
       <button type="button" onClick={() => setFilterOpen(true)}
         className={`ml-1 inline-flex h-8 shrink-0 items-center gap-1.5 rounded-lg border px-2.5 text-[11px] font-bold ${count ? 'border-primary bg-primary/10 text-primary' : 'border-slate-200 text-slate-700 hover:bg-slate-50'}`} data-testid="spatial-filter-btn">
@@ -134,10 +116,7 @@ export default function SpatialModeClient() {
               onApply={(next) => { onApply(next); setFilterOpen(false) }}
               tab="ringkasan"
               onClose={() => setFilterOpen(false)}
-              provinces={provinces}
-              kabOptions={(derived.kabOptions as string[]) || []}
-              jenisOptions={jenisList}
-              hidePilar
+              options={options}
             />
           </div>
         </div>

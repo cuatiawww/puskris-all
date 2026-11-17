@@ -185,19 +185,13 @@ export function applyDerive(data: any, filter: PuskrisFilter) {
         ambulansRusakBerat: pscS.ambulans_rusak_berat,
       }
 
-  let nccDays = (data.ncc?.days || []).filter((d: any) => d.available)
-  if (filter.periode === '7hari') nccDays = nccDays.filter((d: any) => d.date >= daysAgo(7))
-  if (filter.periode === '30hari') nccDays = nccDays.filter((d: any) => d.date >= daysAgo(30))
-  if (filter.periode === 'bulan' && filter.bulan) {
-    const prefix = `${filter.tahun}-${String(filter.bulan).padStart(2, '0')}`
-    nccDays = nccDays.filter((d: any) => String(d.date).startsWith(prefix))
-  }
+  const nccDays = (data.ncc?.days || []).filter((d: any) => d.available && d.date >= range.from && d.date <= range.to)
   const nccTot = nccDays.reduce((a: any, d: any) => ({ cof: a.cof + d.cof, acd: a.acd + d.acd, abd: a.abd + d.abd }), { cof: 0, acd: 0, abd: 0 })
   const nccScr = nccTot.cof ? (nccTot.acd / nccTot.cof) * 100 : null
   const wAvg = (k: string) => { const w = nccDays.reduce((x: number, d: any) => x + (d[k] != null ? Number(d.acd || 0) : 0), 0); return w ? Math.round(nccDays.reduce((x: number, d: any) => x + (d[k] != null ? Number(d[k]) * Number(d.acd || 0) : 0), 0) / w) : null }
   const nccAht = wAvg('aht')
   const nccAsa = wAvg('asa')
-  if (!selected && nccScr !== null && (filter.periode === '7hari' || filter.periode === '30hari' || filter.periode === 'bulan')) {
+  if (!selected && nccScr !== null) {
     layanan.scr = nccScr
   }
 
@@ -222,8 +216,7 @@ export function applyDerive(data: any, filter: PuskrisFilter) {
   const asis = data.asistensi || {}
   const asisCakupan = asis.cakupan || {}
 
-  const from = filter.periode === '7hari' ? daysAgo(7) : filter.periode === '30hari' ? daysAgo(30) : filter.periode === 'bulan' ? `${filter.tahun}-${String(filter.bulan || 10).padStart(2, '0')}-01` : `${filter.tahun}-01-01`
-  const to = filter.periode === 'bulan' ? `${filter.tahun}-${String(filter.bulan || 10).padStart(2, '0')}-31` : '9999-12-31'
+  const { from, to } = range
   let kejadian = kejadianSemua ? kejadianSemua.filter((k) => k.krisis) : (data.eoc?.kejadian_krisis_terbaru || []).filter((k: any) => k.tanggal >= from && k.tanggal <= to)
   if (!kejadianSemua && filter.provinsi) kejadian = kejadian.filter((k: any) => k.code === filter.provinsi)
   if (!kejadianSemua && filter.kabupaten) {
@@ -378,15 +371,33 @@ export function situasiTerfilter(situasi: any, kejadian: any[], jenisScoped: boo
   }
 
 
-/** Rentang tanggal sesuai filter periode (YYYY-MM-DD, inklusif). */
-export function periodeRange(filter: PuskrisFilter): { from: string; to: string; label: string } {
-  if (filter.periode === '7hari') return { from: daysAgo(7), to: '9999-12-31', label: '7 hari terakhir' }
-  if (filter.periode === '30hari') return { from: daysAgo(30), to: '9999-12-31', label: '30 hari terakhir' }
-  if (filter.periode === 'bulan') {
-    const b = String(filter.bulan || Number(todayWibStr().slice(5, 7))).padStart(2, '0')
-    return { from: `${filter.tahun}-${b}-01`, to: `${filter.tahun}-${b}-31`, label: `bulan ${filter.tahun}-${b}` }
+export const BULAN_ID = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
+const lastDay = (y: number, m: number) => new Date(Date.UTC(y, m, 0)).getUTCDate()
+/** 2026-10-01 -> "1 Okt 2026" */
+export function tglId(iso: string) {
+  const [y, m, d] = iso.split('-').map(Number)
+  return `${d} ${BULAN_ID[m - 1]?.slice(0, 3) || ''} ${y}`
+}
+const isIso = (s: any) => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s)
+
+/** Rentang tanggal sesuai filter periode (YYYY-MM-DD, inklusif; "to" tidak melewati hari ini). */
+export function periodeRange(filter: PuskrisFilter): { from: string; to: string; label: string; teks: string } {
+  const today = todayWibStr()
+  const clip = (to: string) => (to > today ? today : to)
+  const out = (from: string, to: string, label: string) => ({ from, to: clip(to), label, teks: `${tglId(from)} – ${tglId(clip(to) < from ? from : clip(to))}` })
+  if (filter.periode === '7hari') return out(daysAgo(6), today, '7 hari terakhir')
+  if (filter.periode === '30hari') return out(daysAgo(29), today, '30 hari terakhir')
+  if (filter.periode === 'bulanini') return out(`${today.slice(0, 7)}-01`, today, `bulan ini (${BULAN_ID[Number(today.slice(5, 7)) - 1]} ${today.slice(0, 4)})`)
+  if (filter.periode === 'rentang' && isIso(filter.dari) && isIso(filter.sampai)) {
+    const [a, b] = [filter.dari!, filter.sampai!].sort()
+    return out(a, b, `${tglId(a)} – ${tglId(b)}`)
   }
-  return { from: `${filter.tahun}-01-01`, to: `${filter.tahun}-12-31`, label: `tahun ${filter.tahun}` }
+  if (filter.periode === 'bulan') {
+    const m = filter.bulan || Number(today.slice(5, 7))
+    const b = String(m).padStart(2, '0')
+    return out(`${filter.tahun}-${b}-01`, `${filter.tahun}-${b}-${lastDay(filter.tahun, m)}`, `${BULAN_ID[m - 1]} ${filter.tahun}`)
+  }
+  return out(`${filter.tahun}-01-01`, `${filter.tahun}-12-31`, `tahun ${filter.tahun}`)
 }
 
 /** Kejadian ringkas API EOC → bentuk daftar kejadian dasbor. */

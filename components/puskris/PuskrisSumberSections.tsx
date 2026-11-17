@@ -1,7 +1,9 @@
 'use client'
 
-import { nf, pf } from '@/lib/puskris/derive'
-import type { PuskrisTab } from '@/lib/puskris/ui-filter'
+import { nf, periodeRange, pf } from '@/lib/puskris/derive'
+import { toDeriveFilter, type PuskrisTab, type PuskrisUiFilter } from '@/lib/puskris/ui-filter'
+
+const titleCase = (s: string) => String(s || '').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())
 import { monthLabel } from '@/lib/puskris/to-spasial'
 import SectionHead from '@/components/puskris/SectionHead'
 import InfoHint from '@/components/puskris/InfoHint'
@@ -127,8 +129,9 @@ function DampakPenduduk({ raw, rows, filtered }: { raw: any; rows: any[]; filter
 }
 
 export default function PuskrisSumberSections({
-  raw, view, tab, bagian = null, kejadian, filteredWilayah = false,
+  raw, view, tab, bagian = null, kejadian, filteredWilayah = false, f,
 }: {
+  f?: PuskrisUiFilter
   raw: any
   view: any
   tab: PuskrisTab
@@ -152,8 +155,33 @@ export default function PuskrisSumberSections({
   const asisRows: any[] = asisLive
     ? [...(bagian === 'kabupaten-kota' ? asis.wilayah_kabkota || [] : asis.wilayah || [])]
         .filter((r: any) => !view.selected || String(r.kd_prop || r.kode_wilayah).slice(0, 2) === view.selected.code)
+        .filter((r: any) => !f?.status || r.status_kapasitas === f.status)
+        .filter((r: any) => bagian !== 'kabupaten-kota' || !f?.kabupaten || String(r.nama).toLowerCase() === f.kabupaten.toLowerCase())
         .sort((a: any, b: any) => b.poin_kapasitas_pct - a.poin_kapasitas_pct || String(a.nama).localeCompare(String(b.nama)))
     : []
+
+  const rng = f ? periodeRange(toDeriveFilter(f)) : null
+  const tahunRng: string[] = []
+  if (rng) for (let y = Number(rng.from.slice(0, 4)); y <= Number(rng.to.slice(0, 4)); y++) tahunRng.push(String(y))
+  const sumTh = (d: Record<string, number> | undefined) => tahunRng.reduce((a, y) => a + Number(d?.[y] || 0), 0)
+  // Wilayah PSC dari data master titik PSC (bukan nasional) bila provinsi/kab/status dipilih.
+  const pscTitik: any[] = (raw.psc?.peta?.psc || []).filter((p: any) =>
+    (!f?.provinsi || p.p === f.provinsi) && (!f?.kabupaten || String(p.kab).toLowerCase() === f.kabupaten.toLowerCase()) &&
+    (f?.status !== 'aktif' || p.a === 1) && (f?.status !== 'siap' || Number(p.siap) > 0))
+  const pscWilayahAktif = Boolean(f && (f.provinsi || f.kabupaten || f.status === 'aktif' || f.status === 'siap'))
+  const pscW = { n: pscTitik.length, aktif: pscTitik.filter((p) => p.a === 1).length, amb: pscTitik.reduce((a, p) => a + Number(p.amb || 0), 0), siap: pscTitik.reduce((a, p) => a + Number(p.siap || 0), 0) }
+  const pscWilayahLabel = [f?.kabupaten, !f?.kabupaten && view.selected?.nama, f?.status === 'aktif' ? 'PSC aktif' : f?.status === 'siap' ? 'ada ambulans siap' : null].filter(Boolean).join(' · ') || 'Seluruh Indonesia'
+  const pscWilayahStrip = pscWilayahAktif ? (
+    <div className="mb-3 rounded-xl border border-teal-100 bg-teal-50/50 p-2" data-testid="psc-wilayah">
+      <p className="mb-1 text-[10px] font-black uppercase tracking-wider text-teal-800">Wilayah terpilih · {pscWilayahLabel} (data master PSC, kondisi terkini)</p>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <Stat label="PSC" value={nf(pscW.n)} />
+        <Stat label="PSC aktif" value={nf(pscW.aktif)} />
+        <Stat label="Ambulans terdaftar" value={nf(pscW.amb)} />
+        <Stat label="Ambulans siap" value={nf(pscW.siap)} hint="Ambulans berstatus aktif dan kondisi baik." />
+      </div>
+    </div>
+  ) : null
 
   const eocLive = raw.eoc?.data_source === 'langsung' && Array.isArray(view.kejadianSemua)
   const evSemua: any[] = eocLive ? view.kejadianSemua : []
@@ -281,8 +309,9 @@ export default function PuskrisSumberSections({
           {show.psc && !pscLive ? <Card eyebrow="Layanan 119" title="PSC 119"><ApiKosong pesan="Data PSC 119 belum tersedia dari API" detail={raw.psc?.error} pending={Boolean(raw.psc?.pending)} /></Card> : null}
           {show.psc && pscLive && (
           <Card eyebrow="Layanan 119" title="PSC 119" desc={`Langsung dari API PSC 119 (${raw.psc?.fetched_at_wib || '-'}): ${raw.psc?.label || ''}. Panggilan = hitungan tahun berjalan; darurat/non-darurat ≈ proporsi sampel panggilan terbaru × total.`}>
+            {pscWilayahStrip}
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
-              <Stat label="Total panggilan" value={nf(psc.total_panggilan)} />
+              <Stat label="Total panggilan" value={nf(psc.total_panggilan)} sub={pscWilayahAktif ? 'nasional' : undefined} />
               <Stat label="≈ Darurat" value={nf(psc.total_emergency)} hint="Perkiraan: proporsi panggilan gawat darurat pada sampel panggilan terbaru dari API PSC 119 dikali total panggilan tahun ini." />
               <Stat label="≈ Non-darurat" value={nf(psc.total_non_emergency)} hint="Perkiraan dari sampel panggilan terbaru (API PSC 119)." />
               <Stat label="Waktu respons" value={psc.waktu_respons_rata_rata != null ? `${psc.waktu_respons_rata_rata} mnt` : '—'} />
@@ -331,8 +360,9 @@ export default function PuskrisSumberSections({
           {show.ambulans && !pscLive ? <Card eyebrow="Layanan 119" title="Ambulans"><ApiKosong pesan="Data ambulans belum tersedia dari API PSC 119" detail={raw.psc?.error} pending={Boolean(raw.psc?.pending)} /></Card> : null}
           {show.ambulans && pscLive && (
           <Card eyebrow="Layanan 119" title="Ambulans" desc="Armada dari dasbor Ambulans / PSC: jenis gawat darurat vs transport, kondisi, dan yang ber-GPS.">
+            {show.psc ? null : pscWilayahStrip}
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
-              <Stat label="Total armada" value={nf(psc.total_ambulan)} />
+              <Stat label="Total armada" value={nf(psc.total_ambulan)} sub={pscWilayahAktif ? 'nasional' : undefined} />
               <Stat label="Aktif" value={nf(psc.ambulans_aktif)} />
               <Stat label="Baik" value={nf(psc.ambulans_baik)} />
               <Stat label="Rusak ringan" value={nf(psc.ambulans_rusak_ringan)} />
@@ -443,11 +473,25 @@ export default function PuskrisSumberSections({
           const emtSk = selP ? selP.emt_sk : tckS.emt_sk
           const kabTop = selP?.kab ? [...selP.kab].sort((x: any, y: any) => y.n - x.n).slice(0, 10).map((k: any) => ({ nama: String(k.nama).replace(/^KAB(UPATEN)?\.?\s*/i, '').slice(0, 18), nakes: k.nakes, non: k.n - k.nakes })) : null
           const respon: { nama: string; jumlah: number }[] = raw.tck?.emt_rekap?.waktu_respon || []
+          const kabSel: any = f?.kabupaten && selP?.kab ? selP.kab.find((k: any) => String(k.nama).toLowerCase().replace(/^kab(upaten)?\.?\s*/, '') === f.kabupaten!.toLowerCase().replace(/^kab(upaten)?\.?\s*/, '')) : null
+          const profSel = f?.profesi ? profesiList.find((x) => x.nama === f.profesi) : null
+          const tpList: any[] = selP ? [selP] : raw.tck?.provinsi || []
+          const timRng = tpList.reduce((a, p) => a + sumTh(p.tim_per_tahun), 0)
+          const emtRng = tpList.reduce((a, p) => a + sumTh(p.emt_per_tahun), 0)
+          const rngLbl = tahunRng.length > 1 ? `${tahunRng[0]}–${tahunRng[tahunRng.length - 1]}` : tahunRng[0]
           return (
           <Card eyebrow="Kesiapsiagaan SDM" title="Tenaga cadangan kesehatan"
             desc={tLive
               ? `Data langsung API Tenaga Cadangan Kesehatan (TCK), diambil ${raw.tck?.fetched_at_wib || '-'}: relawan per provinsi, profesi, tim, dan ${EMT_LABEL}${view.selected ? ` untuk ${view.selected.nama}` : ''}. Hanya angka agregat, tanpa data pribadi.`
               : ''}>
+            {f && (kabSel || profSel || tahunRng.length) ? (
+              <div className="mb-3 grid grid-cols-2 gap-2 rounded-xl border border-blue-100 bg-blue-50/40 p-2 sm:grid-cols-4" data-testid="tck-filter-strip">
+                {kabSel ? <Stat label={`Individu · ${titleCase(kabSel.nama)}`} value={nf(kabSel.n)} sub={`${nf(kabSel.nakes)} tenaga kesehatan`} /> : null}
+                {profSel ? <Stat label={`Profesi · ${profSel.nama.replace(/^Tenaga (Kesehatan )?/, '')}`} value={nf(profSel.jumlah)} sub={view.selected ? view.selected.nama : 'nasional'} hint="Jumlah relawan terdaftar (terkini) pada golongan profesi ini; data per kab/kota tidak dirinci per profesi." /> : null}
+                {f?.tim !== 'emt' ? <Stat label={`Tim terbentuk ${rngLbl}`} value={nf(timRng)} sub="per tahun pembentukan" hint="API TCK hanya memberi tahun pembentukan tim, jadi periode harian/bulanan dibulatkan ke tahun yang tercakup." /> : null}
+                {f?.tim !== 'tim' ? <Stat label={`${EMT_LABEL} terbentuk ${rngLbl}`} value={nf(emtRng)} sub="per tahun pembentukan" hint="Dihitung per tahun bergabung EMT (Emergency Medical Team / Tim Medis Darurat)." /> : null}
+              </div>
+            ) : null}
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
               <Stat label="Individu" value={nf(tck.individu)} sub={!view.selected && tckS.individu_bulan_ini ? `+${nf(tckS.individu_bulan_ini)} bulan ini` : undefined} />
               <Stat label={view.selected ? 'Tim (provinsi)' : 'Tim'} value={tck.tim == null ? '—' : nf(tck.tim)} sub={!view.selected && tckS.tim_bulan_ini ? `+${nf(tckS.tim_bulan_ini)} bulan ini` : undefined} />
@@ -482,7 +526,9 @@ export default function PuskrisSumberSections({
                       <XAxis type="number" tick={{ fontSize: 10 }} />
                       <YAxis type="category" dataKey="nama" tick={{ fontSize: 9 }} width={110} />
                       <Tooltip />
-                      <Bar dataKey="jumlah" name="Relawan" fill={BLUE} />
+                      <Bar dataKey="jumlah" name="Relawan" fill={BLUE}>
+                        {profesiList.map((x) => <Cell key={x.nama} fill={!f?.profesi || x.nama === f.profesi ? BLUE : '#cbd5e1'} />)}
+                      </Bar>
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -500,21 +546,28 @@ export default function PuskrisSumberSections({
           {show.logistik && (() => {
           const L = raw.logistik || {}
           const lLive = L.data_source === 'langsung'
-          const selReg: any = lLive && view.selected ? (L.regional || []).find((r: any) => r.id === L.provinsi_regional?.[view.selected!.code]) : null
+          const selReg: any = lLive && f?.regional ? (L.regional || []).find((r: any) => String(r.id) === f.regional)
+            : lLive && view.selected ? (L.regional || []).find((r: any) => r.id === L.provinsi_regional?.[view.selected!.code]) : null
           const regRows: any[] = lLive ? (selReg ? [selReg] : L.regional || []) : []
           const S = selReg || L.summary || {}
           const perg = L.pergerakan || {}
           const bul: any[] = (selReg ? perg.per_regional_bulanan?.[selReg.id] : perg.bulanan) || []
           const tren = bul.filter((x: any) => x.bulan >= '2025-01').map((x: any) => ({ ...x, label: monthLabel(x.bulan) }))
-          const kedal: any[] = (L.kedaluwarsa || []).filter((k: any) => !selReg || k.regional === selReg.nama.replace(' (DKI Jakarta)', '') || k.regional === selReg.nama).slice(0, 8)
+          const kedal: any[] = (L.kedaluwarsa || []).filter((k: any) => !selReg || k.regional === selReg.nama.replace(' (DKI Jakarta)', '') || k.regional === selReg.nama)
+            .filter((k: any) => !f?.kategori || k.kategori === f.kategori)
+            .filter((k: any) => !f?.kedaluwarsa || (f.kedaluwarsa === 'lewat' ? k.lewat : !k.lewat)).slice(0, 8)
           const katRows: any[] = selReg
             ? [['Obat-Obatan', 'obat'], ['BMHP', 'bmhp'], ['Alkes', 'alkes'], ['Sarpras', 'sarpras'], ['Lainnya', 'lainnya']].map(([nama, k]) => ({ nama, stok: selReg[k] || 0 }))
             : (L.kategori_rekap || []).map((k: any) => ({ nama: k.nama.replace(/ \(.*\)$/, ''), stok: k.stok }))
+          const KAT_NAMA: Record<string, string> = { obat: 'Obat-Obatan', bmhp: 'BMHP', alkes: 'Alkes', sarpras: 'Sarpras', lainnya: 'Lainnya' }
+          const katSel = f?.kategori ? (KAT_NAMA[f.kategori] || f.kategori) : null
+          const katStok = katSel ? (selReg ? Number(selReg[f!.kategori!] || 0) : Number((L.kategori_rekap || []).find((k: any) => k.key === f!.kategori)?.stok || 0)) : null
           if (!lLive) return <Card eyebrow="Logistik dan stok" title="Logistik kesehatan"><ApiKosong pesan="Data Logistik belum tersedia dari API" detail={raw.logistik?.error} pending={Boolean(raw.logistik?.pending)} /></Card>
           return (
           <Card eyebrow="Logistik dan stok" title="Logistik kesehatan"
-            desc={`Data langsung API Logistik Kesehatan (SIMLOGKES), diambil ${L.fetched_at_wib || '-'}: stok akhir per regional dan kategori, barang kedaluwarsa, dan pergerakan stok.${selReg ? ` ${view.selected!.nama} dilayani gudang regional ${selReg.nama}.` : ''} Angka dalam satuan masing-masing barang (tablet, box, unit, dan lainnya) yang dijumlahkan.`}>
+            desc={`Data langsung API Logistik Kesehatan (SIMLOGKES), diambil ${L.fetched_at_wib || '-'}: stok akhir per regional dan kategori, barang kedaluwarsa, dan pergerakan stok.${selReg ? (view.selected ? ` ${view.selected.nama} dilayani gudang regional ${selReg.nama}.` : ` Regional terpilih: ${selReg.nama}.`) : ''} Angka dalam satuan masing-masing barang (tablet, box, unit, dan lainnya) yang dijumlahkan.`}>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+              {katSel ? <Stat label={`Stok ${katSel}`} value={nf(katStok)} sub={selReg ? selReg.nama : 'nasional'} hint="Stok akhir kategori yang dipilih di Filter Dasbor." /> : null}
               <Stat label={selReg ? 'Stok regional' : 'Total stok'} value={nf(selReg ? selReg.total : S.total_stok)} sub={`${nf(selReg ? selReg.barang : S.jumlah_barang)} baris barang`} />
               <Stat label="Unit masuk" value={nf(selReg ? selReg.masuk : S.unit_masuk)} sub="semua transaksi tercatat" hint="Jumlah unit barang yang diterima gudang (transaksi_masuk) sejak stok awal." />
               <Stat label="Unit keluar" value={nf(selReg ? selReg.keluar : S.unit_keluar)} sub="semua transaksi tercatat" hint="Jumlah unit barang yang dikeluarkan gudang (transaksi_keluar): pemakaian institusi/dinas kesehatan dan pindah depo antarregional." />

@@ -7,13 +7,13 @@ import { AlertTriangle, Ambulance, Package, PhoneCall, Users } from 'lucide-reac
 import { DEFAULT_LAYERS, type Focus, type Layers as MapLayers } from '@/components/spasial/SpasialMap'
 import { type Area, type Metric } from '@/lib/spasial-api'
 import { useChoroConfig } from '@/lib/choropleth-classes'
-import { applyDerive, nf, pf, situasiTerfilter, logistikPerProvinsi } from '@/lib/puskris/derive'
+import { applyDerive, nf, pf, situasiTerfilter, logistikPerProvinsi, periodeRange } from '@/lib/puskris/derive'
 import { PUBLIC_BASE_PATH } from '@/lib/public-path'
 import {
   METRIC_PILLS, buildJenisCards, centroidsFromGeo, toSpasial,
   type Centroids, type ChoroId,
 } from '@/lib/puskris/to-spasial'
-import { toDeriveFilter, type PuskrisUiFilter } from '@/lib/puskris/ui-filter'
+import { tahunIni, toDeriveFilter, type PuskrisUiFilter } from '@/lib/puskris/ui-filter'
 import { NASIONAL_NOTE, withQuery } from '@/lib/puskris/pages'
 import { EMT_LABEL, NCC_LABEL } from '@/lib/puskris/labels'
 import { asistensiWilayah, attachTimEstimate, titikFasilitas, buildPeringatan, buildTerpadu, countRadius } from '@/lib/puskris/integrasi'
@@ -75,7 +75,7 @@ export default function PuskrisExecutiveView({
     return f.jenis ? list.filter((k: any) => k.jenis === f.jenis) : list
   }, [derived.kejadian, f.jenis])
 
-  const useOfficialJenis = !f.provinsi && !f.kabupaten && f.periode === 'tahun' && !f.jenis
+  const useOfficialJenis = !f.provinsi && !f.kabupaten && f.periode === 'tahun' && f.tahun === tahunIni() && !raw?.eoc?.rentang && !f.jenis
   const jenisCards = useMemo(
     () => buildJenisCards(useOfficialJenis ? raw : { ...raw, eoc: { ...raw.eoc, jenis_2026: [] } }, derived.kejadianSemua || derived.kejadian || []),
     [raw, derived.kejadian, derived.kejadianSemua, useOfficialJenis],
@@ -136,7 +136,7 @@ export default function PuskrisExecutiveView({
     logistikByCode,
     asistensiByCode,
     ringkasanLabel: f.jenis ? `Jenis: ${f.jenis}` : 'Semua jenis kejadian',
-    periodeLabel: f.periode === 'bulan' ? 'Oktober 2026' : f.periode === '7hari' ? '7 hari terakhir' : f.periode === '30hari' ? '30 hari terakhir' : 'Tahun 2026',
+    periodeLabel: periodeRange(toDeriveFilter(f)).label,
     interpretasi: [],
     raw,
   }), [derived.rows, kejadian, choro, centroids, f, logistikByCode, asistensiByCode, raw])

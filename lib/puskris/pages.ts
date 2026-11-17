@@ -128,16 +128,42 @@ export function sourcesFor(item: PuskrisNavItem, bagian: string | null): SourceL
   return ch?.sources?.length ? ch.sources : item.sources
 }
 
-export function filterQuery(f: { periode?: string | null; provinsi?: string | null; kabupaten?: string | null; jenis?: string | null }) {
+type QF = { periode?: string | null; tahun?: number | null; bulan?: number | null; dari?: string | null; sampai?: string | null; provinsi?: string | null; kabupaten?: string | null; jenis?: string | null; [k: string]: any }
+
+/** Query string filter. Default hanya filter bersama (periode, wilayah, jenis) supaya ikut saat pindah halaman;
+ *  withExtras = true juga menulis filter khusus halaman (regional, kategori, profesi, status, …). */
+export function filterQuery(f: QF, withExtras = false) {
   const sp = new URLSearchParams()
+  const yNow = Number(new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 4))
   if (f.periode && f.periode !== 'tahun') sp.set('periode', f.periode)
+  if ((f.periode === 'tahun' || f.periode === 'bulan') && f.tahun && (f.tahun !== yNow || f.periode === 'bulan')) sp.set('tahun', String(f.tahun))
+  if (f.periode === 'bulan' && f.bulan) sp.set('bulan', String(f.bulan))
+  if (f.periode === 'rentang') { if (f.dari) sp.set('dari', f.dari); if (f.sampai) sp.set('sampai', f.sampai) }
   if (f.provinsi) sp.set('provinsi', f.provinsi)
   if (f.kabupaten) sp.set('kabupaten', f.kabupaten)
   if (f.jenis) sp.set('jenis', f.jenis)
+  if (withExtras) for (const k of ['regional', 'kategori', 'kedaluwarsa', 'profesi', 'tim', 'status']) if (f[k]) sp.set(k, String(f[k]))
   const q = sp.toString()
   return q ? `?${q}` : ''
 }
 
-export function withQuery(href: string, f: { periode?: string | null; provinsi?: string | null; kabupaten?: string | null; jenis?: string | null }) {
+/** Baca filter dari query string (kebalikan filterQuery). */
+export function parseFilterQuery(search: string, base: Record<string, any>) {
+  const sp = new URLSearchParams(search)
+  const next: Record<string, any> = { ...base }
+  const periode = sp.get('periode')
+  if (periode && ['tahun', 'bulan', 'bulanini', '7hari', '30hari', 'rentang'].includes(periode)) next.periode = periode
+  const th = Number(sp.get('tahun'))
+  if (th >= 2000 && th <= 2100) next.tahun = th
+  const bl = Number(sp.get('bulan'))
+  next.bulan = next.periode === 'bulan' ? (bl >= 1 && bl <= 12 ? bl : Number(new Date(Date.now() + 7 * 3600_000).toISOString().slice(5, 7))) : null
+  const iso = (v: string | null) => (v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null)
+  next.dari = iso(sp.get('dari')); next.sampai = iso(sp.get('sampai'))
+  if (next.periode === 'rentang' && (!next.dari || !next.sampai)) next.periode = 'tahun'
+  for (const k of ['provinsi', 'kabupaten', 'jenis', 'regional', 'kategori', 'kedaluwarsa', 'profesi', 'tim', 'status']) if (sp.get(k)) next[k] = sp.get(k)
+  return next
+}
+
+export function withQuery(href: string, f: QF) {
   return `${href}${filterQuery(f)}`
 }

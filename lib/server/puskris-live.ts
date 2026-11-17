@@ -10,7 +10,7 @@ import KAB_CENTROID from '../../data/kab-centroid.json'
 import { fetchTckInti, fetchTckRelawan, TCK_PROFESI } from './tck-live'
 import { fetchLogistik, LOG_KATEGORI } from './logistik-live'
 import { nccEnabled, fetchNcc, type NccRingkasan } from './ncc-live'
-import { eocEnabled, fetchEocTahun, fetchEocTren, rekapEoc, type EocEvent } from './eoc-live'
+import { eocEnabled, fetchEocRange, fetchEocTahun, fetchEocTren, rekapEoc, type EocEvent } from './eoc-live'
 
 const TTL_MS = 15 * 60_000
 const PSC_BASE = (process.env.PUSKRIS_PSC_BASE || 'https://psc.kemkes.go.id').replace(/\/$/, '')
@@ -443,12 +443,29 @@ export async function getEocLive(budgetMs = 5000) {
 
 export type LiveStatus = { status: 'langsung' | 'tidak_tersedia'; at?: string; error?: string; pending?: boolean }
 
-export async function getLiveOverlay(provCodes: string[], budgetMs = 7000) {
+/** Rentang tanggal opsional dari Filter Dasbor (dipakai bila di luar cakupan data tahun berjalan). */
+export type RentangApi = { tanggal1: string; tanggal2: string } | null
+
+/** Validasi ?tanggal1&tanggal2 (YYYY-MM-DD, urut, mulai 2015, maks. 6 tahun). */
+export function parseRentang(sp: URLSearchParams): RentangApi {
+  const a = sp.get('tanggal1'), b = sp.get('tanggal2')
+  const ok = (v: string | null) => Boolean(v && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v)))
+  if (!ok(a) || !ok(b) || a! > b! || a! < '2015-01-01') return null
+  if (Date.parse(b!) - Date.parse(a!) > 6 * 366 * 86400_000) return null
+  return { tanggal1: a!, tanggal2: b! }
+}
+
+export async function getLiveOverlay(provCodes: string[], budgetMs = 7000, rentang: RentangApi = null) {
   const nccOff = { fresh: false, pending: false, error: 'API NCC belum terhubung (PUSKRIS_NCC_URL belum diatur di server)' } as LiveResult<NccRingkasan>
-  const nccP = nccEnabled() ? swr('ncc:ringkasan', () => fetchNcc(), budgetMs) : Promise.resolve(nccOff)
+  const nccP = nccEnabled()
+    ? (rentang ? swr(`ncc:${rentang.tanggal1}:${rentang.tanggal2}`, () => fetchNcc(rentang), budgetMs) : swr('ncc:ringkasan', () => fetchNcc(), budgetMs))
+    : Promise.resolve(nccOff)
   const tahun = Number(new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 4))
   const eocOff = { fresh: false, pending: false, error: 'Akun API EOC (PUSKRIS_EOC_AUTH) belum diatur di server' } as LiveResult<Awaited<ReturnType<typeof fetchEocTahun>>>
-  const eocP = eocEnabled() ? swr('eoc:tahun', () => fetchEocTahun(), budgetMs) : Promise.resolve(eocOff)
+  // Rentang di luar tahun berjalan: ambil kejadian EOC tepat untuk tanggal1–tanggal2 (per bulan, cache 15 menit).
+  const eocP = !eocEnabled() ? Promise.resolve(eocOff)
+    : rentang ? swr(`eoc:rentang:${rentang.tanggal1}:${rentang.tanggal2}`, async () => ({ tahun: Number(rentang.tanggal2.slice(0, 4)), rentang: true, ...(await fetchEocRange(rentang)), jenis: [] as { uid: string; nama: string }[] }), budgetMs)
+    : swr('eoc:tahun', () => fetchEocTahun(), budgetMs)
   // tren tahun-tahun sebelumnya: data historis jarang berubah, cache 6 jam
   const trenP = eocEnabled() ? swr(`eoc:tren:${tahun}`, () => fetchEocTren(4), Math.min(budgetMs, 1500), 6 * 3600_000) : Promise.resolve(eocOff as LiveResult<any>)
   const st = (r: LiveResult<any>): LiveStatus =>
@@ -667,7 +684,7 @@ function mergeEoc(data: any, base: any, ov: Awaited<ReturnType<typeof getLiveOve
   if (!v) return
   const snap = base.eoc || {}
   const y = v.tahun
-  const ev = v.events.filter((e) => e.t.startsWith(String(y)))
+  const ev = (v as any).rentang ? v.events : v.events.filter((e) => e.t.startsWith(String(y)))
   const kpi = rekapEoc(ev)
   const kr = ev.filter((e) => e.s)
   const kk = rekapEoc(kr)
@@ -701,7 +718,8 @@ function mergeEoc(data: any, base: any, ov: Awaited<ReturnType<typeof getLiveOve
     ...snap,
     data_source: 'langsung',
     fetched_at_wib: ov.status.eoc.at,
-    label: `kejadian ${y} langsung dari API EOC Pusat Krisis (data_krisis, ${ev.length.toLocaleString('id-ID')} kejadian)`,
+    label: `kejadian ${(v as any).rentang ? `${v.dari} s.d. ${v.sampai}` : y} langsung dari API EOC Pusat Krisis (data_krisis, ${ev.length.toLocaleString('id-ID')} kejadian)`,
+    rentang: Boolean((v as any).rentang),
     sumber_api: 'https://pusatkrisis.kemkes.go.id/eoc/api/detail_bencana/data_krisis.php',
     gagal_bulan: v.gagal,
     nasional: {

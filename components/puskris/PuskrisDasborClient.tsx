@@ -1,15 +1,16 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { usePathname } from 'next/navigation'
-import { PUBLIC_BASE_PATH } from '@/lib/public-path'
-import { applyDerive } from '@/lib/puskris/derive'
+import { usePathname, useRouter } from 'next/navigation'
+import { usePuskrisRaw } from '@/components/puskris/usePuskrisRaw'
 import { activeFilterCount, defaultUiFilter, toDeriveFilter, type PuskrisUiFilter } from '@/lib/puskris/ui-filter'
 import { jenisOptions } from '@/lib/puskris/to-spasial'
-import { filterQuery, matchPuskrisPath } from '@/lib/puskris/pages'
+import { buildFilterOptions, tahunTersedia } from '@/lib/puskris/filter-options'
+import { filterQuery, matchPuskrisPath, parseFilterQuery } from '@/lib/puskris/pages'
 import PuskrisFilterPanel from '@/components/puskris/PuskrisFilterPanel'
 import PuskrisRingkasanView from '@/components/puskris/PuskrisRingkasanView'
 import SumberDataStrip from '@/components/puskris/SumberDataStrip'
+import PeriodeAktifBar from '@/components/puskris/PeriodeAktifBar'
 import PuskrisAnalisisView from '@/components/puskris/PuskrisAnalisisView'
 import PuskrisPageShell from '@/components/puskris/PuskrisPageShell'
 
@@ -18,44 +19,16 @@ const PANEL_KEY = 'puskris-dasbor-filter-panel-open'
 export function readFilterFromSearch(): PuskrisUiFilter {
   const next = defaultUiFilter()
   if (typeof window === 'undefined') return next
-  const sp = new URLSearchParams(window.location.search)
-  const periode = sp.get('periode')
-  if (periode === 'tahun' || periode === 'bulan' || periode === '7hari' || periode === '30hari') {
-    next.periode = periode
-    next.bulan = periode === 'bulan' ? 10 : null
-  }
-  if (sp.get('provinsi')) next.provinsi = sp.get('provinsi')
-  if (sp.get('kabupaten')) next.kabupaten = sp.get('kabupaten')
-  if (sp.get('jenis')) next.jenis = sp.get('jenis')
-  return next
+  return parseFilterQuery(window.location.search, next) as PuskrisUiFilter
 }
 
 export default function PuskrisDasborClient() {
   const pathname = usePathname() || '/dashboard/ringkasan'
   const { item, bagian } = matchPuskrisPath(pathname)
-  const [raw, setRaw] = useState<any>(null)
-  const [error, setError] = useState<string | null>(null)
   const [f, setF] = useState<PuskrisUiFilter>(defaultUiFilter())
   const [ready, setReady] = useState(false)
   const [panelOpen, setPanelOpen] = useState(true)
-
-  const [pending, setPending] = useState(false)
-  const [tries, setTries] = useState(0)
-  useEffect(() => {
-    let on = true
-    fetch(`${PUBLIC_BASE_PATH}/api/puskris/ringkasan`, { cache: 'no-store' })
-      .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json() })
-      .then((j) => { if (on) { setRaw(j.data || j); setPending(Boolean(j.pending)) } })
-      .catch((e) => { if (on && !raw) setError(e.message || 'Gagal memuat data') })
-    return () => { on = false }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tries])
-  // Data langsung yang belum selesai diambil server: muat ulang diam-diam (maks. 4 kali).
-  useEffect(() => {
-    if (!pending || tries >= 4) return
-    const t = setTimeout(() => setTries((n) => n + 1), 20000)
-    return () => clearTimeout(t)
-  }, [pending, tries])
+  const { raw, error, pending, loadingRange } = usePuskrisRaw(f, ready)
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -67,7 +40,7 @@ export default function PuskrisDasborClient() {
 
   const writeUrl = (applied: PuskrisUiFilter) => {
     if (typeof window === 'undefined') return
-    const qs = filterQuery(applied)
+    const qs = filterQuery(applied, true)
     const next = `${window.location.pathname}${qs}`
     window.history.replaceState(null, '', next)
   }
@@ -85,9 +58,16 @@ export default function PuskrisDasborClient() {
     })
   }
 
-  const derivedForOpts = useMemo(() => (raw ? applyDerive(raw, toDeriveFilter(f)) : null), [raw, f])
-  const provinces = useMemo(() => (raw?.regions || []).map((r: any) => ({ code: r.code, nama: r.name || r.nama })), [raw])
+  const router = useRouter()
   const jenisList = useMemo(() => (raw ? jenisOptions(raw) : []), [raw])
+  const options = useCallback((d: PuskrisUiFilter) => buildFilterOptions(raw, d, item.key, bagian, jenisList), [raw, item.key, bagian, jenisList])
+  const years = useMemo(() => tahunTersedia(raw), [raw])
+  const bagianOptions = item.children?.length ? [{ key: null, label: item.key === 'asistensi' ? 'Provinsi & Kab/Kota' : `Semua bagian ${item.label}` }, ...item.children.map((c) => ({ key: c.key, label: c.label }))] : undefined
+  const goBagian = (key: string | null, applied: PuskrisUiFilter) => {
+    const href = key ? item.children?.find((c) => c.key === key)?.href || item.href : item.href
+    setF(applied)
+    router.push(`${href}${filterQuery(applied, true)}`)
+  }
   const count = activeFilterCount({ ...f, pilar: 'semua' })
 
   if (error) return <div className="p-6 text-sm text-red-700">Data dasbor tidak dapat dimuat: {error}</div>
@@ -107,19 +87,19 @@ export default function PuskrisDasborClient() {
             f={f}
             onApply={handleApply}
             tab={item.key}
+            bagian={bagian}
+            bagianOptions={bagianOptions}
+            onBagian={goBagian}
             onClose={() => setPanelOpen(false)}
-            provinces={provinces}
-            kabOptions={(derivedForOpts?.kabOptions as string[]) || []}
-            jenisOptions={jenisList}
-            hidePilar
-            hideJenis={item.key === 'layanan' || item.key === 'kesiapsiagaan' || item.key === 'asistensi'}
+            options={options}
           />
         )
       }
     >
-      <SumberDataStrip status={raw.live_status} pending={pending && tries < 4} />
+      <SumberDataStrip status={raw.live_status} pending={pending} />
+      <PeriodeAktifBar f={f} raw={raw} page={item.key} bagian={bagian} loading={loadingRange} />
       {item.key === 'analisis'
-        ? <PuskrisAnalisisView raw={raw} f={f} onApply={handleApply} />
+        ? <PuskrisAnalisisView raw={raw} f={f} onApply={handleApply} years={years} />
         : <PuskrisRingkasanView raw={raw} f={f} tab={item.key} bagian={bagian} onApply={handleApply} />}
     </PuskrisPageShell>
   )

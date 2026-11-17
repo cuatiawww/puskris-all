@@ -1,9 +1,13 @@
-export type Periode = 'tahun' | 'bulan' | '7hari' | '30hari'
+/** tahun = satu tahun penuh (f.tahun); bulan = f.tahun + f.bulan; rentang = f.dari s.d. f.sampai. */
+export type Periode = 'tahun' | 'bulan' | 'bulanini' | '7hari' | '30hari' | 'rentang'
 
 export type PuskrisFilter = {
   periode: Periode
   tahun: number
   bulan: number | null
+  /** rentang kustom (YYYY-MM-DD), dipakai bila periode = 'rentang' */
+  dari?: string | null
+  sampai?: string | null
   provinsi: string | null
   kabupaten: string | null
 }

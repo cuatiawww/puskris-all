@@ -2,7 +2,7 @@
 
 // Peta spasial terpadu Pusat Krisis Kesehatan: dipakai di Ringkasan (variant "card") dan Spatial Mode (variant "fullscreen").
 // Seluruh state lapisan, dok kiri (Analisa / Kejadian Terbaru / Terpadu) dan pengaturan lapisan ada di sini supaya tidak terduplikasi.
-import { logistikPerProvinsi } from '@/lib/puskris/derive'
+import { logistikPerProvinsi, periodeRange } from '@/lib/puskris/derive'
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
@@ -14,7 +14,7 @@ import { type Area as SpasialArea, type Metric, type Titik } from '@/lib/spasial
 import { useChoroConfig } from '@/lib/choropleth-classes'
 import { PUBLIC_BASE_PATH } from '@/lib/public-path'
 import { CHORO_OPTIONS, METRIC_PILLS, centroidsFromGeo, toSpasial, type Centroids, type ChoroId } from '@/lib/puskris/to-spasial'
-import type { PuskrisUiFilter } from '@/lib/puskris/ui-filter'
+import { toDeriveFilter, type PuskrisUiFilter } from '@/lib/puskris/ui-filter'
 import KejadianTerpaduCard from '@/components/puskris/KejadianTerpaduCard'
 import KejadianTerbaruList from '@/components/puskris/KejadianTerbaruList'
 import InfoHint from '@/components/puskris/InfoHint'
@@ -38,10 +38,7 @@ const GEO_URL = `${PUBLIC_BASE_PATH}/data/indonesia-38-provinces.geojson`
 const nfi = (n: number | undefined | null) => Number(n || 0).toLocaleString('id-ID')
 
 export function periodeLabel(f: PuskrisUiFilter) {
-  if (f.periode === 'bulan') return 'Oktober 2026'
-  if (f.periode === '7hari') return '7 hari terakhir'
-  if (f.periode === '30hari') return '30 hari terakhir'
-  return 'Tahun 2026'
+  return periodeRange(toDeriveFilter(f)).label.replace(/^tahun /, 'Tahun ')
 }
 
 export default function PuskrisPetaTerpadu({
@@ -89,6 +86,12 @@ export default function PuskrisPetaTerpadu({
   const [terbaruCount, setTerbaruCount] = useState<number | null>(null)
   const [radiusOn, setRadiusOn] = useState(true)
   const [internal, setInternal] = useState<InternalLayerToggles>(DEFAULT_INTERNAL)
+  // Filter Dasbor "Status" (PSC aktif / ambulans siap) menyalakan lapisan terkait di peta.
+  useEffect(() => {
+    if (f.status === 'aktif') setInternal((p) => ({ ...p, psc: true, pscAktifOnly: true }))
+    else if (f.status === 'siap') setInternal((p) => ({ ...p, ambulans: true, ambSiapOnly: true }))
+    else setInternal((p) => ({ ...p, pscAktifOnly: false, ambSiapOnly: false }))
+  }, [f.status])
   const internalPack = useMemo(() => buildInternalLayers(raw, f, internal), [raw, f, internal])
   const iInfo = internalPack.info
   const baseChoro = useChoroConfig()

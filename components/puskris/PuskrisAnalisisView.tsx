@@ -45,8 +45,10 @@ import {
 } from '@/lib/puskris/matriks'
 import type { KejadianTerbaru } from '@/lib/puskris/kejadian-terbaru'
 import { PUBLIC_BASE_PATH } from '@/lib/public-path'
-import { applyDerive, eocKejadian, nf, pf } from '@/lib/puskris/derive'
-import { toDeriveFilter, type PuskrisUiFilter } from '@/lib/puskris/ui-filter'
+import { applyDerive, eocKejadian, nf, periodeRange, pf } from '@/lib/puskris/derive'
+import { tahunIni, toDeriveFilter, type PuskrisUiFilter } from '@/lib/puskris/ui-filter'
+import { PeriodePicker } from '@/components/puskris/PuskrisFilterPanel'
+import type { PeriodeMatriks } from '@/lib/puskris/matriks'
 import type { ProvinceRow } from '@/lib/puskris/types'
 
 type GenericTab = 'tck' | 'panggilan' | 'bencana' | 'asistensi'
@@ -68,10 +70,12 @@ export default function PuskrisAnalisisView({
   raw,
   f,
   onApply,
+  years = [],
 }: {
   raw: any
   f: PuskrisUiFilter
   onApply: (next: PuskrisUiFilter) => void
+  years?: number[]
 }) {
   // Matriks Tab state
   const [activeTab, setActiveTab] = useState<ActiveMatrixTab>('tck')
@@ -82,7 +86,13 @@ export default function PuskrisAnalisisView({
 
   // Search and Filter states for the Left Panel
   const [searchTerm, setSearchTerm] = useState('')
-  const [periodeFilter, setPeriodeFilter] = useState<'semua' | '2026' | '30hari' | '7hari'>('semua')
+  // Periode mengikuti filter periode global (URL); "Semua waktu" hanya berlaku di halaman Analisis.
+  const [semuaWaktu, setSemuaWaktu] = useState(false)
+  const periodeFilter = useMemo<PeriodeMatriks>(() => {
+    if (semuaWaktu) return 'semua'
+    const r = periodeRange(toDeriveFilter(f))
+    return { from: r.from, to: r.to }
+  }, [semuaWaktu, f])
   const [provSearch, setProvSearch] = useState('')
   const [selectedProvinces, setSelectedProvinces] = useState<string[]>([])
   const [selectedDisasters, setSelectedDisasters] = useState<string[]>([])
@@ -514,7 +524,8 @@ export default function PuskrisAnalisisView({
   const handleResetFilters = () => {
     setSearchTerm('')
     setTableSearch('')
-    setPeriodeFilter('semua')
+    setSemuaWaktu(false)
+    onApply({ ...f, periode: 'tahun', tahun: tahunIni(), bulan: null, dari: null, sampai: null })
     setProvSearch('')
     setSelectedProvinces([])
     setSelectedDisasters([])
@@ -821,7 +832,7 @@ export default function PuskrisAnalisisView({
   // Active filter count
   const activeFiltersCount =
     (searchTerm ? 1 : 0) +
-    (periodeFilter !== 'semua' ? 1 : 0) +
+    (semuaWaktu || f.periode !== 'tahun' || f.tahun !== tahunIni() ? 1 : 0) +
     selectedProvinces.length +
     selectedDisasters.length +
     (filterAdaKorban ? 1 : 0) +
@@ -954,28 +965,16 @@ export default function PuskrisAnalisisView({
 
               {/* 2. Rentang Waktu (Periode) */}
               <div>
-                <label className="mb-1.5 block font-bold text-slate-700">Rentang Waktu</label>
-                <div className="grid grid-cols-2 gap-1.5">
-                  {[
-                    { id: 'semua', label: 'Semua Waktu' },
-                    { id: '2026', label: 'Tahun 2026' },
-                    { id: '30hari', label: '30 Hari Terakhir' },
-                    { id: '7hari', label: '7 Hari Terakhir' },
-                  ].map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => setPeriodeFilter(p.id as any)}
-                      className={`rounded-lg border px-2.5 py-1.5 text-center text-[11px] font-semibold transition ${
-                        periodeFilter === p.id
-                          ? 'border-primary bg-primary/10 font-bold text-primary'
-                          : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-                      }`}
-                    >
-                      {p.label}
-                    </button>
-                  ))}
+                <label className="mb-1.5 flex items-center justify-between font-bold text-slate-700">
+                  <span>Rentang Waktu</span>
+                  <span className="inline-flex items-center gap-1 text-[10.5px] font-semibold text-slate-600">
+                    <input type="checkbox" checked={semuaWaktu} onChange={(e) => setSemuaWaktu(e.target.checked)} data-testid="analisis-semua-waktu" /> Semua waktu
+                  </span>
+                </label>
+                <div className={semuaWaktu ? 'pointer-events-none opacity-50' : ''}>
+                  <PeriodePicker draft={f} setPatch={(p) => onApply({ ...f, ...p })} years={years} />
                 </div>
+                <p className="mt-1 text-[10px] leading-snug text-slate-500">Data bencana di luar tahun berjalan diambil dari API EOC sesuai rentang. Tim/EMT hanya bisa difilter per tahun pembentukan.</p>
               </div>
 
               {/* 3. Multi-Select Provinsi */}

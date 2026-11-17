@@ -6,16 +6,38 @@ export type PuskrisTab = 'ringkasan' | 'krisis' | 'layanan' | 'kesiapsiagaan' | 
 export type PuskrisUiFilter = PuskrisFilter & {
   pilar: Pilar
   jenis: string | null
+  /** Logistik: id gudang regional */
+  regional?: string | null
+  /** Logistik: kategori barang (obat | bmhp | alkes | sarpras | lainnya) */
+  kategori?: string | null
+  /** Logistik: status kedaluwarsa (lewat | segera) */
+  kedaluwarsa?: string | null
+  /** Tenaga Cadangan: profesi */
+  profesi?: string | null
+  /** Tenaga Cadangan: tim | emt */
+  tim?: string | null
+  /** PSC/Ambulans: aktif | siap ; Asistensi: status kapasitas */
+  status?: string | null
 }
+
+export const tahunIni = () => Number(new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 4))
 
 export const defaultUiFilter = (): PuskrisUiFilter => ({
   periode: 'tahun',
-  tahun: Number(new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 4)),
+  tahun: tahunIni(),
   bulan: null,
+  dari: null,
+  sampai: null,
   provinsi: null,
   kabupaten: null,
   pilar: 'semua',
   jenis: null,
+  regional: null,
+  kategori: null,
+  kedaluwarsa: null,
+  profesi: null,
+  tim: null,
+  status: null,
 })
 
 export function toDeriveFilter(f: PuskrisUiFilter): PuskrisFilter {
@@ -23,18 +45,24 @@ export function toDeriveFilter(f: PuskrisUiFilter): PuskrisFilter {
     periode: f.periode as Periode,
     tahun: f.tahun,
     bulan: f.bulan,
+    dari: f.dari ?? null,
+    sampai: f.sampai ?? null,
     provinsi: f.provinsi,
     kabupaten: f.kabupaten,
   }
 }
 
+/** Kunci filter tambahan per halaman (selain periode/provinsi/kab/jenis). */
+export const EXTRA_KEYS = ['regional', 'kategori', 'kedaluwarsa', 'profesi', 'tim', 'status'] as const
+
 export function activeFilterCount(f: PuskrisUiFilter): number {
   let n = 0
   if (f.pilar && f.pilar !== 'semua') n++
-  if (f.periode && f.periode !== 'tahun') n++
+  if (f.periode && (f.periode !== 'tahun' || f.tahun !== tahunIni())) n++
   if (f.provinsi) n++
   if (f.kabupaten) n++
   if (f.jenis) n++
+  for (const k of EXTRA_KEYS) if (f[k]) n++
   return n
 }
 

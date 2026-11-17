@@ -40,6 +40,7 @@ import {
   matriksPscHarian,
   matriksPscProvJenis,
   matriksTck,
+  type TckView,
   snapshotEvents,
   type MatriksDef,
 } from '@/lib/puskris/matriks'
@@ -77,6 +78,7 @@ export default function PuskrisAnalisisView({
   const [activeTab, setActiveTab] = useState<ActiveMatrixTab>('tck')
   const [panggilanView, setPanggilanView] = useState<'ncc' | 'psc-harian' | 'psc' | 'psc-jenis' | 'kategori'>('ncc')
   const [asisView, setAsisView] = useState<'provinsi' | 'kabkota'>('provinsi')
+  const [tckView, setTckView] = useState<TckView>('komposisi')
   const [liveEvents, setLiveEvents] = useState<{ events: KejadianTerbaru[]; live: boolean } | null>(null)
 
   // Search and Filter states for the Left Panel
@@ -314,7 +316,7 @@ export default function PuskrisAnalisisView({
   }, [])
   const eventsBencana = useMemo(() => liveEvents?.events || snapshotEvents(raw), [liveEvents, raw])
   const genericDef: MatriksDef | null = useMemo(() => {
-    if (activeTab === 'tck') return matriksTck(raw)
+    if (activeTab === 'tck') return matriksTck(raw, tckView, periodeFilter)
     if (activeTab === 'panggilan') {
       if (panggilanView === 'psc') return matriksPsc(raw)
       if (panggilanView === 'psc-harian') return matriksPscHarian(raw, periodeFilter) || matriksNcc(raw, periodeFilter)
@@ -326,7 +328,7 @@ export default function PuskrisAnalisisView({
     if (activeTab === 'bencana')
       return matriksBencana(raw, eventsBencana, { periode: periodeFilter, jenis: selectedDisasters, sumberLive: Boolean(liveEvents?.live) })
     return null
-  }, [activeTab, panggilanView, asisView, raw, periodeFilter, eventsBencana, selectedDisasters, liveEvents])
+  }, [activeTab, panggilanView, asisView, tckView, raw, periodeFilter, eventsBencana, selectedDisasters, liveEvents])
   const filteredGeneric = useMemo(() => {
     if (!genericDef) return []
     return genericDef.rows.filter((row) => {
@@ -1270,6 +1272,19 @@ export default function PuskrisAnalisisView({
                     {([['provinsi', 'Provinsi'], ['kabkota', 'Kabupaten/Kota']] as const).map(([k, l]) => (
                       <button key={k} type="button" onClick={() => { setAsisView(k); setSortField(''); setCurrentPage(1) }}
                         className={`rounded-lg px-2.5 py-1 transition ${asisView === k ? 'bg-white text-primary shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}>{l}</button>
+                    ))}
+                  </div>
+                ) : null}
+                {activeTab === 'tck' ? (
+                  <div className="mt-2 inline-flex rounded-xl bg-slate-100 p-0.5 text-[11px] font-bold" data-testid="tck-view">
+                    {([
+                      ['komposisi', 'Komposisi per Provinsi'],
+                      ...((raw?.tck?.provinsi || []).some((p: any) => p.profesi) ? [['profesi', 'Provinsi × Profesi']] : []),
+                      ...((raw?.tck?.provinsi || []).some((p: any) => p.tim != null) ? [['tim-emt', 'Tim & EMT']] : []),
+                      ...((raw?.tck?.provinsi || []).some((p: any) => p.kab) ? [['kabkota', 'Kabupaten/Kota']] : []),
+                    ] as [TckView, string][]).map(([k, l]) => (
+                      <button key={k} type="button" onClick={() => { setTckView(k); setSortField(''); setCurrentPage(1) }}
+                        className={`rounded-lg px-2.5 py-1 transition ${tckView === k ? 'bg-white text-primary shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}>{l}</button>
                     ))}
                   </div>
                 ) : null}

@@ -176,7 +176,7 @@ export type IntelStatus = { state: 'loading' | 'ok' | 'empty' | 'error'; count?:
 
 /** API resmi Pusat Krisis Kesehatan yang dipakai langsung (token hanya di server, keluaran agregat). */
 export type OfficialApi = {
-  id: 'asistensi' | 'psc' | 'panggilan'
+  id: 'asistensi' | 'psc' | 'panggilan' | 'tck'
   nama: string
   icon: string
   deskripsi: string
@@ -224,6 +224,21 @@ export const OFFICIAL_APIS: OfficialApi[] = [
       { nama: 'Data pelaporan panggilan', metode: 'POST (kueri baca)', url: 'https://psc.kemkes.go.id/web_api/v1/data-pelaporan-panggilan', parameter: 'kode_psc, kd_prop, kd_kab, status_penanganan, tahun, page, per_page' },
     ],
     belum: 'API tidak punya filter tanggal/kategori, jadi rekap harian dan per jenis hanya dari sampel laporan terbaru. Data pelapor/korban tidak pernah dikirim ke browser.',
+  },
+  {
+    id: 'tck',
+    nama: 'Tenaga Cadangan Kesehatan (TCK)',
+    icon: '🧑‍⚕️',
+    deskripsi: 'Total relawan, tim, dan Tim Medis Darurat (EMT) beserta tren pendaftaran; relawan per provinsi menurut profesi, jenis kelamin, usia, dan kab/kota; tim dan EMT per provinsi dengan standar, SK, dan waktu respons.',
+    dipakai: 'Halaman Tenaga Cadangan, KPI Ringkasan (individu, tim, EMT per wilayah), peta (tenaga cadangan, tim, EMT), Radius Dukungan, Kartu Kejadian Terpadu, Matriks Tenaga Cadangan (komposisi, profesi, tim & EMT, kab/kota).',
+    proxy: '/api/puskris/live/tck',
+    upstream: [
+      { nama: 'Dashboard (total & tren pendaftaran)', metode: 'POST (kueri baca)', url: 'https://tenagacadangankesehatan.kemkes.go.id/web/web_api/v1/dashboard-all', parameter: 'kd_prop, jenis_tenaga (saat ini diabaikan API, selalu nasional)' },
+      { nama: 'Data Tim Medis Darurat (EMT)', metode: 'POST (kueri baca)', url: 'https://tenagacadangankesehatan.kemkes.go.id/web/web_api/v1/data-emt', parameter: 'kd_prop, kd_kab (kosong = semua)' },
+      { nama: 'Data tim relawan', metode: 'POST (kueri baca)', url: 'https://tenagacadangankesehatan.kemkes.go.id/web/web_api/v1/data-tim', parameter: 'kd_prop, kd_kab (kosong = semua)' },
+      { nama: 'Relawan TCK (per provinsi)', metode: 'POST (kueri baca)', url: 'https://tenagacadangankesehatan.kemkes.go.id/web/web_api/v1/relawan-tck', parameter: 'kd_prop (wajib, dipanggil 38×), kd_kab' },
+    ],
+    belum: 'Nama, NIK, telepon, email, alamat, foto, dan koordinat perorangan/tim dibuang di server; ke browser hanya hitungan. Endpoint sertifikat/kegiatan per NIK dan data-individu tidak dipanggil. Pengalaman & pelatihan per provinsi belum tersedia.',
   },
 ]
 

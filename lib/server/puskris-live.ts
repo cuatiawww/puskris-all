@@ -7,6 +7,7 @@
  */
 
 import KAB_CENTROID from '../../data/kab-centroid.json'
+import { fetchTckInti, fetchTckRelawan, TCK_PROFESI } from './tck-live'
 
 const TTL_MS = 15 * 60_000
 const PSC_BASE = (process.env.PUSKRIS_PSC_BASE || 'https://psc.kemkes.go.id').replace(/\/$/, '')
@@ -21,7 +22,7 @@ export function wibStamp(ms = Date.now()) {
   return `${d.toISOString().slice(0, 10)} ${d.toISOString().slice(11, 16)} WIB`
 }
 
-async function postForm(url: string, form: Record<string, string | number>, timeoutMs = 60_000): Promise<any> {
+export async function postForm(url: string, form: Record<string, string | number>, timeoutMs = 60_000): Promise<any> {
   const token = process.env.PUSKRIS_TTOKEN
   if (!token) throw new Error('PUSKRIS_TTOKEN belum diatur di server')
   const body = new URLSearchParams()
@@ -47,7 +48,7 @@ async function postForm(url: string, form: Record<string, string | number>, time
   }
 }
 
-async function pool<T, R>(items: T[], n: number, fn: (t: T) => Promise<R>): Promise<R[]> {
+export async function pool<T, R>(items: T[], n: number, fn: (t: T) => Promise<R>): Promise<R[]> {
   const out: R[] = new Array(items.length)
   let i = 0
   await Promise.all(
@@ -437,19 +438,22 @@ export async function getLiveOverlay(provCodes: string[], budgetMs = 7000) {
   const tahun = Number(new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 4))
   if (!liveEnabled()) {
     const st: LiveStatus = { status: 'snapshot', error: 'Token API belum diatur di server' }
-    return { asistensi: { fresh: false, pending: false } as LiveResult<any>, psc: { fresh: false, pending: false } as LiveResult<any>, panggilan: { fresh: false, pending: false } as LiveResult<any>, status: { asistensi: st, psc: st, panggilan: st }, jobs: [] as Promise<any>[] }
+    const e = { fresh: false, pending: false } as LiveResult<any>
+    return { asistensi: e, psc: e, panggilan: e, tck: e, tckRelawan: e, status: { asistensi: st, psc: st, panggilan: st, tck: st, tckRelawan: st }, jobs: [] as Promise<any>[] }
   }
-  const [asistensi, psc, panggilan] = await Promise.all([
+  const [asistensi, psc, panggilan, tck, tckRelawan] = await Promise.all([
     swr(`asistensi:${tahun}`, () => fetchAsistensi(tahun), budgetMs),
     swr('psc:master', () => fetchPscMaster(), budgetMs),
     swr(`psc:panggilan:${tahun}`, () => fetchPanggilan(tahun, provCodes), budgetMs),
+    swr('tck:inti', () => fetchTckInti(), budgetMs),
+    swr('tck:relawan', () => fetchTckRelawan(provCodes), budgetMs),
   ])
   const st = (r: LiveResult<any>): LiveStatus =>
     r.value !== undefined ? { status: 'langsung', at: r.at ? wibStamp(r.at) : undefined, pending: r.pending || undefined } : { status: 'snapshot', error: r.error || (r.pending ? 'Sedang mengambil data langsung' : undefined), pending: r.pending || undefined }
   return {
-    asistensi, psc, panggilan,
-    status: { asistensi: st(asistensi), psc: st(psc), panggilan: st(panggilan) },
-    jobs: [asistensi.job, psc.job, panggilan.job].filter(Boolean) as Promise<any>[],
+    asistensi, psc, panggilan, tck, tckRelawan,
+    status: { asistensi: st(asistensi), psc: st(psc), panggilan: st(panggilan), tck: st(tck), tckRelawan: st(tckRelawan) },
+    jobs: [asistensi.job, psc.job, panggilan.job, tck.job, tckRelawan.job].filter(Boolean) as Promise<any>[],
   }
 }
 
@@ -542,9 +546,13 @@ export function mergeLive(snapshot: any, ov: Awaited<ReturnType<typeof getLiveOv
       ...(m ? { peta: m.peta } : {}),
     }
   }
+  mergeTck(data, snapshot, ov)
+  const { tckRelawan: _rel, ...stRest } = ov.status
   data.live_status = {
-    ...ov.status,
-    tck: { status: 'snapshot', at: snapshot.tck?.fetched_at_wib, error: 'API Tenaga Cadangan belum tersedia (hanya alamat dasar)' },
+    ...stRest,
+    tck: ov.tck.value || ov.tckRelawan.value
+      ? { status: 'langsung', at: ov.status.tck.at || ov.status.tckRelawan.at, pending: ov.status.tck.pending || ov.status.tckRelawan.pending || undefined, error: !ov.tckRelawan.value ? 'Sebaran relawan per provinsi masih dimuat / snapshot' : !ov.tck.value ? 'Tim & EMT masih snapshot' : undefined }
+      : { ...ov.status.tck, at: ov.status.tck.at || snapshot.tck?.fetched_at_wib },
     logistik: { status: 'snapshot', at: snapshot.logistik?.fetched_at_wib, error: 'API Logistik belum tersedia (hanya alamat dasar)' },
     eoc: { status: 'snapshot', at: snapshot.eoc?.fetched_at_wib },
     ncc: { status: 'snapshot', at: snapshot.ncc?.fetched_at_wib },
@@ -552,3 +560,63 @@ export function mergeLive(snapshot: any, ov: Awaited<ReturnType<typeof getLiveOv
   return data
 }
 
+
+/** Timpa data.tck snapshot dengan agregat langsung API Tenaga Cadangan (bentuk lama tetap ada). */
+function mergeTck(data: any, snapshot: any, ov: Awaited<ReturnType<typeof getLiveOverlay>>) {
+  const inti = ov.tck.value
+  const rel = ov.tckRelawan.value
+  if (!inti && !rel) return
+  const snap = snapshot.tck || {}
+  const regions: { code: string; name: string }[] = snapshot.regions || []
+  const relBy: Record<string, any> = Object.fromEntries((rel?.provinsi || []).map((p: any) => [p.code, p]))
+  const timBy: Record<string, any> = Object.fromEntries((inti?.tim.provinsi || []).map((p: any) => [p.code, p]))
+  const emtBy: Record<string, any> = Object.fromEntries((inti?.emt.provinsi || []).map((p: any) => [p.code, p]))
+  const snapBy: Record<string, any> = Object.fromEntries((snap.provinsi || []).map((p: any) => [p.code, p]))
+  const provinsi = regions.map((r) => {
+    const s0 = snapBy[r.code] || { code: r.code, nama: r.name, nakes: 0, non_nakes: 0, individu: 0 }
+    const rp = relBy[r.code]
+    const t = timBy[r.code]
+    const e = emtBy[r.code]
+    return {
+      ...s0,
+      ...(rp ? { individu: rp.individu, nakes: rp.nakes, non_nakes: rp.non_nakes, perempuan: rp.perempuan, laki: rp.laki, usia: rp.usia, terhubung_tim: rp.terhubung_tim, profesi: rp.profesi, kab: rp.kab, sumber_individu: 'langsung' } : { sumber_individu: 'snapshot' }),
+      ...(inti ? {
+        tim: t?.jumlah || 0, tim_individu: t?.individu || 0, tim_per_tahun: t?.per_tahun || {},
+        emt: e?.jumlah || 0, emt_standar: e?.standar || 0, emt_sk: e?.sk || 0, emt_individu: e?.individu || 0, emt_respon_24: e?.respon_24 || 0, emt_per_tahun: e?.per_tahun || {},
+      } : {}),
+    }
+  })
+  const d = inti?.dashboard
+  const di = d?.individu || {}
+  const dt = d?.tim || {}
+  const de = d?.emt || {}
+  const delta = (now: number, prev: number) => ({ d: now - prev, pct: now ? Math.round(((now - prev) / now) * 10000) / 100 : 0 })
+  const sumRel = (k: string) => (rel?.provinsi || []).reduce((a: number, p: any) => a + (p[k] || 0), 0)
+  const profesi: Record<string, number> = {}
+  for (const p of rel?.provinsi || []) for (const [k, v] of Object.entries(p.profesi || {})) profesi[k] = (profesi[k] || 0) + (v as number)
+  const summary = { ...(snap.summary || {}) }
+  if (d) {
+    const iD = delta(Number(di.perdaftaran_bulan_ini || 0), Number(di.perdaftaran_bulan_sebelumnya || 0))
+    const tD = delta(Number(dt.perdaftaran_bulan_ini || 0), Number(dt.perdaftaran_bulan_sebelumnya || 0))
+    const eD = delta(Number(de.perdaftaran_bulan_ini || 0), Number(de.perdaftaran_bulan_sebelumnya || 0))
+    Object.assign(summary, {
+      individu: Number(di.total_individu || 0), individu_bulan_ini: Number(di.perdaftaran_bulan_ini || 0), individu_bulan_lalu: Number(di.perdaftaran_bulan_sebelumnya || 0), individu_delta_bulan: iD.d, individu_delta_pct: iD.pct, individu_hari_ini: Number(di.perdaftaran_hari_ini || 0),
+      tim: Number(dt.total_tim || 0), tim_bulan_ini: Number(dt.perdaftaran_bulan_ini || 0), tim_delta_bulan: tD.d, tim_delta_pct: tD.pct, tim_hari_ini: Number(dt.perdaftaran_hari_ini || 0),
+      emt: Number(de.total_emt || 0), emt_bulan_ini: Number(de.perdaftaran_bulan_ini || 0), emt_delta_bulan: eD.d, emt_delta_pct: eD.pct, emt_hari_ini: Number(de.perdaftaran_hari_ini || 0),
+      emt_standar: inti!.emt.standar, emt_sk: inti!.emt.sk, emt_individu: inti!.emt.individu, tim_individu: inti!.tim.individu,
+    })
+  }
+  if (rel) Object.assign(summary, { individu_provinsi_total: sumRel('individu'), nakes_geojson: sumRel('nakes'), non_nakes_geojson: sumRel('non_nakes'), individu_geojson: sumRel('individu'), perempuan: sumRel('perempuan'), laki: sumRel('laki'), terhubung_tim: sumRel('terhubung_tim') })
+  data.tck = {
+    ...snap,
+    data_source: 'langsung',
+    fetched_at_wib: ov.status.tck.at || ov.status.tckRelawan.at,
+    label: [d ? 'total, pendaftaran, tim & Tim Medis Darurat langsung dari API Tenaga Cadangan' : null, rel ? 'sebaran relawan per provinsi langsung dari API relawan-tck' : null].filter(Boolean).join('; '),
+    sumber_status: { inti: inti ? 'langsung' : 'snapshot', relawan: rel ? 'langsung' : 'snapshot', relawan_gagal: rel?.gagal || [] },
+    summary,
+    provinsi,
+    ...(d ? { tren_pendaftaran: d.tren } : {}),
+    ...(inti ? { emt_rekap: { jenis: inti.emt.jenis, waktu_respon: inti.emt.waktu_respon, per_tahun: inti.emt.per_tahun }, tim_rekap: { jenis: inti.tim.jenis, waktu_respon: inti.tim.waktu_respon, per_tahun: inti.tim.per_tahun } } : {}),
+    ...(rel ? { profesi: TCK_PROFESI.map((nama) => ({ nama, jumlah: profesi[nama] || 0 })) } : {}),
+  }
+}

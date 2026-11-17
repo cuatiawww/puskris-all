@@ -88,7 +88,7 @@ export default function OpenDataClient() {
       const r = await fetch(`${PUBLIC_BASE_PATH}/api/puskris/live/${id}`, { cache: 'no-store' })
       const j: any = await r.json().catch(() => null)
       const ms = Math.round(performance.now() - t0)
-      setOfficial((p) => ({ ...p, [id]: j?.ok ? { state: 'ok', count: j.count, at: j.fetched_at, ms, message: id === 'panggilan' && j.ringkas ? `Tahun ${j.ringkas.tahun}: ${Number(j.ringkas.total).toLocaleString('id-ID')} panggilan, ${Number(j.ringkas.selesai || 0).toLocaleString('id-ID')} selesai ditangani` : id === 'asistensi' && j.ringkas ? `${j.ringkas.provinsi_mengisi}/${j.ringkas.provinsi} provinsi dan ${j.ringkas.kabkota_mengisi}/${j.ringkas.kabkota} kab/kota sudah mengisi kapasitas` : id === 'psc' && j.ringkas ? `${Number(j.ringkas.psc_aktif).toLocaleString('id-ID')} PSC aktif, ${Number(j.ringkas.total_ambulan).toLocaleString('id-ID')} ambulans, ${Number(j.ringkas.total_rs).toLocaleString('id-ID')} rumah sakit jejaring` : undefined } : { state: 'error', ms, message: `Memakai snapshot${j?.error ? `: ${j.error}` : ` (HTTP ${r.status})`}` } }))
+      setOfficial((p) => ({ ...p, [id]: j?.ok ? { state: 'ok', count: j.count, at: j.fetched_at, ms, message: id === 'panggilan' && j.ringkas ? `Tahun ${j.ringkas.tahun}: ${Number(j.ringkas.total).toLocaleString('id-ID')} panggilan, ${Number(j.ringkas.selesai || 0).toLocaleString('id-ID')} selesai ditangani` : id === 'asistensi' && j.ringkas ? `${j.ringkas.provinsi_mengisi}/${j.ringkas.provinsi} provinsi dan ${j.ringkas.kabkota_mengisi}/${j.ringkas.kabkota} kab/kota sudah mengisi kapasitas` : id === 'tck' && j.ringkas ? `${Number(j.ringkas.individu).toLocaleString('id-ID')} relawan, ${Number(j.ringkas.tim).toLocaleString('id-ID')} tim, ${Number(j.ringkas.emt).toLocaleString('id-ID')} Tim Medis Darurat (EMT); relawan ${j.ringkas.relawan_provinsi} provinsi` : id === 'psc' && j.ringkas ? `${Number(j.ringkas.psc_aktif).toLocaleString('id-ID')} PSC aktif, ${Number(j.ringkas.total_ambulan).toLocaleString('id-ID')} ambulans, ${Number(j.ringkas.total_rs).toLocaleString('id-ID')} rumah sakit jejaring` : undefined } : { state: 'error', ms, message: `Memakai snapshot${j?.error ? `: ${j.error}` : ` (HTTP ${r.status})`}` } }))
     } catch (e: any) {
       setOfficial((p) => ({ ...p, [id]: { state: 'error', message: `Memakai snapshot: ${String(e?.message || e)}` } }))
     }
@@ -109,7 +109,7 @@ export default function OpenDataClient() {
     { key: 'eoc', nama: 'Dasbor EOC (sebaran provinsi)', url: raw.eoc?.sumber_vercel, at: raw.eoc?.fetched_at_wib, label: raw.eoc?.vercel_kumulatif?.catatan, isi: 'Agregat kejadian & korban per provinsi, jenis kejadian, daftar kejadian krisis terbaru' },
     { key: 'psc', nama: 'PSC 119', url: raw.psc?.sumber, at: raw.psc?.fetched_at_wib, label: raw.psc?.label, isi: 'Panggilan, PSC aktif, armada ambulans, waktu respons' },
     { key: 'ncc', nama: 'Panggilan 119 (NCC)', url: raw.ncc?.sumber, at: raw.ncc?.source?.updatedAt ? new Date(raw.ncc.source.updatedAt).toLocaleString('sv-SE', { timeZone: 'Asia/Jakarta' }).slice(0, 16) + ' WIB' : null, label: raw.ncc?.period?.label, isi: 'Panggilan masuk, terjawab, tak terjawab, tingkat keberhasilan layanan per hari' },
-    { key: 'tck', nama: 'Tenaga Cadangan Kesehatan', url: raw.tck?.sumber, at: raw.tck?.fetched_at_wib, label: raw.tck?.label, isi: 'Individu, tim, Tim Medis Darurat (EMT) per provinsi' },
+    { key: 'tck', nama: 'Tenaga Cadangan Kesehatan', url: raw.tck?.sumber, at: raw.tck?.fetched_at_wib, label: raw.tck?.data_source === 'langsung' ? `Langsung dari API resmi (${raw.tck?.label})` : raw.tck?.label, isi: 'Individu, tim, Tim Medis Darurat (EMT) per provinsi' },
     { key: 'logistik', nama: 'Logistik Kesehatan', url: raw.logistik?.sumber, at: raw.logistik?.fetched_at_wib, label: raw.logistik?.label, isi: 'Stok obat, sarana prasarana, alat kesehatan, bahan medis habis pakai per regional' },
     { key: 'asistensi', nama: 'Asistensi Risiko', url: raw.asistensi?.sumber_provinsi, at: raw.asistensi?.fetched_at_wib, label: raw.asistensi?.label, isi: 'Kelengkapan asesmen & status kapasitas provinsi dan kabupaten/kota' },
   ].filter((s) => s.url) : []
@@ -256,7 +256,7 @@ export default function OpenDataClient() {
             )
           })}
         </div>
-        <p className="mt-2 text-[11px] text-slate-500">Tenaga Cadangan Kesehatan dan Logistik baru diberi alamat dasar tanpa daftar endpoint, jadi keduanya masih memakai snapshot.</p>
+        <p className="mt-2 text-[11px] text-slate-500">Logistik baru diberi alamat dasar tanpa daftar endpoint, jadi masih memakai snapshot. Pantauan Bencana (EOC) dan Panggilan 119 (NCC) juga masih snapshot.</p>
         <div className="skdr-card mt-3 overflow-x-auto p-0" data-testid="open-data-lapisan-internal">
           <p className="border-b border-slate-100 px-4 py-2.5 text-xs font-black text-slate-800">Lapisan peta API Internal &amp; Risiko <span className="font-medium text-slate-500">(Pengaturan Peta &amp; Lapisan)</span></p>
           <table className="w-full text-left text-[11px]">

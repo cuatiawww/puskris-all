@@ -6,7 +6,7 @@ import { layerValue, nf } from './derive'
 
 export type ChoroId =
   | 'kejadian' | 'krisis' | 'meninggal' | 'pengungsi' | 'terdampak' | 'luka_berat' | 'luka_ringan' | 'hilang'
-  | 'psc' | 'ambulans' | 'panggilan' | 'tck' | 'logistik' | 'asistensi' | 'kesenjangan'
+  | 'psc' | 'ambulans' | 'panggilan' | 'tck' | 'tck_tim' | 'tck_emt' | 'logistik' | 'asistensi' | 'kesenjangan'
 
 export const CHORO_OPTIONS: { id: ChoroId; label: string; group: string; kind: 'count' | 'diverge' | 'sparse' }[] = [
   { id: 'kejadian', label: 'Kejadian terpantau', group: 'Beban krisis', kind: 'count' },
@@ -21,6 +21,8 @@ export const CHORO_OPTIONS: { id: ChoroId; label: string; group: string; kind: '
   { id: 'ambulans', label: 'Armada ambulans', group: 'Kapasitas respons', kind: 'count' },
   { id: 'panggilan', label: 'Panggilan 119', group: 'Kapasitas respons', kind: 'count' },
   { id: 'tck', label: 'Tenaga cadangan (individu)', group: 'Kesiapsiagaan', kind: 'count' },
+  { id: 'tck_tim', label: 'Tim relawan tenaga cadangan', group: 'Kesiapsiagaan', kind: 'count' },
+  { id: 'tck_emt', label: 'Tim Medis Darurat (EMT)', group: 'Kesiapsiagaan', kind: 'count' },
   { id: 'logistik', label: 'Stok logistik regional', group: 'Kesiapsiagaan', kind: 'sparse' },
   { id: 'asistensi', label: 'Poin Kapasitas Asistensi', group: 'Kesiapsiagaan', kind: 'sparse' },
   { id: 'kesenjangan', label: 'Indeks kesenjangan respons', group: 'Indeks', kind: 'count' },
@@ -91,7 +93,7 @@ export function toSpasial(opts: {
   const kind = CHORO_OPTIONS.find((c) => c.id === choro)?.kind || 'count'
   const pill = METRIC_PILLS.find((p) => p.choro === choro)
   const metric: 'kasus' | 'kematian' | 'laporan' | 'alert' | 'klb' | 'chg_minggu' =
-    kind === 'diverge' ? 'chg_minggu' : (pill?.key || (choro === 'meninggal' ? 'kematian' : choro === 'pengungsi' ? 'laporan' : choro === 'panggilan' ? 'alert' : choro === 'psc' || choro === 'ambulans' || choro === 'tck' ? 'klb' : 'kasus'))
+    kind === 'diverge' ? 'chg_minggu' : (pill?.key || (choro === 'meninggal' ? 'kematian' : choro === 'pengungsi' ? 'laporan' : choro === 'panggilan' ? 'alert' : choro === 'psc' || choro === 'ambulans' || choro === 'tck' || choro === 'tck_tim' || choro === 'tck_emt' ? 'klb' : 'kasus'))
 
   const months = buildMonths(raw)
   const last = months[months.length - 1]
@@ -113,7 +115,7 @@ export function toSpasial(opts: {
       kematian: r.meninggal,
       laporan: r.pengungsi,
       alert: r.panggilan,
-      klb: choro === 'psc' || choro === 'ambulans' || choro === 'tck' || choro === 'logistik' || choro === 'asistensi'
+      klb: choro === 'psc' || choro === 'ambulans' || choro === 'tck' || choro === 'tck_tim' || choro === 'tck_emt' || choro === 'logistik' || choro === 'asistensi'
         ? (v ?? r.pscAktif)
         : r.krisis,
       unit: r.tck,

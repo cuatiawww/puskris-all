@@ -52,6 +52,8 @@ export type RadiusCounts = {
   rs?: number
   /** true bila PSC/ambulans/RS dihitung dari koordinat fasilitas asli */
   titikNyata?: boolean
+  /** true bila jumlah tim dihitung dari tim + EMT per provinsi (API Tenaga Cadangan) */
+  timNyata?: boolean
 }
 
 export function countRadius(center: { lat: number; lon: number }, rows: ProvinceRow[], centroids: Centroids, titik?: TitikFasilitas | null): RadiusCounts[] {
@@ -94,7 +96,11 @@ export function countRadius(center: { lat: number; lon: number }, rows: Province
   })
 }
 
-export function attachTimEstimate(counts: RadiusCounts[], timNasional: number | null, individuNasional: number): RadiusCounts[] {
+export function attachTimEstimate(counts: RadiusCounts[], timNasional: number | null, individuNasional: number, rows?: ProvinceRow[]): RadiusCounts[] {
+  if (rows && rows.some((r) => r.tckTim != null)) {
+    const by = new Map(rows.map((r) => [r.nama, r]))
+    return counts.map((c) => ({ ...c, tckTimPerkiraan: c.provinsi.reduce((a, n) => a + (by.get(n)?.tckTim || 0) + (by.get(n)?.tckEmt || 0), 0), timNyata: true }))
+  }
   const den = individuNasional || 1
   const tim = timNasional || 0
   return counts.map((c) => ({
@@ -288,7 +294,7 @@ export type Terpadu = {
   eoc: { kejadian: number; krisis: number; meninggal: number; lukaBerat: number; lukaRingan: number; pengungsi: number; terdampak: number }
   layanan: { panggilan: number; pscAktif: number; pscTotal: number; scr: number | null }
   ambulans: { total: number; baik: number; rusakRingan: number; rusakBerat: number; gps: number }
-  tck: { individu: number; nakes: number; nonNakes: number; tim: number | null; emt: number | null }
+  tck: { individu: number; nakes: number; nonNakes: number; tim: number | null; emt: number | null; emtStandar?: number | null; wilayah?: boolean }
   logistik: { nama: string | null; stok: number | null; catatan: string }
   asistensi: { nama: string; poin: number | null; status: string; irbi: string; catatan: string }
 }
@@ -338,8 +344,10 @@ export function buildTerpadu(opts: {
       individu: row.tck,
       nakes: row.tckNakes,
       nonNakes: row.tckNonNakes,
-      tim: opts.sdmNasional?.tim ?? null,
-      emt: opts.sdmNasional?.emt ?? null,
+      tim: row.tckTim ?? opts.sdmNasional?.tim ?? null,
+      emt: row.tckEmt ?? opts.sdmNasional?.emt ?? null,
+      emtStandar: row.tckEmtStandar ?? null,
+      wilayah: row.tckTim != null,
     },
     logistik: {
       nama: logName,

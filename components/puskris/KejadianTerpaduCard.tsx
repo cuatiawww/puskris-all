@@ -62,9 +62,9 @@ export default function KejadianTerpaduCard({
         <p className="mb-1 text-[10px] font-black uppercase tracking-wider text-slate-400">Tenaga cadangan</p>
         <dl>
           <Row k="Individu (wilayah)" v={`${nf(data.tck.individu)} · nakes ${nf(data.tck.nakes)}`} />
-          <Row k={`Tim / ${EMT_LABEL} nasional`} v={`${data.tck.tim == null ? '—' : nf(data.tck.tim)} / ${data.tck.emt == null ? '—' : nf(data.tck.emt)}`} />
+          <Row k={`Tim / ${EMT_LABEL}${data.tck.wilayah ? ' (wilayah)' : ' nasional'}`} v={`${data.tck.tim == null ? '—' : nf(data.tck.tim)} / ${data.tck.emt == null ? '—' : nf(data.tck.emt)}${data.tck.emtStandar != null ? ` · ${nf(data.tck.emtStandar)} EMT memenuhi standar` : ''}`} />
         </dl>
-        <p className="mt-1 text-[10px] text-slate-400">Tim dan {EMT_LABEL} hanya tersedia sebagai angka nasional.</p>
+        {data.tck.wilayah ? null : <p className="mt-1 text-[10px] text-slate-400">Tim dan {EMT_LABEL} hanya tersedia sebagai angka nasional.</p>}
       </section>
 
       <section className="rounded-xl border border-slate-200 bg-white p-3">
@@ -88,10 +88,10 @@ export default function KejadianTerpaduCard({
       {radiusOn && radius && (
         <section className="rounded-xl border border-teal-200 bg-teal-50/40 p-3">
           <p className="mb-1 text-[10px] font-black uppercase tracking-wider text-teal-800">Radius dukungan 50 / 100 / 200 km</p>
-          <p className="mb-2 text-[10px] text-slate-500">{radius[0]?.titikNyata ? 'PSC, ambulans, dan rumah sakit dihitung dari koordinat API PSC 119 (PSC berkoordinat bawaan/kosong memakai pusat kab/kota; RS berkoordinat bawaan dibuang). Tenaga cadangan dan gudang masih memakai pusat provinsi.' : `Jarak dihitung dari pusat provinsi (${CONTOH_LABEL} koordinat fasilitas; lokasi persis belum tersedia).`}</p>
+          <p className="mb-2 text-[10px] text-slate-500">{radius[0]?.titikNyata ? 'PSC, ambulans, dan rumah sakit dihitung dari koordinat API PSC 119 (PSC berkoordinat bawaan/kosong memakai pusat kab/kota; RS berkoordinat bawaan dibuang). Tenaga cadangan (API Tenaga Cadangan, per provinsi) dan gudang memakai pusat provinsi.' : `Jarak dihitung dari pusat provinsi (${CONTOH_LABEL} koordinat fasilitas; lokasi persis belum tersedia).`}</p>
           <table className="w-full text-[10px]">
             <thead className="text-left text-slate-400">
-              <tr>{['Radius', 'PSC aktif', 'Ambulans baik/total', ...(radius[0]?.titikNyata ? ['RS'] : []), 'Tenaga cadangan', 'Tim*', 'Gudang'].map((h) => <th key={h} className="pb-1 pr-1">{h}</th>)}</tr>
+              <tr>{['Radius', 'PSC aktif', 'Ambulans baik/total', ...(radius[0]?.titikNyata ? ['RS'] : []), 'Tenaga cadangan', radius[0]?.timNyata ? 'Tim + EMT' : 'Tim*', 'Gudang'].map((h) => <th key={h} className="pb-1 pr-1">{h}</th>)}</tr>
             </thead>
             <tbody>
               {radius.map((r) => (
@@ -107,7 +107,7 @@ export default function KejadianTerpaduCard({
               ))}
             </tbody>
           </table>
-          <p className="mt-1 text-[10px] text-slate-400">*Tim perkiraan = porsi individu wilayah terhadap total nasional × jumlah tim nasional ({CONTOH_LABEL}).</p>
+          <p className="mt-1 text-[10px] text-slate-400">{radius[0]?.timNyata ? `Tim + EMT = jumlah tim relawan dan ${EMT_LABEL} terdaftar di provinsi dalam radius (API Tenaga Cadangan).` : `*Tim perkiraan = porsi individu wilayah terhadap total nasional × jumlah tim nasional (${CONTOH_LABEL}).`}</p>
         </section>
       )}
     </div>

@@ -9,7 +9,7 @@ import { getLiveOverlay } from '@/lib/server/puskris-live'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
-const ALLOWED = ['asistensi', 'psc', 'panggilan'] as const
+const ALLOWED = ['asistensi', 'psc', 'panggilan', 'tck'] as const
 
 export async function GET(_req: Request, ctx: { params: Promise<{ sumber: string }> }) {
   const { sumber } = await ctx.params
@@ -19,8 +19,8 @@ export async function GET(_req: Request, ctx: { params: Promise<{ sumber: string
   const ov = await getLiveOverlay(codes, 45000)
   if (ov.jobs.length) after(() => Promise.allSettled(ov.jobs))
   const key = sumber as (typeof ALLOWED)[number]
-  const st = ov.status[key]
-  const value: any = ov[key].value
+  const st = key === 'tck' ? (ov.tck.value || ov.tckRelawan.value ? { ...ov.status.tck, status: 'langsung' as const, at: ov.status.tck.at || ov.status.tckRelawan.at } : ov.status.tck) : ov.status[key]
+  const value: any = key === 'tck' ? (ov.tck.value || ov.tckRelawan.value ? { inti: ov.tck.value || null, relawan: ov.tckRelawan.value || null } : undefined) : ov[key].value
   let count = 0
   let ringkas: any = null
   if (value && key === 'asistensi') {
@@ -29,6 +29,14 @@ export async function GET(_req: Request, ctx: { params: Promise<{ sumber: string
   } else if (value && key === 'psc') {
     count = value.summary.total_psc
     ringkas = value.summary
+  } else if (value && key === 'tck') {
+    const di = value.inti?.dashboard?.individu || {}
+    count = Number(di.total_individu || 0) || (value.relawan?.provinsi || []).reduce((a: number, p: any) => a + p.individu, 0)
+    ringkas = {
+      individu: di.total_individu ?? null, tim: value.inti?.tim.total ?? null, emt: value.inti?.emt.total ?? null,
+      relawan_provinsi: value.relawan ? value.relawan.provinsi.length : null, relawan_total: value.relawan ? value.relawan.provinsi.reduce((a: number, p: any) => a + p.individu, 0) : null,
+      inti: ov.status.tck.status, relawan: ov.status.tckRelawan.status,
+    }
   } else if (value && key === 'panggilan') {
     count = value.total
     ringkas = { tahun: value.tahun, total: value.total, selesai: value.selesai, total_tahun_lalu: value.total_tahun_lalu, sampel: { dari: value.sampel.dari, sampai: value.sampel.sampai, jumlah: value.sampel.jumlah } }

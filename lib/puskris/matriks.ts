@@ -54,11 +54,116 @@ function provNames(raw: any): Map<string, string> {
 }
 
 // ---------------------------------------------------------------- 1. Tenaga Cadangan
-export function matriksTck(raw: any): MatriksDef {
+export type TckView = 'komposisi' | 'profesi' | 'tim-emt' | 'kabkota'
+export const TCK_PROFESI_COLS = ['Tenaga Medis', 'Tenaga Keperawatan', 'Tenaga Kebidanan', 'Tenaga Kefarmasian', 'Tenaga Kesehatan Masyarakat', 'Tenaga Kesehatan Lingkungan', 'Tenaga Gizi', 'Tenaga Kesehatan Lainnya', 'Non-Kesehatan']
+const PROFESI_HINT: Record<string, string> = {
+  'Tenaga Medis': 'Dokter, dokter spesialis, dokter gigi.',
+  'Tenaga Keperawatan': 'Perawat (ners dan vokasi).',
+  'Tenaga Kebidanan': 'Bidan.',
+  'Tenaga Kefarmasian': 'Apoteker dan tenaga teknis kefarmasian.',
+  'Tenaga Kesehatan Masyarakat': 'Kesehatan masyarakat, promosi kesehatan, epidemiolog.',
+  'Tenaga Kesehatan Lingkungan': 'Sanitarian dan kesehatan lingkungan.',
+  'Tenaga Gizi': 'Nutrisionis dan dietisien.',
+  'Tenaga Kesehatan Lainnya': 'Golongan kesehatan lain (laboratorium, radiografer, fisioterapis, keteknisian medis, dan lainnya).',
+  'Non-Kesehatan': 'Relawan pendukung non-kesehatan (administrasi, logistik, komunikasi, manajemen data, pengemudi ambulans, dan lainnya).',
+}
+const slugP = (s: string) => 'pr_' + s.toLowerCase().replace(/[^a-z]+/g, '_')
+const tckLive = (raw: any) => raw?.tck?.data_source === 'langsung'
+const periodeTahun = (p: PeriodeMatriks) => (p === 'semua' ? null : todayWib().slice(0, 4))
+const sumberTck = (raw: any) => tckLive(raw)
+  ? `Sumber: API Tenaga Cadangan Kesehatan (langsung), diambil ${raw?.tck?.fetched_at_wib || '-'}.`
+  : `Sumber: snapshot Dasbor Tenaga Cadangan Kesehatan, diambil ${raw?.tck?.fetched_at_wib || '-'}.`
+
+export function matriksTck(raw: any, view: TckView = 'komposisi', periode: PeriodeMatriks = 'semua'): MatriksDef {
   const names = provNames(raw)
+  const live = tckLive(raw)
+  const list: any[] = raw?.tck?.provinsi || []
+  const s = raw?.tck?.summary || {}
+  const hasProfesi = list.some((p) => p.profesi)
+  const hasTim = list.some((p) => p.tim != null)
+  if (view === 'profesi' && hasProfesi) {
+    const rows: MatriksRow[] = list.map((p) => {
+      const code = String(p.code)
+      const r: MatriksRow = { id: `tckp-${code}`, code, label: names.get(code) || p.nama, sub: `Kode ${code}`, individu: Number(p.individu || 0) }
+      for (const g of TCK_PROFESI_COLS) r[slugP(g)] = Number(p.profesi?.[g] || 0)
+      return r
+    })
+    return {
+      id: 'tck-profesi', provinsiRows: true,
+      title: 'Matriks Relawan Tenaga Cadangan per Provinsi × Profesi',
+      desc: 'Jumlah relawan Tenaga Cadangan Kesehatan (TCK) per provinsi menurut golongan profesi, dari API relawan TCK.',
+      rowLabel: 'Provinsi',
+      cols: [
+        ...TCK_PROFESI_COLS.map((g) => ({ key: slugP(g), label: g, hint: PROFESI_HINT[g], fmt: 'int' as const, heat: true, group: 'Golongan profesi' })),
+        { key: 'individu', label: 'Total Relawan', hint: 'Jumlah seluruh relawan terdaftar di provinsi ini.', fmt: 'int', heat: true, group: 'Total' },
+      ],
+      rows,
+      notes: [
+        'Golongan dikelompokkan dari isian "golongan" relawan. Kategori Nakes/Non-Nakes di sumber bisa berbeda tipis dengan kolom Non-Kesehatan karena sebagian relawan non-nakes mengisi golongan kesehatan.',
+        'Angka kumulatif pendaftaran (sumber tidak memuat tanggal daftar per relawan), jadi tidak terpengaruh rentang waktu.',
+        sumberTck(raw),
+      ],
+    }
+  }
+  if (view === 'tim-emt' && hasTim) {
+    const th = periodeTahun(periode)
+    const rows: MatriksRow[] = list.map((p) => {
+      const code = String(p.code)
+      return {
+        id: `tcke-${code}`, code, label: names.get(code) || p.nama, sub: `Kode ${code}`,
+        tim: Number(p.tim || 0), tim_baru: th ? Number(p.tim_per_tahun?.[th] || 0) : Number(p.tim || 0), tim_individu: Number(p.tim_individu || 0),
+        emt: Number(p.emt || 0), emt_baru: th ? Number(p.emt_per_tahun?.[th] || 0) : Number(p.emt || 0), emt_standar: Number(p.emt_standar || 0), emt_sk: Number(p.emt_sk || 0),
+        emt_respon_24: Number(p.emt_respon_24 || 0), emt_individu: Number(p.emt_individu || 0),
+      }
+    })
+    const lbl = th ? `Terdaftar ${th}` : 'Terdaftar (semua tahun)'
+    return {
+      id: 'tck-tim-emt', provinsiRows: true,
+      title: `Matriks Tim & Tim Medis Darurat (EMT) per Provinsi${th ? ` · pendaftaran ${th}` : ''}`,
+      desc: 'Tim relawan dan Tim Medis Darurat (Emergency Medical Team/EMT) per provinsi: jumlah, anggota, standar, surat keputusan, dan waktu respons, dari API Tenaga Cadangan.',
+      rowLabel: 'Provinsi',
+      cols: [
+        { key: 'tim', label: 'Jumlah Tim', hint: 'Tim relawan (lembaga, organisasi profesi, NGO, institusi pendidikan, dan lainnya) yang terdaftar.', fmt: 'int', heat: true, group: 'Tim relawan' },
+        { key: 'tim_baru', label: lbl, hint: 'Tim yang tanggal bergabungnya pada periode terpilih (sumber hanya mencatat tanggal bergabung tim, dihitung per tahun).', fmt: 'int', heat: true, group: 'Tim relawan' },
+        { key: 'tim_individu', label: 'Anggota Tim', hint: 'Jumlah anggota yang dilaporkan seluruh tim di provinsi ini.', fmt: 'int', heat: true, group: 'Tim relawan' },
+        { key: 'emt', label: 'Jumlah EMT', hint: 'Tim Medis Darurat (Emergency Medical Team/EMT) yang terdaftar.', fmt: 'int', heat: true, group: 'Tim Medis Darurat (EMT)' },
+        { key: 'emt_baru', label: lbl, hint: 'EMT yang tanggal bergabungnya pada periode terpilih (dihitung per tahun).', fmt: 'int', heat: true, group: 'Tim Medis Darurat (EMT)' },
+        { key: 'emt_standar', label: 'Memenuhi Standar', hint: 'EMT berstatus "Memenuhi Tipe Fixed" sesuai standar EMT.', fmt: 'int', heat: true, group: 'Tim Medis Darurat (EMT)' },
+        { key: 'emt_sk', label: 'Memiliki SK', hint: 'EMT yang sudah memiliki Surat Keputusan (SK) pembentukan.', fmt: 'int', heat: true, group: 'Tim Medis Darurat (EMT)' },
+        { key: 'emt_respon_24', label: 'Respons < 24 Jam', hint: 'EMT yang menyatakan sanggup diberangkatkan kurang dari 24 jam.', fmt: 'int', heat: true, group: 'Tim Medis Darurat (EMT)' },
+        { key: 'emt_individu', label: 'Anggota EMT', hint: 'Jumlah anggota yang dilaporkan seluruh EMT di provinsi ini.', fmt: 'int', heat: true, group: 'Tim Medis Darurat (EMT)' },
+      ],
+      rows,
+      notes: [
+        `Nasional: ${nfm(s.tim)} tim dan ${nfm(s.emt)} EMT (${nfm(s.emt_standar)} memenuhi standar, ${nfm(s.emt_sk)} memiliki SK).`,
+        periode === '30hari' || periode === '7hari' ? 'Rentang 7/30 hari tidak tersedia untuk tim/EMT; kolom "Terdaftar" memakai tahun berjalan.' : 'Kolom "Terdaftar" mengikuti filter rentang waktu per tahun bergabung.',
+        'Kode provinsi tim/EMT memakai kode Kemendagri; beberapa tim tanpa provinsi tidak masuk baris mana pun.',
+        sumberTck(raw),
+      ],
+    }
+  }
+  if (view === 'kabkota' && hasProfesi) {
+    const rows: MatriksRow[] = []
+    for (const p of list) for (const k of p.kab || []) {
+      rows.push({ id: `tckk-${p.code}-${k.nama}`, code: String(p.code), label: titleKab(k.nama), sub: names.get(String(p.code)) || p.nama, individu: k.n, nakes: k.nakes, non_nakes: k.n - k.nakes, pct_nakes: pct(k.nakes, k.n) })
+    }
+    return {
+      id: 'tck-kabkota', provinsiRows: true,
+      title: 'Matriks Relawan Tenaga Cadangan per Kabupaten/Kota',
+      desc: 'Relawan Tenaga Cadangan Kesehatan (TCK) per kabupaten/kota domisili, dipilah tenaga kesehatan dan non-kesehatan. Saring provinsi di panel kiri.',
+      rowLabel: 'Kabupaten/Kota',
+      cols: [
+        { key: 'nakes', label: 'Tenaga Kesehatan', hint: 'Relawan berkategori tenaga kesehatan.', fmt: 'int', heat: true, group: 'Relawan' },
+        { key: 'non_nakes', label: 'Non-Kesehatan', hint: 'Relawan berkategori non-kesehatan.', fmt: 'int', heat: true, group: 'Relawan' },
+        { key: 'individu', label: 'Total', hint: 'Jumlah relawan di kab/kota ini.', fmt: 'int', heat: true, group: 'Relawan' },
+        { key: 'pct_nakes', label: '% Tenaga Kesehatan', hint: 'Porsi tenaga kesehatan dari total relawan kab/kota.', fmt: 'pct', heat: true, group: 'Relawan', total: (r) => pct(sum(r, 'nakes'), sum(r, 'individu')) },
+      ],
+      rows,
+      notes: ['Nama kab/kota mengikuti isian relawan (tanpa kode wilayah).', sumberTck(raw)],
+    }
+  }
   const kejByCode = new Map<string, number>()
   for (const p of raw?.eoc?.provinsi || []) kejByCode.set(String(p.code), Number(p.kejadian_2026 || 0))
-  const list = raw?.tck?.provinsi || []
   const totalNas = list.reduce((a: number, p: any) => a + Number(p.individu || 0), 0) || 1
   const rows: MatriksRow[] = list.map((p: any) => {
     const code = String(p.code)
@@ -69,10 +174,10 @@ export function matriksTck(raw: any): MatriksDef {
     return {
       id: `tck-${code}`, code, label: names.get(code) || p.nama, sub: `Kode ${code}`,
       nakes, non_nakes: non, individu: ind, pct_nakes: pct(nakes, ind), porsi: pct(ind, totalNas),
+      pct_perempuan: pct(Number(p.perempuan || 0), ind), tim: Number(p.tim || 0), emt: Number(p.emt || 0),
       kejadian_2026: kej, per_kejadian: kej > 0 ? ind / kej : 0,
     }
   })
-  const s = raw?.tck?.summary || {}
   return {
     id: 'tck', provinsiRows: true,
     title: 'Matriks Tenaga Cadangan Kesehatan per Provinsi',
@@ -83,18 +188,26 @@ export function matriksTck(raw: any): MatriksDef {
       { key: 'non_nakes', label: 'Non-Kesehatan', hint: 'Relawan pendukung tanpa latar profesi kesehatan (logistik, komunikasi, administrasi, dan lainnya).', fmt: 'int', heat: true, group: 'Komposisi relawan' },
       { key: 'individu', label: 'Total Individu', hint: 'Jumlah seluruh relawan perorangan yang terdaftar.', fmt: 'int', heat: true, group: 'Komposisi relawan' },
       { key: 'pct_nakes', label: '% Tenaga Kesehatan', hint: 'Porsi tenaga kesehatan dari total relawan di provinsi itu.', fmt: 'pct', heat: true, group: 'Komposisi relawan', total: (r) => pct(sum(r, 'nakes'), sum(r, 'individu')) },
+      ...(live && list.some((p) => p.perempuan != null) ? [{ key: 'pct_perempuan', label: '% Perempuan', hint: 'Porsi relawan perempuan dari total relawan provinsi.', fmt: 'pct' as const, group: 'Komposisi relawan', total: (r: any[]) => { const t = sum(r, 'individu'); return t ? (r.reduce((a, x) => a + (x.pct_perempuan * x.individu) / 100, 0) / t) * 100 : 0 } }] : []),
       { key: 'porsi', label: '% dari Nasional', hint: 'Porsi relawan provinsi ini terhadap seluruh relawan nasional.', fmt: 'pct', group: 'Komposisi relawan', total: (r) => sum(r, 'porsi') },
+      ...(hasTim ? [
+        { key: 'tim', label: 'Tim', hint: 'Tim relawan terdaftar di provinsi ini (API data-tim).', fmt: 'int' as const, heat: true, group: 'Tim' },
+        { key: 'emt', label: 'Tim Medis Darurat (EMT)', hint: 'Emergency Medical Team terdaftar di provinsi ini (API data-emt).', fmt: 'int' as const, heat: true, group: 'Tim' },
+      ] : []),
       { key: 'kejadian_2026', label: 'Kejadian 2026', hint: 'Jumlah kejadian krisis kesehatan terpantau di provinsi ini sepanjang 2026 (Pusat Krisis Kesehatan).', fmt: 'int', heat: true, group: 'Kebutuhan' },
       { key: 'per_kejadian', label: 'Relawan per Kejadian', hint: 'Total relawan dibagi jumlah kejadian 2026. Makin kecil berarti cadangan relawan makin tipis terhadap beban kejadian.', fmt: 'dec1', heat: true, group: 'Kebutuhan', total: (r) => { const k = sum(r, 'kejadian_2026'); return k ? sum(r, 'individu') / k : 0 } },
     ],
     rows,
     notes: [
-      `Nasional: ${(s.individu ?? 0).toLocaleString('id-ID')} individu, ${(s.tim ?? 0).toLocaleString('id-ID')} tim, dan ${(s.emt ?? 0).toLocaleString('id-ID')} Tim Medis Darurat (Emergency Medical Team/EMT). Jumlah tim dan Tim Medis Darurat baru tersedia di tingkat nasional, belum per provinsi.`,
-      'Rincian per profesi (dokter, perawat, bidan, dan seterusnya) belum tersedia di sumber publik, jadi kolom profesi diringkas menjadi tenaga kesehatan dan non-kesehatan.',
-      `Sumber: Dasbor Tenaga Cadangan Kesehatan, diambil ${raw?.tck?.fetched_at_wib || '-'}. Angka kumulatif pendaftaran, tidak terpengaruh rentang waktu.`,
-    ],
+      `Nasional: ${nfm(s.individu)} individu, ${nfm(s.tim)} tim, dan ${nfm(s.emt)} Tim Medis Darurat (Emergency Medical Team/EMT).${hasTim ? '' : ' Jumlah tim dan EMT baru tersedia di tingkat nasional, belum per provinsi.'}`,
+      live && s.individu_provinsi_total && s.individu_provinsi_total !== s.individu ? `Jumlah per provinsi (${nfm(s.individu_provinsi_total)}) berselisih ${nfm(Math.abs(s.individu_provinsi_total - s.individu))} dengan total dasbor (${nfm(s.individu)}) karena sumbernya dua endpoint berbeda.` : '',
+      hasProfesi ? 'Rincian per profesi ada di tampilan "Provinsi × Profesi".' : 'Rincian per profesi belum tersedia di snapshot, jadi kolom profesi diringkas menjadi tenaga kesehatan dan non-kesehatan.',
+      `${sumberTck(raw)} Angka kumulatif pendaftaran, tidak terpengaruh rentang waktu.`,
+    ].filter(Boolean),
   }
 }
+const nfm = (n: any) => Number(n || 0).toLocaleString('id-ID')
+const titleKab = (s: string) => String(s || '').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()).replace(/^Kab\.?\s*/i, 'Kab. ')
 
 // ---------------------------------------------------------------- 2. Panggilan
 export function matriksNcc(raw: any, periode: PeriodeMatriks): MatriksDef {

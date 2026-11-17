@@ -47,6 +47,10 @@ export type ProvinceRow = {
   tck: number
   tckNakes: number
   tckNonNakes: number
+  /** Tim & Tim Medis Darurat per provinsi (null bila hanya snapshot nasional) */
+  tckTim?: number | null
+  tckEmt?: number | null
+  tckEmtStandar?: number | null
   ambulansBaik: number
   ambulansRusakRingan: number
   ambulansRusakBerat: number

@@ -140,7 +140,7 @@ export default function PuskrisPetaTerpadu({
   const radiusCounts = useMemo(() => {
     if (!radiusCenter) return null
     const rawCounts = countRadius(radiusCenter, derived.rows, centroids, titikFasilitas(raw))
-    return attachTimEstimate(rawCounts, derived.sdm?.tim ?? null, derived.sdm?.individu || 1)
+    return attachTimEstimate(rawCounts, derived.sdm?.tim ?? null, derived.sdm?.individu || 1, derived.rows)
   }, [radiusCenter, derived.rows, derived.sdm, centroids, raw])
 
   const pickArea = (a: SpasialArea, fromMap = false) => {

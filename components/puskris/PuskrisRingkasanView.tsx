@@ -372,16 +372,16 @@ function DynamicKpiCards({
         <SectionHead eyebrow="Kesiapsiagaan SDM &amp; Logistik" title="Tenaga Cadangan &amp; Tim Siaga Bencana" />
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
           <KpiCardItem
-            label="TCK Individu"
+            label="Tenaga Cadangan Individu"
             value={nf(sdm.individu)}
             unit="personel"
-            sub={`${nf(sdm.nakes || 0)} Nakes · ${nf(sdm.nonNakes || 0)} Non-Nakes`}
+            sub={`${nf(sdm.nakes || 0)} tenaga kesehatan · ${nf(sdm.nonNakes || 0)} non-kesehatan`}
             icon={Users}
             tone="blue"
             href={withQuery('/dashboard/kesiapsiagaan/tenaga-cadangan', f)}
           />
           <KpiCardItem
-            label="TCK Tim"
+            label={isWilayah && sdm.tim != null ? "Tim Tenaga Cadangan (wilayah)" : "Tim Tenaga Cadangan"}
             value={sdm.tim != null ? nf(sdm.tim) : '—'}
             unit={sdm.tim != null ? 'tim' : ''}
             sub="Tim cadangan siap mobilisasi"
@@ -390,12 +390,13 @@ function DynamicKpiCards({
             note={isWilayah && sdm.tim == null ? NASIONAL_NOTE : null}
           />
           <KpiCardItem
-            label="Emergency Medical Team"
+            label={EMT_LABEL}
             value={sdm.emt != null ? nf(sdm.emt) : '—'}
             unit={sdm.emt != null ? 'tim' : ''}
-            sub={`${EMT_LABEL} terverifikasi`}
+            sub={(() => { const rs = isWilayah && derived.selected ? [derived.selected] : derived.rows || []; const st = rs.some((r: any) => r.tckEmtStandar != null) ? rs.reduce((a: number, r: any) => a + (r.tckEmtStandar || 0), 0) : null; return st != null ? `${nf(st)} memenuhi standar EMT` : 'terdaftar di Tenaga Cadangan' })()}
             icon={HeartPulse}
             tone="emerald"
+            note={isWilayah && sdm.emt == null ? NASIONAL_NOTE : null}
           />
           <KpiCardItem
             label="Buffer Logistik"

@@ -55,6 +55,9 @@ export function applyDerive(data: any, filter: PuskrisFilter) {
       tck: Number(t.individu || 0),
       tckNakes: Number(t.nakes || 0),
       tckNonNakes: Number(t.non_nakes || 0),
+      tckTim: t.tim != null ? Number(t.tim) : null,
+      tckEmt: t.emt != null ? Number(t.emt) : null,
+      tckEmtStandar: t.emt_standar != null ? Number(t.emt_standar) : null,
       ambulansBaik: Number(p.ambulans_baik || 0),
       ambulansRusakRingan: Number(p.ambulans_rusak_ringan || 0),
       ambulansRusakBerat: Number(p.ambulans_rusak_berat || 0),
@@ -190,7 +193,7 @@ export function applyDerive(data: any, filter: PuskrisFilter) {
 
   const tckS = data.tck?.summary || {}
   const sdm = selected
-    ? { individu: selected.tck, nakes: selected.tckNakes, nonNakes: selected.tckNonNakes, tim: null as number | null, emt: null as number | null, deltaIndividu: null as number | null }
+    ? { individu: selected.tck, nakes: selected.tckNakes, nonNakes: selected.tckNonNakes, tim: (selected.tckTim ?? null) as number | null, emt: (selected.tckEmt ?? null) as number | null, deltaIndividu: null as number | null }
     : { individu: tckS.individu, nakes: tckS.nakes_geojson, nonNakes: tckS.non_nakes_geojson, tim: tckS.tim, emt: tckS.emt, deltaIndividu: tckS.individu_delta_bulan }
 
   const logS = data.logistik?.summary || {}
@@ -232,7 +235,7 @@ export function applyDerive(data: any, filter: PuskrisFilter) {
     eoc: { sumber: 'Krisis Kesehatan / Pantauan Bencana', status: 'snapshot', at: data.eoc?.fetched_at_wib, label: data.eoc?.label, url: data.eoc?.sumber_resmi, filterable: { periode: !selected, provinsi: true, kabupaten: true } },
     psc: { sumber: 'PSC 119 & Ambulans', status: data.psc?.data_source === 'langsung' ? 'langsung' : 'snapshot', at: data.psc?.fetched_at_wib, label: data.psc?.data_source === 'langsung' ? data.psc.label : 'Snapshot kumulatif; filter periode sumber belum tersedia', url: data.psc?.sumber, filterable: { periode: false, provinsi: true, kabupaten: false } },
     ncc: { sumber: 'NCC Panggilan', status: 'snapshot', at: data.ncc?.fetched_at_wib, label: data.ncc?.label, url: data.ncc?.sumber, filterable: { periode: true, provinsi: false, kabupaten: false } },
-    tck: { sumber: 'Tenaga Cadangan Kesehatan', status: 'snapshot', at: data.tck?.fetched_at_wib, label: data.tck?.label, url: data.tck?.sumber, filterable: { periode: false, provinsi: true, kabupaten: false } },
+    tck: { sumber: 'Tenaga Cadangan Kesehatan', status: data.tck?.data_source === 'langsung' ? 'langsung' : 'snapshot', at: data.tck?.fetched_at_wib, label: data.tck?.label, url: data.tck?.sumber, filterable: { periode: false, provinsi: true, kabupaten: false } },
     logistik: { sumber: 'Logistik', status: 'snapshot', at: data.logistik?.fetched_at_wib, label: data.logistik?.label, url: data.logistik?.sumber, filterable: { periode: false, provinsi: false, kabupaten: false } },
     asistensi: { sumber: 'Asistensi Risiko', status: data.asistensi?.data_source === 'langsung' ? 'langsung' : 'snapshot', at: data.asistensi?.fetched_at_wib, label: data.asistensi?.label, url: data.asistensi?.sumber_provinsi, filterable: { periode: false, provinsi: false, kabupaten: false } },
   }
@@ -326,6 +329,8 @@ export function layerValue(row: ProvinceRow, layer: string): number {
     case 'ambulans': return row.ambulans
     case 'panggilan': return row.panggilan
     case 'tck': return row.tck
+    case 'tck_tim': return row.tckTim || 0
+    case 'tck_emt': return row.tckEmt || 0
     case 'kesenjangan': return row.indeksRespons
     default: return 0
   }

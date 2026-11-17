@@ -391,32 +391,73 @@ export default function PuskrisSumberSections({
       </>
 
       <>
-          {show.tck && (
-          <Card eyebrow="Kesiapsiagaan SDM" title="Tenaga cadangan kesehatan" desc={`Kartu KPI publik TCK: individu, tim, dan ${EMT_LABEL}, plus nakes vs non-nakes dari sebaran geojson. Data pengalaman dan pelatihan tidak ada di snapshot ini.`}>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
-              <Stat label="Individu" value={nf(tck.individu)} sub={tckS.individu_delta_bulan ? `+${nf(tckS.individu_delta_bulan)} bulan ini` : undefined} />
-              <Stat label="Tim" value={tck.tim == null ? '—' : nf(tck.tim)} sub={tckS.tim_delta_bulan ? `+${nf(tckS.tim_delta_bulan)}` : undefined} />
-              <Stat label={EMT_LABEL} value={tck.emt == null ? '0' : nf(tck.emt)} sub={tckS.emt_delta_bulan ? `+${nf(tckS.emt_delta_bulan)}` : undefined} />
-              <Stat label="Nakes" value={nf(tck.nakes)} />
-              <Stat label="Non-nakes" value={nf(tck.nonNakes)} />
-              <Stat label="Individu bulan ini" value={nf(tckS.individu_bulan_ini)} />
+          {show.tck && (() => {
+          const tLive = raw.tck?.data_source === 'langsung'
+          const selP: any = view.selected ? (raw.tck?.provinsi || []).find((p: any) => String(p.code) === view.selected!.code) : null
+          const profesiList: { nama: string; jumlah: number }[] = selP?.profesi
+            ? Object.entries(selP.profesi).map(([nama, jumlah]) => ({ nama, jumlah: Number(jumlah) }))
+            : raw.tck?.profesi || []
+          const perempuan = selP ? selP.perempuan : tckS.perempuan
+          const laki = selP ? selP.laki : tckS.laki
+          const emtStd = selP ? selP.emt_standar : tckS.emt_standar
+          const emtSk = selP ? selP.emt_sk : tckS.emt_sk
+          const kabTop = selP?.kab ? [...selP.kab].sort((x: any, y: any) => y.n - x.n).slice(0, 10).map((k: any) => ({ nama: String(k.nama).replace(/^KAB(UPATEN)?\.?\s*/i, '').slice(0, 18), nakes: k.nakes, non: k.n - k.nakes })) : null
+          const respon: { nama: string; jumlah: number }[] = raw.tck?.emt_rekap?.waktu_respon || []
+          return (
+          <Card eyebrow="Kesiapsiagaan SDM" title="Tenaga cadangan kesehatan"
+            desc={tLive
+              ? `Data langsung API Tenaga Cadangan Kesehatan (TCK), diambil ${raw.tck?.fetched_at_wib || '-'}: relawan per provinsi, profesi, tim, dan ${EMT_LABEL}${view.selected ? ` untuk ${view.selected.nama}` : ''}. Hanya angka agregat, tanpa data pribadi.`
+              : `Kartu KPI publik TCK (snapshot): individu, tim, dan ${EMT_LABEL}, plus tenaga kesehatan vs non-kesehatan dari sebaran geojson.`}>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
+              <Stat label="Individu" value={nf(tck.individu)} sub={!view.selected && tckS.individu_bulan_ini ? `+${nf(tckS.individu_bulan_ini)} bulan ini` : undefined} />
+              <Stat label={view.selected ? 'Tim (provinsi)' : 'Tim'} value={tck.tim == null ? '—' : nf(tck.tim)} sub={!view.selected && tckS.tim_bulan_ini ? `+${nf(tckS.tim_bulan_ini)} bulan ini` : undefined} />
+              <Stat label={EMT_LABEL} value={tck.emt == null ? '—' : nf(tck.emt)} sub={!view.selected && tckS.emt_bulan_ini ? `+${nf(tckS.emt_bulan_ini)} bulan ini` : undefined} />
+              {tLive && emtStd != null ? <Stat label="EMT memenuhi standar" value={nf(emtStd)} sub={emtSk != null ? `${nf(emtSk)} memiliki SK` : undefined} /> : null}
+              <Stat label="Tenaga kesehatan" value={nf(tck.nakes)} />
+              <Stat label="Non-kesehatan" value={nf(tck.nonNakes)} />
+              {perempuan != null ? <Stat label="Perempuan" value={nf(perempuan)} sub={laki != null ? `laki-laki ${nf(laki)}` : undefined} /> : null}
+              {!view.selected ? <Stat label="Individu bulan ini" value={nf(tckS.individu_bulan_ini)} sub={tckS.individu_bulan_lalu != null ? `bulan lalu ${nf(tckS.individu_bulan_lalu)}` : undefined} /> : null}
             </div>
-            <div className="mt-4 h-56">
-              <p className="mb-1 text-[10px] font-black uppercase tracking-wider text-slate-400">Sebaran provinsi (individu)</p>
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={topTck}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="nama" tick={{ fontSize: 9 }} interval={0} angle={-20} textAnchor="end" height={60} />
-                  <YAxis tick={{ fontSize: 10 }} />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="tckNakes" name="Nakes" stackId="a" fill={TEAL} />
-                  <Bar dataKey="tckNonNakes" name="Non-nakes" stackId="a" fill={AMBER} />
-                </BarChart>
-              </ResponsiveContainer>
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              <div className="h-56">
+                <p className="mb-1 text-[10px] font-black uppercase tracking-wider text-slate-400">{kabTop ? `Kab/kota teratas · ${view.selected!.nama}` : 'Sebaran provinsi (individu)'}</p>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={kabTop || topTck}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="nama" tick={{ fontSize: 9 }} interval={0} angle={-20} textAnchor="end" height={60} />
+                    <YAxis tick={{ fontSize: 10 }} />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey={kabTop ? 'nakes' : 'tckNakes'} name="Tenaga kesehatan" stackId="a" fill={TEAL} />
+                    <Bar dataKey={kabTop ? 'non' : 'tckNonNakes'} name="Non-kesehatan" stackId="a" fill={AMBER} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              {profesiList.length ? (
+                <div className="h-56">
+                  <p className="mb-1 text-[10px] font-black uppercase tracking-wider text-slate-400">Relawan per golongan profesi{view.selected ? ` · ${view.selected.nama}` : ' · nasional'}</p>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={profesiList.map((x) => ({ ...x, nama: x.nama.replace(/^Tenaga (Kesehatan )?/, '') }))} layout="vertical" margin={{ left: 8 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <XAxis type="number" tick={{ fontSize: 10 }} />
+                      <YAxis type="category" dataKey="nama" tick={{ fontSize: 9 }} width={110} />
+                      <Tooltip />
+                      <Bar dataKey="jumlah" name="Relawan" fill={BLUE} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : null}
             </div>
+            {tLive && respon.length ? (
+              <p className="mt-3 text-[11px] text-slate-500">
+                Kesiapan berangkat {EMT_LABEL} (nasional): {respon.map((r) => `${r.nama === 'Belum Di Set' ? 'belum diisi' : r.nama.toLowerCase()} ${nf(r.jumlah)}`).join(' · ')}.
+                {view.selected && selP ? ` Di ${view.selected.nama}: ${nf(selP.emt_respon_24 || 0)} EMT sanggup < 24 jam.` : ''}
+              </p>
+            ) : null}
+            {!tLive ? <p className="mt-2 text-[10px] text-slate-400">Sumber: snapshot. Data pengalaman dan pelatihan tidak ada di snapshot ini.</p> : null}
           </Card>
-          )}
+          )
+          })()}
           {show.logistik && (
           <Card eyebrow="Logistik dan stok" title="Logistik" desc="Stok, penerimaan, dan pengeluaran dari landing SIMLOGKES, plus matriks 11 regional × Obat / Sarpras / Alkes / BMHP. Bukan 38 provinsi.">
             <div className="grid grid-cols-3 gap-2">

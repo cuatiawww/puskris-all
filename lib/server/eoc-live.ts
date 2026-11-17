@@ -8,6 +8,7 @@
  */
 
 import { getEocAuth } from './puskris-auth-config'
+import { persist, REVALIDATE } from './persist'
 
 const EOC_BASE = (process.env.PUSKRIS_EOC_BASE || 'https://pusatkrisis.kemkes.go.id/eoc/api/detail_bencana').replace(/\/$/, '')
 
@@ -75,6 +76,7 @@ function slim(r: any): EocEvent | null {
 
 const pad = (n: number) => String(n).padStart(2, '0')
 const todayWib = () => new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 10)
+const prevMonthStart = (today: string) => { const y = Number(today.slice(0, 4)); const m = Number(today.slice(5, 7)); return m === 1 ? `${y - 1}-12-01` : `${y}-${pad(m - 1)}-01` }
 
 /** Pecah rentang tanggal menjadi potongan per bulan kalender. */
 export function monthChunks(from: string, to: string): [string, string][] {
@@ -109,8 +111,14 @@ export async function fetchEocRange(q: { tanggal1: string; tanggal2: string; pro
     if (q.prov) sp.set('prov', q.prov)
     if (q.kab) sp.set('kab', q.kab)
     try {
-      const j = await getJson(`data_krisis.php?${sp}`, 90_000)
-      return (j?.data || []).map(slim).filter(Boolean) as EocEvent[]
+      // Satu bulan = satu entri cache persisten (±50–150 KB setelah diringkas). Bulan berjalan 15 menit,
+      // bulan lalu 6 jam (data korban masih diperbarui), bulan yang lebih lama 7 hari.
+      const today = todayWib()
+      const umur = b >= today.slice(0, 8) + '01' ? REVALIDATE.singkat : b >= prevMonthStart(today) ? REVALIDATE.menengah : REVALIDATE.panjang
+      return await persist(['eoc-bulan', a, b, q.prov || '', q.kab || ''], async () => {
+        const j = await getJson(`data_krisis.php?${sp}`, 90_000)
+        return (j?.data || []).map(slim).filter(Boolean) as EocEvent[]
+      }, umur, ['eoc'])
     } catch (e: any) {
       gagal.push(`${a.slice(0, 7)}: ${String(e?.message || e)}`)
       return [] as EocEvent[]
@@ -131,7 +139,7 @@ export async function fetchEocTahun() {
   const from = today.slice(5) < '02-01' ? `${y - 1}-12-01` : `${y}-01-01`
   const [r, jenis] = await Promise.all([
     fetchEocRange({ tanggal1: from, tanggal2: today }),
-    getJson('jenis_bencana.php', 30_000).then((j) => (j?.data || []).map((x: any) => ({ uid: trim(x.uid), nama: trim(x.nama_bencana) }))).catch(() => [] as { uid: string; nama: string }[]),
+    persist(['eoc-jenis'], async () => { const j = await getJson('jenis_bencana.php', 30_000); return (j?.data || []).map((x: any) => ({ uid: trim(x.uid), nama: trim(x.nama_bencana) })) as { uid: string; nama: string }[] }, REVALIDATE.menengah, ['eoc']).catch(() => [] as { uid: string; nama: string }[]),
   ])
   return { tahun: y, ...r, jenis }
 }

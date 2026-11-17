@@ -8,14 +8,15 @@ import { getLiveOverlay, mergeLive, parseRentang } from '@/lib/server/puskris-li
  * "tidak_tersedia" di live_status (tidak ada snapshot atau angka cadangan).
  */
 export const dynamic = 'force-dynamic'
-export const maxDuration = 60
+// Vercel (Fluid compute): sisa pengambilan berjalan lewat after() sampai batas ini; hasil per potongan tersimpan di Data Cache.
+export const maxDuration = 300
 
 export async function GET(req: Request) {
   // ?tanggal1&tanggal2 (opsional): rentang Filter Dasbor di luar tahun berjalan -> EOC & NCC diambil untuk rentang itu.
   const rentang = parseRentang(new URL(req.url).searchParams)
   const snapshot = loadPuskrisData()
   const codes = (snapshot.regions || []).map((r: any) => String(r.code))
-  const ov = await getLiveOverlay(codes, 7000, rentang)
+  const ov = await getLiveOverlay(codes, 25_000, rentang)
   if (ov.jobs.length) after(() => Promise.allSettled(ov.jobs))
   const data = mergeLive(snapshot, ov)
   const pending = Object.values(ov.status).some((s: any) => s.pending)

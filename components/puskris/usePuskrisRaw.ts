@@ -9,7 +9,7 @@ import { toDeriveFilter, type PuskrisUiFilter } from '@/lib/puskris/ui-filter'
  * Data dasbor dari /api/puskris/ringkasan. Bila rentang periode Filter Dasbor mulai sebelum cakupan
  * kejadian tahun berjalan, data diambil ulang dengan ?tanggal1&tanggal2 sehingga API EOC & NCC
  * dipanggil untuk rentang itu (bukan disaring dari data tahun ini saja).
- * Data yang belum selesai diambil server dimuat ulang diam-diam (maks. 4 kali, tiap 20 detik).
+ * Data yang belum selesai diambil server dimuat ulang diam-diam (maks. 12 kali, tiap 20 detik).
  */
 export function usePuskrisRaw(f: PuskrisUiFilter, ready: boolean) {
   const [base, setBase] = useState<any>(null)
@@ -46,11 +46,11 @@ export function usePuskrisRaw(f: PuskrisUiFilter, ready: boolean) {
   }, [needKey, tries])
 
   useEffect(() => {
-    if (!pending || tries >= 4) return
+    if (!pending || tries >= 12) return
     const t = setTimeout(() => setTries((n) => n + 1), 20000)
     return () => clearTimeout(t)
   }, [pending, tries])
 
   const raw = needKey ? (ranged?.key === needKey ? ranged.data : null) : base
-  return { raw: raw || (needKey ? base : null), base, error, pending: pending && tries < 4, loadingRange: Boolean(needKey) && ranged?.key !== needKey, rangeFetching: loadingRange, range }
+  return { raw: raw || (needKey ? base : null), base, error, pending: pending && tries < 12, loadingRange: Boolean(needKey) && ranged?.key !== needKey, rangeFetching: loadingRange, range }
 }

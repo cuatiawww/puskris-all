@@ -6,6 +6,7 @@
  * - Cache memori 15 menit + stale-while-revalidate; bila gagal, bagian itu kosong (status tidak_tersedia), tanpa angka cadangan.
  */
 
+import { persist, REVALIDATE } from './persist'
 import KAB_CENTROID from '../../data/kab-centroid.json'
 import { fetchTckInti, fetchTckRelawan, TCK_PROFESI } from './tck-live'
 import { fetchLogistik, LOG_KATEGORI } from './logistik-live'
@@ -89,7 +90,9 @@ export async function swr<T>(key: string, fn: () => Promise<T>, budgetMs: number
     store.set(key, e)
   }
   const job = e.pending
-  const done = await Promise.race([job.then(() => true), new Promise<boolean>((r) => setTimeout(() => r(false), budgetMs))])
+  // Ada nilai lama: kembalikan segera (stale-while-revalidate). Cache dingin: tunggu sampai budgetMs.
+  const wait = e.value !== undefined ? Math.min(budgetMs, 1500) : budgetMs
+  const done = await Promise.race([job.then(() => true), new Promise<boolean>((r) => setTimeout(() => r(false), wait))])
   const now = store.get(key) || e
   return { value: now.value, at: now.at || undefined, fresh: done && !now.error, pending: !done, error: now.error, job }
 }
@@ -456,10 +459,12 @@ export function parseRentang(sp: URLSearchParams): RentangApi {
   return { tanggal1: a!, tanggal2: b! }
 }
 
+const P = <T,>(key: (string | number)[], fn: () => Promise<T>) => persist(key, fn, REVALIDATE.singkat, ['live'])
+
 export async function getLiveOverlay(provCodes: string[], budgetMs = 7000, rentang: RentangApi = null) {
   const nccOff = { fresh: false, pending: false, error: 'API NCC belum terhubung (PUSKRIS_NCC_URL belum diatur di server)' } as LiveResult<NccRingkasan>
   const nccP = nccEnabled()
-    ? (rentang ? swr(`ncc:${rentang.tanggal1}:${rentang.tanggal2}`, () => fetchNcc(rentang), budgetMs) : swr('ncc:ringkasan', () => fetchNcc(), budgetMs))
+    ? (rentang ? swr(`ncc:${rentang.tanggal1}:${rentang.tanggal2}`, () => P(['ncc', rentang.tanggal1, rentang.tanggal2], () => fetchNcc(rentang)), budgetMs) : swr('ncc:ringkasan', () => P(['ncc'], () => fetchNcc()), budgetMs))
     : Promise.resolve(nccOff)
   const tahun = Number(new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 4))
   const eocOff = { fresh: false, pending: false, error: 'Akun API EOC (PUSKRIS_EOC_AUTH) belum diatur di server' } as LiveResult<Awaited<ReturnType<typeof fetchEocTahun>>>
@@ -478,10 +483,11 @@ export async function getLiveOverlay(provCodes: string[], budgetMs = 7000, renta
     return { asistensi: e, psc: e, panggilan: e, tck: e, tckRelawan: e, logistik: e as LiveResult<Awaited<ReturnType<typeof fetchLogistik>>>, eoc, ncc, eocTren: eocTren as LiveResult<Awaited<ReturnType<typeof fetchEocTren>>>, status: { asistensi: stOff, psc: stOff, panggilan: stOff, tck: stOff, tckRelawan: stOff, logistik: stOff, eoc: st(eoc), ncc: st(ncc) }, jobs: [eoc.job, ncc.job, eocTren.job].filter(Boolean) as Promise<any>[] }
   }
   const [asistensi, psc, panggilan, tck, tckRelawan, eoc, logistik, ncc, eocTren] = await Promise.all([
-    swr(`asistensi:${tahun}`, () => fetchAsistensi(tahun), budgetMs),
-    swr('psc:master', () => fetchPscMaster(), budgetMs),
-    swr(`psc:panggilan:${tahun}`, () => fetchPanggilan(tahun, provCodes), budgetMs),
-    swr('tck:inti', () => fetchTckInti(), budgetMs),
+    // P(): hasil ringkas juga disimpan di cache persisten (lintas instance Vercel), 15 menit.
+    swr(`asistensi:${tahun}`, () => P(['asistensi', tahun], () => fetchAsistensi(tahun)), budgetMs),
+    swr('psc:master', () => P(['psc-master'], () => fetchPscMaster()), budgetMs),
+    swr(`psc:panggilan:${tahun}`, () => P(['psc-panggilan', tahun], () => fetchPanggilan(tahun, provCodes)), budgetMs),
+    swr('tck:inti', () => P(['tck-inti'], () => fetchTckInti()), budgetMs),
     swr('tck:relawan', () => fetchTckRelawan(provCodes), budgetMs),
     eocP,
     swr('logistik:stok', () => fetchLogistik(), budgetMs),

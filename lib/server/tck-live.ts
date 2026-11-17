@@ -6,6 +6,7 @@
  * di sini dan tidak pernah disimpan / dicatat / dikirim ke browser.
  */
 import { pool, postForm } from './puskris-live'
+import { persist, REVALIDATE } from './persist'
 
 const TCK_BASE = (process.env.PUSKRIS_TCK_BASE || 'https://tenagacadangankesehatan.kemkes.go.id/web/web_api').replace(/\/$/, '')
 const ep = (p: string) => `${TCK_BASE}/${p}`
@@ -89,6 +90,8 @@ export const TCK_PROFESI = ['Tenaga Medis', 'Tenaga Keperawatan', 'Tenaga Kebida
 export async function fetchTckRelawan(provCodes: string[]) {
   const per = await pool(provCodes, 6, async (code) => {
     try {
+      // Ringkasan per provinsi disimpan di cache persisten (hanya agregat) supaya 38 panggilan tidak harus selesai dalam satu permintaan.
+      return await persist(['tck-relawan', code], async () => {
       const j = await postForm(ep('v1/relawan-tck'), { kd_prop: code, kd_kab: '' }, 90_000)
       const p = { code, individu: 0, nakes: 0, non_nakes: 0, perempuan: 0, laki: 0, usia: [0, 0, 0, 0, 0], terhubung_tim: 0, profesi: {} as Record<string, number>, kab: {} as Record<string, { n: number; nakes: number }> }
       for (const r of j.data || []) {
@@ -112,6 +115,7 @@ export async function fetchTckRelawan(provCodes: string[]) {
         if (nk) kb.nakes++
       }
       return { ok: true as const, p, total: Number(j.total ?? p.individu) }
+      }, REVALIDATE.singkat, ['tck'])
     } catch (e: any) {
       return { ok: false as const, code, error: String(e?.message || e) }
     }

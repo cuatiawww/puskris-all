@@ -9,7 +9,8 @@ import { eocEnabled, fetchEocRange, rekapEoc, type EocEvent } from '@/lib/server
  * GET /api/puskris/live/asistensi | psc | panggilan
  */
 export const dynamic = 'force-dynamic'
-export const maxDuration = 60
+// Vercel (Fluid compute): cache dingin diisi dalam permintaan pertama; potongan hasil tersimpan di Data Cache.
+export const maxDuration = 300
 
 const ALLOWED = ['asistensi', 'psc', 'panggilan', 'tck', 'eoc', 'logistik', 'ncc'] as const
 
@@ -20,7 +21,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ sumber: string 
   if (sumber === 'ncc') return nccResponse(req)
   const snapshot = loadPuskrisData()
   const codes = (snapshot.regions || []).map((r: any) => String(r.code))
-  const ov = await getLiveOverlay(codes, 45000)
+  const ov = await getLiveOverlay(codes, 240_000)
   if (ov.jobs.length) after(() => Promise.allSettled(ov.jobs))
   const key = sumber as (typeof ALLOWED)[number]
   const st = key === 'tck' ? (ov.tck.value || ov.tckRelawan.value ? { ...ov.status.tck, status: 'langsung' as const, at: ov.status.tck.at || ov.status.tckRelawan.at } : ov.status.tck) : ov.status[key]
@@ -69,7 +70,7 @@ async function eocResponse(req: Request) {
   const kab = (sp.get('kab') || '').replace(/\D/g, '').slice(0, 4) || null
   if ((t1 && !D.test(t1)) || (t2 && !D.test(t2)) || (t1 && t2 && t1 > t2)) return NextResponse.json({ ok: false, error: 'Format tanggal1/tanggal2 harus YYYY-MM-DD' }, { status: 400 })
   if (!eocEnabled()) return NextResponse.json({ ok: false, sumber: 'eoc', status: 'tidak_tersedia', error: 'Akun API EOC (PUSKRIS_EOC_AUTH) belum diatur di server', data: null }, { status: 502 })
-  const base = await getEocLive(45000)
+  const base = await getEocLive(240_000)
   if (base.job) after(() => base.job)
   let events: EocEvent[] | null = null
   let at = base.at

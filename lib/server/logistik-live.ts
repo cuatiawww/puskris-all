@@ -4,6 +4,7 @@
  * Field pribadi dibuang di sini: nama_pj, telp_pj, email_pj, alamat_lokasi_lab, petugas_logistik, foto_barang.
  */
 import { pool, postForm } from './puskris-live'
+import { persist, REVALIDATE } from './persist'
 
 const LOG_BASE = (process.env.PUSKRIS_LOGISTIK_BASE || 'https://pusatkrisis.kemkes.go.id/logistik/web_api').replace(/\/$/, '')
 const ep = (p: string) => `${LOG_BASE}/${p}`
@@ -36,6 +37,7 @@ export async function fetchLogistik(opts: { sampelPerRegional?: number } = {}) {
   const gagal: string[] = []
   const stokLists = await pool(regionals, 4, async (r: any) => {
     try {
+      return await persist(['logistik-stok', r.id], async () => {
       const j = await postForm(ep('v1/data-stok-logistik'), { id_regional: r.id }, 90_000)
       return (j?.data || []).map((x: any) => ({
         reg: r.id,
@@ -45,6 +47,7 @@ export async function fetchLogistik(opts: { sampelPerRegional?: number } = {}) {
         awal: num(x.jurnal_stok?.saldo_awal), masuk: num(x.jurnal_stok?.transaksi_masuk), keluar: num(x.jurnal_stok?.transaksi_keluar),
         stok: num(x.jurnal_stok?.stok_akhir), exp: /^\d{4}-\d{2}-\d{2}/.test(trim(x.expired_date)) ? trim(x.expired_date).slice(0, 10) : null,
       }))
+      }, REVALIDATE.singkat, ['logistik'])
     } catch (e: any) {
       gagal.push(`${r.nama}: ${String(e?.message || e)}`)
       return null
@@ -66,9 +69,17 @@ export async function fetchLogistik(opts: { sampelPerRegional?: number } = {}) {
   let sampelOk = 0
   await pool(sampel, 6, async (x) => {
     try {
-      const j = await postForm(ep('v1/pergerakan-stok'), { id_barang: x.idBarang, id_regional: x.reg, id_asal_pengirim: x.asalId }, 30_000)
+      // Hanya kolom yang dipakai (tanggal, jenis, jumlah) yang disimpan di cache persisten; petugas/nama tidak.
+      const rows = await persist(['logistik-gerak', x.idBarang, x.reg, x.asalId], async () => {
+        const j = await postForm(ep('v1/pergerakan-stok'), { id_barang: x.idBarang, id_regional: x.reg, id_asal_pengirim: x.asalId }, 30_000)
+        return (j?.data || []).map((t: any) => ({
+          tanggal: trim(t.tanggal).slice(0, 10), jenis_transaksi: trim(t.jenis_transaksi), penerimaan: num(t.penerimaan), pengeluaran: num(t.pengeluaran),
+          jenis_pengeluaran: /^pindah depo/i.test(trim(t.jenis_pengeluaran)) ? 'Pindah depo' : trim(t.jenis_pengeluaran).replace(/\s*\(.*$/, ''),
+          jenis_penerimaan: /^pindah depo/i.test(trim(t.jenis_penerimaan)) ? 'Pindah depo' : trim(t.jenis_penerimaan).replace(/\s*\(.*$/, ''),
+        }))
+      }, REVALIDATE.singkat, ['logistik'])
       sampelOk++
-      for (const t of j?.data || []) {
+      for (const t of rows) {
         const b = trim(t.tanggal).slice(0, 7)
         if (!/^\d{4}-\d{2}$/.test(b)) continue
         const m = (bulanan[b] ||= { penerimaan: 0, pengeluaran: 0, transaksi: 0 })

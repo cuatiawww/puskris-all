@@ -450,7 +450,7 @@ export const DEFAULT_NAVIGATION_CONFIG: SidebarGroupConfig[] = [
     it('mod_open_data', 'Open Data', '/dashboard/open-data', 'Database', 7.5, {
       description: 'Daftar API luar (API Intelijen) yang dipakai peta, lengkap dengan status langsung',
     }),
-    it('mod_spatial', 'Spatial Mode', '/dashboard/spatial-mode', 'Globe2', 8, { badge: 'Berikutnya', description: 'Tampilan peta layar penuh dengan variabel Pusat Krisis Kesehatan' }),
+    it('mod_spatial', 'Spatial Mode', '/dashboard/spatial-mode', 'Globe2', 8, { description: 'Tampilan peta layar penuh dengan variabel Pusat Krisis Kesehatan' }),
   ] },
 ]
 

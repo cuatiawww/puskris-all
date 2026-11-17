@@ -103,3 +103,13 @@ Singkatan NCC tidak dipakai di tampilan. Dipakai: Panggilan Masuk, Panggilan Ter
 - 14 lapisan BNPB InaRISK (`BNPB_LAYERS` di `lib/puskris/open-data.ts`) dengan tombol masing-masing di Pengaturan Lapisan, dimuat langsung
   dari gis.bnpb.go.id (TileArcGISRest). Cek ketersediaan: `/api/v1/map-layers/bnpb` (juga tampil di Open Data).
 - Kartu "Situasi krisis kesehatan" (9 angka) di halaman Situasi Krisis dihapus karena duplikat dengan strip "Dampak terhadap penduduk" dan KPI.
+
+## Spatial Mode (/dashboard/spatial-mode, /tv)
+
+- Peta layar penuh tanpa sidebar/header aplikasi. Komponen peta dipisah ke `components/puskris/PuskrisPetaTerpadu.tsx`
+  (variant `card` untuk Ringkasan, `fullscreen` untuk Spatial Mode) sehingga state lapisan, dok Analisa/Kejadian Terbaru/Terpadu,
+  API Intelijen, BNPB InaRISK, angin, pill metrik dan Variabel peta tidak terduplikasi.
+- Bilah atas mengambang: kembali ke Ringkasan, judul wilayah + periode, tombol Filter (laci PuskrisFilterPanel, filter tersimpan di URL),
+  pill metrik, Variabel peta, tombol panel, legenda, sesuaikan ke Indonesia, layar penuh. Di bawahnya strip KPI ringkas.
+- `SpasialMap` mendapat prop `fitPadding` (ruang panel mengambang saat fit) dan `legendDefaultOpen` (legenda tertutup di layar < 900px tinggi).
+- Di layar < 1500px lebar, panel Pengaturan Lapisan tertutup saat awal.

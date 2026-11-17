@@ -108,7 +108,7 @@ export interface MapHudCtrl {
   setShowLayers: (v: boolean) => void
 }
 
-export default function SpasialMap({ data, titik, metric, setMetric, layers, setLayers, choroCfg, sumber, selectedId, onSelectArea, onDrill, onUp, focus, rightPanel, panelOpen, setPanelOpen, height = 680, fullHeight = false, topHud, leftDock, topOffset, hideDefaultToolbar = false, intelLayers, radiusSupport, onIntelStatus, pointOpacity = 1, showBoundaries = true, windFlow = false, metricLabel, bnpbLayers, onBnpbStatus }: {
+export default function SpasialMap({ data, titik, metric, setMetric, layers, setLayers, choroCfg, sumber, selectedId, onSelectArea, onDrill, onUp, focus, rightPanel, panelOpen, setPanelOpen, height = 680, fullHeight = false, topHud, leftDock, topOffset, hideDefaultToolbar = false, intelLayers, radiusSupport, onIntelStatus, pointOpacity = 1, showBoundaries = true, windFlow = false, metricLabel, bnpbLayers, onBnpbStatus, fitPadding, legendDefaultOpen = true }: {
   data: SpasialResp | null; titik: Titik[]; metric: Metric; setMetric: (m: Metric) => void; layers: Layers; setLayers: (l: Layers) => void
   choroCfg: ChoroConfig | null; sumber: string; selectedId: number | null; onSelectArea: (a: Area | null) => void; onDrill: (a: Area) => void; onUp: (() => void) | null
   focus: Focus | null; rightPanel: ReactNode; panelOpen: boolean; setPanelOpen: (v: boolean) => void; height?: number
@@ -122,6 +122,10 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
   windFlow?: boolean
   bnpbLayers?: Partial<Record<BnpbLayerId, boolean>>
   onBnpbStatus?: (id: BnpbLayerId, st: BnpbStatus) => void
+  /** Padding [atas, kanan, bawah, kiri] saat peta menyesuaikan ke wilayah (mis. memberi ruang panel mengambang). */
+  fitPadding?: [number, number, number, number]
+  /** Legenda terbuka saat peta pertama tampil (default ya). */
+  legendDefaultOpen?: boolean
   /** Label variabel arsiran (mengganti label metrik bawaan di legenda & tooltip). */
   metricLabel?: string
 }) {
@@ -179,7 +183,7 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
   const [popup, setPopup] = useState<Popup | null>(null)
   const [hover, setHover] = useState<{ x: number; y: number; text: string } | null>(null)
   const [showLayers, setShowLayers] = useState(false)
-  const [showLegend, setShowLegend] = useState(true)
+  const [showLegend, setShowLegend] = useState(legendDefaultOpen)
   const [fs, setFs] = useState(false)
   const weeks = data?.minggu || []
   const level = data?.level || 'provinsi'
@@ -636,7 +640,7 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
     if (isEmpty(ext)) return
     const right = panelOpen && (wrap.current?.clientWidth || 0) > 900 ? (fullHeight ? 400 : 380) : 40
     const topPad = topOffset ? topOffset + 16 : 70
-    m.getView().fit(ext, { padding: [topPad, right, 70, 40], duration: 300, maxZoom: kabSel ? 11 : 9 })
+    m.getView().fit(ext, { padding: fitPadding || [topPad, right, 70, 40], duration: 300, maxZoom: kabSel ? 11 : 9 })
   }, [geoReady, kabSel]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── choropleth style context ──

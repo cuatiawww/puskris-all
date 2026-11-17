@@ -14,7 +14,7 @@ import PuskrisPageShell from '@/components/puskris/PuskrisPageShell'
 
 const PANEL_KEY = 'puskris-dasbor-filter-panel-open'
 
-function readFilterFromSearch(): PuskrisUiFilter {
+export function readFilterFromSearch(): PuskrisUiFilter {
   const next = defaultUiFilter()
   if (typeof window === 'undefined') return next
   const sp = new URLSearchParams(window.location.search)

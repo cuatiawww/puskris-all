@@ -326,3 +326,23 @@ export function layerValue(row: ProvinceRow, layer: string): number {
     default: return 0
   }
 }
+
+/** Situasi krisis sesuai filter jenis: bila jenis dipilih, dihitung dari daftar kejadian krisis terbaru (bukan KPI resmi). */
+export function situasiTerfilter(situasi: any, kejadian: any[], jenisScoped: boolean): any {
+    if (!jenisScoped) return situasi
+    const sum = (key: string) => kejadian.reduce((a: number, k: any) => a + Number(k[key] || 0), 0)
+    return {
+      terpantau: kejadian.length,
+      berdampak_krisis: kejadian.length,
+      meninggal: sum('meninggal'),
+      luka: sum('luka_berat') + sum('luka_ringan'),
+      luka_berat: sum('luka_berat'),
+      luka_ringan: sum('luka_ringan'),
+      hilang: null,
+      korban_total: sum('korban') || (sum('meninggal') + sum('luka_berat') + sum('luka_ringan') + sum('pengungsi')),
+      pengungsi: sum('pengungsi'),
+      terdampak: sum('terdampak'),
+      sumber: 'Agregat kejadian terbaru sesuai filter jenis (bukan KPI resmi nasional)',
+      catatanPeriode: 'Filter jenis kejadian memakai daftar kejadian krisis terbaru, bukan angka resmi tahunan per jenis.',
+    }
+  }

@@ -226,3 +226,12 @@ export const OFFICIAL_APIS: OfficialApi[] = [
     belum: 'API tidak punya filter tanggal/kategori, jadi rekap harian dan per jenis hanya dari sampel laporan terbaru. Data pelapor/korban tidak pernah dikirim ke browser.',
   },
 ]
+
+/** Lapisan peta dari API resmi (Pengaturan Peta → API Internal) dan lapisan Risiko yang menunggu data. */
+export const INTERNAL_MAP_LAYERS = [
+  { id: 'psc', nama: 'Titik PSC 119', sumber: 'API PSC 119 · data-psc (latitude/longitude PSC; koordinat bawaan yang dipakai banyak PSC diganti pusat kab/kota)', proxy: '/api/puskris/live/psc', isi: 'Nama PSC, kab/kota, provinsi, status aktif, jumlah ambulans (dan yang siap), personel, RS jejaring. Tanpa pimpinan, telepon, email, alamat.', status: 'langsung' },
+  { id: 'ambulans', nama: 'Titik Ambulans (siap / aktif)', sumber: 'API PSC 119 · data-psc → data_ambulan_psc (latitude/longitude ambulans)', proxy: '/api/puskris/live/psc', isi: 'Jenis, kondisi, status aktif, PSC induk. Ambulans tanpa koordinat diletakkan di lokasi PSC induk (atau pusat kab/kota) dan ditandai garis putus-putus. Tanpa plat nomor dan nama petugas.', status: 'langsung' },
+  { id: 'panggilan', nama: 'Titik Panggilan 119 (agregat kab/kota)', sumber: 'API PSC 119 · data-pelaporan-panggilan (sampel terbaru)', proxy: '/api/puskris/live/panggilan', isi: 'Jumlah panggilan, gawat darurat, selesai, butuh ambulans per kab/kota. Letak = rata-rata koordinat panggilan (≥ 5 berkoordinat) atau pusat kab/kota. Tidak ada titik penelepon.', status: 'langsung' },
+  { id: 'risiko-krisis', nama: 'Risiko Krisis Kesehatan', sumber: 'Belum ada (sedang dicari)', proxy: '–', isi: 'Placeholder di panel Risiko; tinggal disambungkan di lib/puskris/risiko-layers.ts.', status: 'segera' },
+  { id: 'risiko-infeksi', nama: 'Risiko Infeksi Penyakit', sumber: 'Belum ada (sedang dicari)', proxy: '–', isi: 'Placeholder di panel Risiko; tinggal disambungkan di lib/puskris/risiko-layers.ts.', status: 'segera' },
+] as const

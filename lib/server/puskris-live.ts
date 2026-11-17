@@ -6,6 +6,8 @@
  * - Cache memori 15 menit + stale-while-revalidate; bila gagal, pemanggil memakai snapshot.
  */
 
+import KAB_CENTROID from '../../data/kab-centroid.json'
+
 const TTL_MS = 15 * 60_000
 const PSC_BASE = (process.env.PUSKRIS_PSC_BASE || 'https://psc.kemkes.go.id').replace(/\/$/, '')
 const ASIS_BASE = (process.env.PUSKRIS_ASISTENSI_BASE || 'https://pusatkrisis.kemkes.go.id/asistensi').replace(/\/$/, '')
@@ -131,6 +133,17 @@ const coord = (v: any) => {
   return Number.isFinite(n) && n !== 0 ? Math.round(n * 1e4) / 1e4 : null
 }
 
+const inIdn = (lat: number, lon: number) => lat > -12 && lat < 7 && lon > 94 && lon < 142
+const kabPusat = (kk: string): [number, number] | null => ((KAB_CENTROID as unknown as Record<string, [number, number]>)[kk] || null)
+const km = (a: [number, number], b: [number, number]) => Math.hypot(a[0] - b[0], (a[1] - b[1]) * Math.cos((a[0] * Math.PI) / 180)) * 111
+/** Koordinat yang dipakai berulang oleh banyak fasilitas berbeda = nilai bawaan formulir, bukan lokasi sebenarnya. */
+const PLACEHOLDER_MIN = 5
+const AMB_KONDISI = ['Baik', 'Rusak Ringan', 'Rusak Berat', 'Belum diisi']
+/** Satu PSC untuk lapisan peta: n=nama, kk=kode kab/kota, p=kode provinsi, a=aktif, siap=ambulans aktif & baik, prs=personil, rs=RS jejaring. */
+export type PscTitik = { n: string; kab: string; kk: string; p: string; prov: string; a: number; lat: number | null; lon: number | null; lok: 'psc' | 'kabkota' | null; amb: number; siap: number; prs: number; rs: number }
+/** [lat, lon, siap(1/0), aktif(1/0/-1 tidak diisi), indeks kondisi, jenis(0 GD,1 transport,2 lain), lokasi(0 koordinat ambulans,1 koordinat PSC,2 pusat kab/kota PSC), indeks PSC] */
+export type AmbTitik = [number, number, number, number, number, number, number, number]
+
 export async function fetchPscMaster() {
   const first = await postForm(`${PSC_BASE}/web_api/v1/data-psc`, { page: 1, per_page: 100 }, 90_000)
   const pages = Number(first.total_page || 1)
@@ -151,7 +164,17 @@ export async function fetchPscMaster() {
   const kepemilikan: Record<string, number> = {}
   const rsSeen = new Map<string, { lat: number; lon: number; prov: string }>()
   const titikPsc: [number, number, number, number, number, string][] = []
+  // Lapisan peta "API Internal": daftar PSC (tanpa pimpinan/telepon/email/alamat) dan titik ambulans (tanpa plat nomor/petugas).
+  const pscList: PscTitik[] = []
+  const ambTitik: AmbTitik[] = []
+  let ambTanpaLokasi = 0
   const tahunIni = String(new Date(Date.now() + 7 * 3600_000).getUTCFullYear())
+  const keyOf = (la: any, lo: any) => `${coord(la)},${coord(lo)}`
+  const pakai: Record<string, number> = {}
+  for (const r of list) pakai[keyOf(r.latitude, r.longitude)] = (pakai[keyOf(r.latitude, r.longitude)] || 0) + 1
+  const rsPakai: Record<string, number> = {}
+  for (const r of list) for (const x of r.data_rumahsakit_sarana || []) rsPakai[keyOf(x.latitude, x.longitude)] = (rsPakai[keyOf(x.latitude, x.longitude)] || 0) + 1
+  let pscPlaceholder = 0
   for (const r of list) {
     const code = String(r.kd_prop || '').padStart(2, '0')
     const p = P(code)
@@ -163,6 +186,20 @@ export async function fetchPscMaster() {
     kepemilikan[kp] = (kepemilikan[kp] || 0) + 1
     let amb = 0
     let ambBaik = 0
+    let ambSiap = 0
+    // Lokasi PSC: koordinat sendiri bila wajar; bila kosong/bawaan (dipakai banyak PSC) → pusat kab/kota (perkiraan).
+    const kk0 = String(r.kd_kab || '').padStart(4, '0')
+    const pusat = kabPusat(kk0)
+    let plat = coord(r.latitude)
+    let plon = coord(r.longitude)
+    let pLok: 'psc' | 'kabkota' | null = 'psc'
+    const asli = plat != null && plon != null && inIdn(plat, plon) && (pakai[keyOf(r.latitude, r.longitude)] || 0) < PLACEHOLDER_MIN && (!pusat || km([plat, plon], pusat) < 150)
+    if (!asli) {
+      if (plat != null && (pakai[keyOf(r.latitude, r.longitude)] || 0) >= PLACEHOLDER_MIN) pscPlaceholder++
+      if (pusat) { plat = pusat[0]; plon = pusat[1]; pLok = 'kabkota' } else { plat = null; plon = null; pLok = null }
+    }
+    const pscOk = plat != null && plon != null
+    const pscIdx = pscList.length
     for (const a of r.data_ambulan_psc || []) {
       amb++
       p.ambulans++
@@ -176,6 +213,15 @@ export async function fetchPscMaster() {
       if (String(a.gps_imei || '').trim() || String(a.vendor_gps || '').trim() || String(a.nama_alat_gps || '').trim()) p.ambulans_gps++
       const jn = a.jenis === 'Gawat Darurat' ? 'Ambulans Gawat Darurat' : a.jenis === 'Transportasi' ? 'Ambulans Transport' : a.jenis || 'Tidak diketahui'
       jenisAmb[jn] = (jenisAmb[jn] || 0) + 1
+      const stA = a.status_aktif === 'Aktif' ? 1 : a.status_aktif === 'Tidak Aktif' ? 0 : -1
+      const siap = stA === 1 && k === 'Baik' ? 1 : 0
+      if (siap) ambSiap++
+      const alat = coord(a.latitude)
+      const alon = coord(a.longitude)
+      const own = alat != null && alon != null && inIdn(alat, alon) && (!pusat || km([alat, alon], pusat) < 150)
+      if (own || pscOk) {
+        ambTitik.push([own ? alat! : plat!, own ? alon! : plon!, siap, stA, AMB_KONDISI.indexOf(kn), a.jenis === 'Gawat Darurat' ? 0 : a.jenis === 'Transportasi' ? 1 : 2, own ? 0 : pLok === 'psc' ? 1 : 2, pscIdx])
+      } else ambTanpaLokasi++
     }
     for (const t of r.data_personil_psc || []) {
       p.personil++
@@ -187,15 +233,22 @@ export async function fetchPscMaster() {
       else if (/driver/i.test(jt)) p.personil_driver++
       else p.personil_lain++
     }
+    let rsPsc = 0
     for (const s of r.data_rumahsakit_sarana || []) {
+      rsPsc++
       const lat = coord(s.latitude)
       const lon = coord(s.longitude)
-      if (!rsSeen.has(String(s.id))) rsSeen.set(String(s.id), { lat: lat as number, lon: lon as number, prov: String(s.kode_prop || code).padStart(2, '0') })
+      const rsAsli = (rsPakai[keyOf(s.latitude, s.longitude)] || 0) < 10 * PLACEHOLDER_MIN
+      if (!rsSeen.has(String(s.id))) rsSeen.set(String(s.id), { lat: (rsAsli ? lat : null) as number, lon: (rsAsli ? lon : null) as number, prov: String(s.kode_prop || code).padStart(2, '0') })
     }
     for (const g of r.data_anggaran_psc || []) if (String(g.tahun) === tahunIni) p.anggaran_tahun_ini += num(g.jumlah_anggaran)
-    const lat = coord(r.latitude)
-    const lon = coord(r.longitude)
-    if (lat != null && lon != null && lat > -12 && lat < 7 && lon > 94 && lon < 142) titikPsc.push([lat, lon, aktif ? 1 : 0, amb, ambBaik, code])
+    if (pscOk) titikPsc.push([plat!, plon!, aktif ? 1 : 0, amb, ambBaik, code])
+    // catatan: titik PSC di pusat kab/kota (perkiraan) tetap dipakai untuk radius dukungan; jumlahnya dilaporkan di peta.lokasi
+    pscList.push({
+      n: String(r.nama_psc || '').trim() || 'PSC tanpa nama', kab: titleCase(String(r.kabupaten || '').trim()), kk: String(r.kd_kab || '').padStart(4, '0'),
+      p: code, prov: titleCase(String(r.provinsi || '').trim()), a: aktif ? 1 : 0, lat: pscOk ? plat : null, lon: pscOk ? plon : null, lok: pLok,
+      amb, siap: ambSiap, prs: (r.data_personil_psc || []).length, rs: rsPsc,
+    })
   }
   const titikRs: [number, number][] = []
   for (const s of rsSeen.values()) {
@@ -227,6 +280,7 @@ export async function fetchPscMaster() {
     kepemilikan: toList(kepemilikan),
     titik_psc: titikPsc,
     titik_rs: titikRs,
+    peta: { psc: pscList, ambulans: ambTitik, ambulans_tanpa_lokasi: ambTanpaLokasi, psc_koordinat_bawaan: pscPlaceholder, kondisi: AMB_KONDISI, jenis: ['Gawat Darurat', 'Transportasi', 'Lainnya'] },
   }
 }
 
@@ -250,6 +304,8 @@ const normJenisLayanan = (s: string) => {
   if (/non\s*category/i.test(t)) return 'Tanpa Kategori'
   return t || 'Tanpa Kategori'
 }
+
+const MIN_PANGGILAN_TITIK = 5
 
 export async function fetchPanggilan(tahun: number, provCodes: string[], samplePages = 35) {
   const url = `${PSC_BASE}/web_api/v1/data-pelaporan-panggilan`
@@ -289,6 +345,11 @@ export async function fetchPanggilan(tahun: number, provCodes: string[], sampleP
         s: normStatusPenanganan(String(x.status_penanganan || '')),
         u: normSumber(x.sumber_panggilan),
         a: /tidak memerlukan/i.test(String(x.layanan_ambulance || '')) || !String(x.layanan_ambulance || '').trim() ? 0 : 1,
+        kk: String(x.kd_kab || '').padStart(4, '0'),
+        kn: titleCase(String(x.kabupaten || '').trim()),
+        // koordinat lokasi panggilan hanya dipakai untuk rata-rata per kab/kota, tidak pernah dikirim per baris
+        la: coord(x.latitude),
+        lo: coord(x.longitude),
       }))
     } catch {
       return []
@@ -307,7 +368,16 @@ export async function fetchPanggilan(tahun: number, provCodes: string[], sampleP
   const jam = new Array(24).fill(0)
   const kategori: Record<string, number> = {}
   const sumber: Record<string, number> = {}
+  const kab: Record<string, any> = {}
   for (const r of sample) {
+    const kb = (kab[r.kk] ||= { code: r.kk, nama: r.kn, p: r.p, n: 0, gd: 0, bgd: 0, tk: 0, selesai: 0, ambulans: 0, sLat: 0, sLon: 0, nc: 0 })
+    kb.n++
+    if (r.j === 'Gawat Darurat') kb.gd++
+    else if (r.j === 'Bukan Gawat Darurat') kb.bgd++
+    else kb.tk++
+    if (r.s === 'Selesai') kb.selesai++
+    kb.ambulans += r.a
+    if (r.la != null && r.lo != null && inIdn(r.la, r.lo)) { kb.sLat += r.la; kb.sLon += r.lo; kb.nc++ }
     const d = (harian[r.t] ||= { tanggal: r.t, total: 0, gawat_darurat: 0, bukan_gawat_darurat: 0, tanpa_kategori: 0, selesai: 0, diproses: 0, ambulans: 0, berjalan: r.t === today })
     d.total++
     if (r.j === 'Gawat Darurat') d.gawat_darurat++
@@ -343,6 +413,19 @@ export async function fetchPanggilan(tahun: number, provCodes: string[], sampleP
       jam: jam.map((n, h) => ({ jam: h, jumlah: n })),
       kategori: toList(kategori),
       sumber: toList(sumber),
+      // Agregat per kab/kota. Titik = rata-rata koordinat panggilan bila >= 5 panggilan berkoordinat (tidak menunjuk satu orang),
+      // selain itu diisi lokasi PSC kab/kota tsb. saat digabung (mergeLive).
+      kabkota: Object.values(kab).map((k: any) => {
+        const pusat = kabPusat(k.code)
+        let ok = k.nc >= MIN_PANGGILAN_TITIK
+        if (ok && pusat && km([k.sLat / k.nc, k.sLon / k.nc], pusat) > 100) ok = false
+        return {
+          code: k.code, nama: k.nama, p: k.p, n: k.n, gd: k.gd, bgd: k.bgd, tk: k.tk, selesai: k.selesai, ambulans: k.ambulans,
+          lat: ok ? Math.round((k.sLat / k.nc) * 100) / 100 : pusat ? pusat[0] : null,
+          lon: ok ? Math.round((k.sLon / k.nc) * 100) / 100 : pusat ? pusat[1] : null,
+          lokasi: ok ? 'panggilan' : pusat ? 'kabkota' : null,
+        }
+      }),
     },
   }
 }
@@ -456,6 +539,7 @@ export function mergeLive(snapshot: any, ov: Awaited<ReturnType<typeof getLiveOv
       },
       ...(m ? { kondisi_ambulans: m.kondisi_ambulans, jenis_ambulans: m.jenis_ambulans, jenis_tenaga: m.jenis_tenaga, kepemilikan: m.kepemilikan, titik_psc: m.titik_psc, titik_rs: m.titik_rs } : {}),
       ...(pg ? { panggilan_sampel: pg.sampel } : {}),
+      ...(m ? { peta: m.peta } : {}),
     }
   }
   data.live_status = {
@@ -467,3 +551,4 @@ export function mergeLive(snapshot: any, ov: Awaited<ReturnType<typeof getLiveOv
   }
   return data
 }
+

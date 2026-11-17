@@ -19,6 +19,8 @@ import KejadianTerbaruList from '@/components/puskris/KejadianTerbaruList'
 import InfoHint from '@/components/puskris/InfoHint'
 import { BNPB_LAYERS, INTEL_LAYER_APIS, type BnpbLayerId, type BnpbStatus, type IntelLayerId } from '@/lib/puskris/open-data'
 import { KORBAN_LABEL } from '@/lib/puskris/labels'
+import { buildInternalLayers, DEFAULT_INTERNAL, type InternalLayerToggles } from '@/lib/puskris/internal-layers'
+import { RISIKO_LAYERS } from '@/lib/puskris/risiko-layers'
 import { asistensiWilayah, attachTimEstimate, titikFasilitas, buildTerpadu, countRadius, CONTOH_LABEL } from '@/lib/puskris/integrasi'
 
 const SpasialMap = dynamic(() => import('@/components/spasial/SpasialMap'), {
@@ -31,6 +33,8 @@ const SpasialMap = dynamic(() => import('@/components/spasial/SpasialMap'), {
 })
 
 const GEO_URL = `${PUBLIC_BASE_PATH}/data/indonesia-38-provinces.geojson`
+
+const nfi = (n: number | undefined | null) => Number(n || 0).toLocaleString('id-ID')
 
 export function periodeLabel(f: PuskrisUiFilter) {
   if (f.periode === 'bulan') return 'Oktober 2026'
@@ -83,6 +87,9 @@ export default function PuskrisPetaTerpadu({
   const [dockTab, setDockTab] = useState<'analisa' | 'terbaru' | 'terpadu'>('analisa')
   const [terbaruCount, setTerbaruCount] = useState<number | null>(null)
   const [radiusOn, setRadiusOn] = useState(true)
+  const [internal, setInternal] = useState<InternalLayerToggles>(DEFAULT_INTERNAL)
+  const internalPack = useMemo(() => buildInternalLayers(raw, f, internal), [raw, f, internal])
+  const iInfo = internalPack.info
   const baseChoro = useChoroConfig()
   const RED_CHORO = { mode: 'quantile' as const, zeroColor: '#FDE8E8', colors: ['#FECACA', '#F87171', '#DC2626', '#7F1D1D'], quantiles: [0.25, 0.5, 0.75] }
   const choroCfg = choro === 'kesenjangan' ? RED_CHORO : baseChoro
@@ -304,7 +311,7 @@ export default function PuskrisPetaTerpadu({
                             aria-label="Radius dukungan"
                           />
                         </div>
-                        <p className="mt-0.5 text-[10px] text-slate-500">Lingkaran di sekitar titik/provinsi terpilih. {titikFasilitas(raw) ? 'PSC, ambulans, dan rumah sakit dihitung dari koordinat fasilitas asli (API PSC 119); tenaga cadangan dan gudang masih memakai pusat provinsi.' : `Jarak memakai pusat provinsi (${CONTOH_LABEL} koordinat fasilitas).`}</p>
+                        <p className="mt-0.5 text-[10px] text-slate-500">Lingkaran di sekitar titik/provinsi terpilih. {titikFasilitas(raw) ? 'PSC, ambulans, dan rumah sakit dihitung dari koordinat API PSC 119 (PSC tanpa koordinat valid memakai pusat kab/kota); tenaga cadangan dan gudang masih memakai pusat provinsi.' : `Jarak memakai pusat provinsi (${CONTOH_LABEL} koordinat fasilitas).`}</p>
                       </label>
                       <label className={`block cursor-pointer rounded-xl border p-2.5 transition select-none ${layers.choro ? 'border-teal-200 bg-white shadow-2xs' : 'border-slate-100 bg-slate-50'}`}>
                         <div className="flex items-center justify-between gap-2">
@@ -329,6 +336,85 @@ export default function PuskrisPetaTerpadu({
                           </div>
                         )}
                       </label>
+                    </div>
+                  </div>
+
+
+                  <div data-testid="internal-group">
+                    <div className="mb-2 flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-slate-400">
+                      <span className="inline-flex items-center gap-1">API Internal
+                        <InfoHint text="Titik fasilitas dan agregat panggilan dari API resmi PSC 119 Kementerian Kesehatan, diringkas di server. Tidak memuat data perorangan (nama, telepon, plat nomor, pelapor)." label="Penjelasan API Internal" />
+                      </span>
+                      <span className={`normal-case tracking-normal ${iInfo?.live ? 'text-emerald-700' : 'text-amber-700'}`}>{iInfo?.live ? `langsung${iInfo.at ? ` · ${iInfo.at}` : ''}` : 'menunggu data'}</span>
+                    </div>
+                    {!iInfo ? (
+                      <p className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-[10px] text-amber-800" data-testid="internal-empty">Data API PSC 119 belum termuat (token server belum diatur atau API sedang lambat). Lapisan akan muncul otomatis.</p>
+                    ) : (
+                      <div className="space-y-1.5">
+                        <label className={`block cursor-pointer rounded-xl border p-2.5 transition select-none ${internal.psc ? 'border-teal-300 bg-teal-50/50' : 'border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50/60'}`} data-testid="internal-psc">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="flex min-w-0 items-center gap-1.5 text-xs font-bold text-slate-800"><span className="h-2.5 w-2.5 rounded-full bg-teal-600" />Titik PSC 119</span>
+                            <span className="flex items-center gap-2">
+                              <span className="text-xs font-black tabular-nums text-slate-800">{nfi(internal.psc ? iInfo.psc.tampil : iInfo.psc.dgnKoordinat)}</span>
+                              <input type="checkbox" checked={internal.psc} onChange={(e) => setInternal((p) => ({ ...p, psc: e.target.checked }))} className="h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 text-teal-700 focus:ring-teal-500" aria-label="Titik PSC 119" />
+                            </span>
+                          </div>
+                          <p className="mt-0.5 text-[10px] leading-tight text-slate-500">{nfi(iInfo.psc.koordinatAsli)} dari {nfi(iInfo.psc.total)} PSC berkoordinat asli; {nfi(iInfo.psc.pusatKab)} lainnya di pusat kab/kota (garis putus-putus){iInfo.psc.bawaan ? `, karena ${nfi(iInfo.psc.bawaan)} PSC memakai koordinat bawaan yang sama` : ''}. {nfi(iInfo.psc.aktif)} aktif. Klik titik untuk status, ambulans, personel, RS jejaring.</p>
+                          {internal.psc ? (
+                            <label className="ml-1 mt-1.5 flex items-center gap-1.5 text-[10px] font-bold text-slate-700" onClick={(e) => e.stopPropagation()}>
+                              <input type="checkbox" checked={internal.pscAktifOnly} onChange={(e) => setInternal((p) => ({ ...p, pscAktifOnly: e.target.checked }))} className="h-3.5 w-3.5 rounded border-slate-300 text-teal-700" data-testid="internal-psc-aktif" />
+                              Hanya PSC aktif / siap
+                            </label>
+                          ) : null}
+                        </label>
+                        <label className={`block cursor-pointer rounded-xl border p-2.5 transition select-none ${internal.ambulans ? 'border-teal-300 bg-teal-50/50' : 'border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50/60'}`} data-testid="internal-ambulans">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="flex min-w-0 items-center gap-1.5 text-xs font-bold text-slate-800"><span className="h-2.5 w-2.5 rounded-full bg-green-600" />Titik Ambulans</span>
+                            <span className="flex items-center gap-2">
+                              <span className="text-xs font-black tabular-nums text-slate-800">{nfi(internal.ambulans ? iInfo.ambulans.tampil : iInfo.ambulans.koordinatSendiri + iInfo.ambulans.diLokasiPsc)}</span>
+                              <input type="checkbox" checked={internal.ambulans} onChange={(e) => setInternal((p) => ({ ...p, ambulans: e.target.checked }))} className="h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 text-teal-700 focus:ring-teal-500" aria-label="Titik Ambulans" />
+                            </span>
+                          </div>
+                          <p className="mt-0.5 text-[10px] leading-tight text-slate-500">{nfi(iInfo.ambulans.koordinatSendiri)} ambulans punya koordinat sendiri (GPS/tercatat); {nfi(iInfo.ambulans.diLokasiPsc + iInfo.ambulans.diPusatKab)} lainnya diletakkan di lokasi PSC induk atau pusat kab/kota (garis putus-putus){iInfo.ambulans.tanpaLokasi ? `; ${nfi(iInfo.ambulans.tanpaLokasi)} tanpa lokasi sama sekali` : ''}. Siap = aktif dan kondisi baik ({nfi(iInfo.ambulans.siap)}).</p>
+                          {internal.ambulans ? (
+                            <label className="ml-1 mt-1.5 flex items-center gap-1.5 text-[10px] font-bold text-slate-700" onClick={(e) => e.stopPropagation()}>
+                              <input type="checkbox" checked={internal.ambSiapOnly} onChange={(e) => setInternal((p) => ({ ...p, ambSiapOnly: e.target.checked }))} className="h-3.5 w-3.5 rounded border-slate-300 text-teal-700" data-testid="internal-amb-siap" />
+                              Hanya ambulans siap (aktif &amp; baik)
+                            </label>
+                          ) : null}
+                        </label>
+                        <label className={`block cursor-pointer rounded-xl border p-2.5 transition select-none ${internal.panggilan ? 'border-teal-300 bg-teal-50/50' : 'border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50/60'}`} data-testid="internal-panggilan">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="flex min-w-0 items-center gap-1.5 text-xs font-bold text-slate-800"><span className="h-2.5 w-2.5 rounded-full bg-violet-600" />Titik Panggilan 119</span>
+                            <span className="flex items-center gap-2">
+                              <span className="text-xs font-black tabular-nums text-slate-800">{nfi(iInfo.panggilan.tampil)}</span>
+                              <input type="checkbox" checked={internal.panggilan} onChange={(e) => setInternal((p) => ({ ...p, panggilan: e.target.checked }))} className="h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 text-teal-700 focus:ring-teal-500" aria-label="Titik Panggilan 119" />
+                            </span>
+                          </div>
+                          <p className="mt-0.5 text-[10px] leading-tight text-slate-500">Agregat per kab/kota dari sampel {nfi(iInfo.panggilan.sampel)} panggilan terbaru ({iInfo.panggilan.dari || '–'} s.d. {iInfo.panggilan.sampai || '–'}), bukan titik penelepon. Lingkaran di rata-rata koordinat panggilan ({nfi(iInfo.panggilan.kabKoordinatPanggilan)} kab/kota) atau pusat kab/kota ({nfi(iInfo.panggilan.kabPusat)}, garis putus-putus).</p>
+                        </label>
+                      </div>
+                    )}
+                  </div>
+
+                  <div data-testid="risiko-group">
+                    <div className="mb-2 flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-slate-400">
+                      <span>Risiko</span>
+                      <span className="normal-case tracking-normal text-slate-400">{RISIKO_LAYERS.filter((r) => r.status === 'siap').length} tersedia</span>
+                    </div>
+                    <div className="space-y-1.5">
+                      {RISIKO_LAYERS.map((r) => (
+                        <label key={r.id} data-testid={`risiko-${r.id}`} className="block cursor-not-allowed rounded-xl border border-dashed border-slate-200 bg-slate-50/70 p-2.5 select-none" title="Data segera tersedia">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="flex min-w-0 items-center gap-1.5 text-xs font-bold text-slate-500"><span className="h-2.5 w-2.5 rounded-full opacity-50" style={{ background: r.warna }} />{r.nama}</span>
+                            <span className="flex items-center gap-2">
+                              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-bold text-amber-800">Data segera tersedia</span>
+                              <input type="checkbox" disabled checked={false} readOnly className="h-4 w-4 shrink-0 cursor-not-allowed rounded border-slate-300 opacity-50" aria-label={r.nama} />
+                            </span>
+                          </div>
+                          <p className="mt-0.5 text-[10px] leading-tight text-slate-400">{r.deskripsi}</p>
+                        </label>
+                      ))}
                     </div>
                   </div>
 
@@ -463,6 +549,7 @@ export default function PuskrisPetaTerpadu({
                       setIntelLayers({ flights: false, fires: false, hazards: false, wildlife: false, vectors: false })
                       setIntelStatus({})
                       setRadiusOn(true)
+                      setInternal(DEFAULT_INTERNAL)
                       setPill('kasus', 'kejadian')
                     }}
                     className="w-full rounded-xl bg-[#00705a] py-2.5 text-center text-xs font-bold text-white shadow-sm transition hover:bg-[#005a48] active:scale-[0.99]">
@@ -497,6 +584,7 @@ export default function PuskrisPetaTerpadu({
               fullHeight={true}
               rightPanel={null}
               intelLayers={intelLayers}
+              extraLayers={internalPack.layers}
               onIntelStatus={onIntelStatus as any}
               pointOpacity={pointOpacity}
               showBoundaries={adminBoundaries}

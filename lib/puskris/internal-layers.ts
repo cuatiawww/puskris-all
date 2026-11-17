@@ -1,0 +1,152 @@
+// Lapisan peta "API Internal" (PSC, ambulans, panggilan) dari data resmi yang sudah diringkas server
+// (lib/server/puskris-live.ts → raw.psc.peta & raw.psc.panggilan_sampel). Hanya agregat/fasilitas; tanpa data perorangan.
+import type { PuskrisUiFilter } from '@/lib/puskris/ui-filter'
+
+export type ExtraPoint = {
+  lat: number
+  lon: number
+  color: string
+  radius: number
+  /** garis tepi putus-putus = lokasi perkiraan (mis. ambulans diletakkan di lokasi PSC) */
+  dashed?: boolean
+  title: string
+  subtitle?: string
+  badgeText: string
+  badgeColor: string
+  source: string
+  details: Array<{ label: string; value: string }>
+  /** bobot klaster (mis. jumlah panggilan) */
+  weight?: number
+  label?: string
+}
+
+export type ExtraPointLayer = {
+  id: string
+  visible: boolean
+  cluster: boolean
+  /** warna dasar klaster */
+  color: string
+  /** satuan yang dijumlah pada klaster, mis. "PSC", "ambulans", "panggilan" */
+  unit: string
+  /** jumlahkan weight (true) atau hitung titik (false) di label klaster */
+  sumWeight?: boolean
+  zIndex: number
+  points: ExtraPoint[]
+  legend: Array<{ color: string; label: string; dashed?: boolean }>
+}
+
+export type InternalLayerToggles = {
+  psc: boolean
+  pscAktifOnly: boolean
+  ambulans: boolean
+  ambSiapOnly: boolean
+  panggilan: boolean
+}
+export const DEFAULT_INTERNAL: InternalLayerToggles = { psc: false, pscAktifOnly: false, ambulans: false, ambSiapOnly: false, panggilan: false }
+
+const nf = (n: number) => Number(n || 0).toLocaleString('id-ID')
+const inScope = (p: string, kk: string | undefined, f: PuskrisUiFilter) =>
+  (!f.provinsi || p === String(f.provinsi).padStart(2, '0')) && (!f.kabupaten || !kk || kk === String(f.kabupaten).padStart(4, '0'))
+
+export type InternalLayerInfo = {
+  live: boolean
+  at?: string
+  psc: { total: number; dgnKoordinat: number; koordinatAsli: number; pusatKab: number; bawaan: number; aktif: number; tampil: number }
+  ambulans: { total: number; koordinatSendiri: number; diLokasiPsc: number; diPusatKab: number; tanpaLokasi: number; siap: number; tampil: number }
+  panggilan: { sampel: number; dari?: string; sampai?: string; kab: number; kabKoordinatPanggilan: number; kabPusat: number; kabTanpaLokasi: number; tampil: number; tahun?: number; totalTahun?: number }
+}
+
+export function buildInternalLayers(raw: any, f: PuskrisUiFilter, t: InternalLayerToggles): { layers: ExtraPointLayer[]; info: InternalLayerInfo | null } {
+  const peta = raw?.psc?.peta
+  const samp = raw?.psc?.panggilan_sampel
+  if (!peta && !samp) return { layers: [], info: null }
+  const pscAll: any[] = peta?.psc || []
+  const ambAll: any[] = peta?.ambulans || []
+  const kondisi: string[] = peta?.kondisi || ['Baik', 'Rusak Ringan', 'Rusak Berat', 'Belum diisi']
+  const jenis: string[] = peta?.jenis || ['Gawat Darurat', 'Transportasi', 'Lainnya']
+  const src = 'API PSC 119 (Kemenkes)'
+
+  // ── PSC ──
+  const pscPts: ExtraPoint[] = pscAll
+    .filter((p) => p.lat != null && p.lon != null && inScope(p.p, p.kk, f) && (!t.pscAktifOnly || p.a === 1))
+    .map((p) => ({
+      lat: p.lat, lon: p.lon, color: p.a ? '#0d9488' : '#94a3b8', radius: 6, dashed: p.lok === 'kabkota',
+      title: p.n, subtitle: [p.kab, p.prov].filter(Boolean).join(' · '),
+      badgeText: p.a ? 'PSC AKTIF' : 'PSC TIDAK AKTIF', badgeColor: p.a ? '#0d9488' : '#64748b', source: src,
+      details: [
+        { label: 'Status', value: p.a ? 'Aktif' : 'Tidak aktif' },
+        { label: 'Ambulans', value: `${nf(p.amb)} unit (${nf(p.siap)} siap: aktif & kondisi baik)` },
+        { label: 'Personel', value: `${nf(p.prs)} orang` },
+        { label: 'RS jejaring', value: `${nf(p.rs)} rumah sakit` },
+        { label: 'Lokasi titik', value: p.lok === 'kabkota' ? 'Perkiraan: pusat kab/kota (koordinat PSC di API kosong atau nilai bawaan)' : 'Koordinat PSC dari API' },
+      ],
+    }))
+
+  // ── Ambulans ──
+  const ambPts: ExtraPoint[] = ambAll
+    .filter((a) => {
+      const ps = pscAll[a[7]]
+      return ps && inScope(ps.p, ps.kk, f) && (!t.ambSiapOnly || a[2] === 1)
+    })
+    .map((a) => {
+      const ps = pscAll[a[7]]
+      const siap = a[2] === 1
+      const color = siap ? '#16a34a' : a[3] === 1 ? '#f59e0b' : '#dc2626'
+      return {
+        lat: a[0], lon: a[1], color, radius: 5, dashed: a[6] !== 0,
+        title: `Ambulans ${jenis[a[5]] || ''}`.trim(), subtitle: [ps.n, ps.kab].filter(Boolean).join(' · '),
+        badgeText: siap ? 'SIAP' : a[3] === 1 ? 'AKTIF, KONDISI KURANG' : 'TIDAK AKTIF / BELUM DIISI', badgeColor: color, source: src,
+        details: [
+          { label: 'Status', value: a[3] === 1 ? 'Aktif' : a[3] === 0 ? 'Tidak aktif' : 'Belum diisi' },
+          { label: 'Kondisi', value: kondisi[a[4]] || '–' },
+          { label: 'PSC', value: ps.n },
+          { label: 'Lokasi titik', value: a[6] === 0 ? 'Koordinat ambulans dari API (posisi tercatat)' : a[6] === 1 ? 'Perkiraan: koordinat PSC induk (ambulans tanpa koordinat)' : 'Perkiraan: pusat kab/kota PSC induk (ambulans & PSC tanpa koordinat valid)' },
+        ],
+      }
+    })
+
+  // ── Panggilan (agregat kab/kota) ──
+  const kab: any[] = samp?.kabkota || []
+  const callPts: ExtraPoint[] = kab
+    .filter((k) => k.lat != null && k.lon != null && inScope(k.p, k.code, f))
+    .map((k) => ({
+      lat: k.lat, lon: k.lon, color: '#7c3aed', radius: Math.min(18, 4 + Math.sqrt(k.n) * 1.2), dashed: k.lokasi !== 'panggilan', weight: k.n,
+      label: k.n >= 20 ? nf(k.n) : undefined,
+      title: k.nama || `Kab/Kota ${k.code}`, subtitle: `${nf(k.n)} panggilan dalam sampel ${samp?.dari || ''}–${samp?.sampai || ''}`,
+      badgeText: 'PANGGILAN 119 (AGREGAT)', badgeColor: '#7c3aed', source: src,
+      details: [
+        { label: 'Gawat darurat', value: nf(k.gd) },
+        { label: 'Bukan gawat darurat', value: nf(k.bgd) },
+        { label: 'Tanpa kategori', value: nf(k.tk) },
+        { label: 'Selesai ditangani', value: `${nf(k.selesai)} (${k.n ? Math.round((k.selesai / k.n) * 1000) / 10 : 0}%)` },
+        { label: 'Butuh ambulans', value: nf(k.ambulans) },
+        { label: 'Letak lingkaran', value: k.lokasi === 'panggilan' ? 'Rata-rata koordinat panggilan di kab/kota ini (≥ 5 panggilan berkoordinat)' : 'Pusat kab/kota (panggilan berkoordinat kurang dari 5 atau tidak wajar)' },
+      ],
+    }))
+
+  const info: InternalLayerInfo = {
+    live: raw?.psc?.data_source === 'langsung',
+    at: raw?.psc?.fetched_at_wib,
+    psc: { total: pscAll.length, dgnKoordinat: pscAll.filter((p) => p.lat != null).length, koordinatAsli: pscAll.filter((p) => p.lok === 'psc').length, pusatKab: pscAll.filter((p) => p.lok === 'kabkota').length, bawaan: peta?.psc_koordinat_bawaan || 0, aktif: pscAll.filter((p) => p.lat != null && p.a === 1).length, tampil: pscPts.length },
+    ambulans: {
+      total: ambAll.length + (peta?.ambulans_tanpa_lokasi || 0), koordinatSendiri: ambAll.filter((a) => a[6] === 0).length, diLokasiPsc: ambAll.filter((a) => a[6] === 1).length, diPusatKab: ambAll.filter((a) => a[6] === 2).length,
+      tanpaLokasi: peta?.ambulans_tanpa_lokasi || 0, siap: ambAll.filter((a) => a[2] === 1).length, tampil: ambPts.length,
+    },
+    panggilan: {
+      sampel: samp?.jumlah || 0, dari: samp?.dari, sampai: samp?.sampai, kab: kab.length,
+      kabKoordinatPanggilan: kab.filter((k) => k.lokasi === 'panggilan').length, kabPusat: kab.filter((k) => k.lokasi === 'kabkota').length,
+      kabTanpaLokasi: kab.filter((k) => k.lat == null).length, tampil: callPts.length,
+      tahun: raw?.psc?.summary?.tahun_panggilan, totalTahun: raw?.psc?.summary?.total_panggilan,
+    },
+  }
+
+  const layers: ExtraPointLayer[] = [
+    { id: 'panggilan', visible: t.panggilan, cluster: false, color: '#7c3aed', unit: 'panggilan', sumWeight: true, zIndex: 6, points: callPts,
+      legend: [{ color: '#7c3aed', label: 'Panggilan 119 per kab/kota (ukuran ∝ jumlah)' }, { color: '#7c3aed', label: 'Garis putus: di pusat kab/kota (perkiraan)', dashed: true }] },
+    { id: 'psc', visible: t.psc, cluster: true, color: '#0d9488', unit: 'PSC', zIndex: 7, points: pscPts,
+      legend: [{ color: '#0d9488', label: 'PSC aktif' }, { color: '#94a3b8', label: 'PSC tidak aktif' }, { color: '#0d9488', label: 'Garis putus: pusat kab/kota (koordinat PSC tidak valid)', dashed: true }] },
+    { id: 'ambulans', visible: t.ambulans, cluster: true, color: '#16a34a', unit: 'ambulans', zIndex: 8, points: ambPts,
+      legend: [{ color: '#16a34a', label: 'Ambulans siap (aktif & baik)' }, { color: '#f59e0b', label: 'Aktif, kondisi rusak/belum diisi' }, { color: '#dc2626', label: 'Tidak aktif / status belum diisi' }, { color: '#64748b', label: 'Garis putus: lokasi perkiraan (PSC induk / pusat kab/kota)', dashed: true }] },
+  ]
+  return { layers, info }
+}

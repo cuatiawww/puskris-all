@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { CheckCircle2, Copy, Database, ExternalLink, Loader2, RefreshCw, XCircle, AlertTriangle, Map as MapIcon } from 'lucide-react'
 import { PUBLIC_BASE_PATH } from '@/lib/public-path'
-import { OFFICIAL_APIS, OPEN_DATA_APIS, type OpenDataApi } from '@/lib/puskris/open-data'
+import { INTERNAL_MAP_LAYERS, OFFICIAL_APIS, OPEN_DATA_APIS, type OpenDataApi } from '@/lib/puskris/open-data'
 import SectionHead from '@/components/puskris/SectionHead'
 import InfoHint from '@/components/puskris/InfoHint'
 
@@ -257,6 +257,22 @@ export default function OpenDataClient() {
           })}
         </div>
         <p className="mt-2 text-[11px] text-slate-500">Tenaga Cadangan Kesehatan dan Logistik baru diberi alamat dasar tanpa daftar endpoint, jadi keduanya masih memakai snapshot.</p>
+        <div className="skdr-card mt-3 overflow-x-auto p-0" data-testid="open-data-lapisan-internal">
+          <p className="border-b border-slate-100 px-4 py-2.5 text-xs font-black text-slate-800">Lapisan peta API Internal &amp; Risiko <span className="font-medium text-slate-500">(Pengaturan Peta &amp; Lapisan)</span></p>
+          <table className="w-full text-left text-[11px]">
+            <thead className="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500"><tr><th className="px-4 py-2">Lapisan</th><th className="px-3 py-2">Sumber</th><th className="px-3 py-2">Isi</th><th className="px-3 py-2">Status</th></tr></thead>
+            <tbody>
+              {INTERNAL_MAP_LAYERS.map((l) => (
+                <tr key={l.id} className="border-t border-slate-100 align-top">
+                  <td className="px-4 py-2 font-bold text-slate-800">{l.nama}<span className="block font-mono text-[10px] font-normal text-slate-400">{l.proxy}</span></td>
+                  <td className="px-3 py-2 text-slate-600">{l.sumber}</td>
+                  <td className="px-3 py-2 text-slate-600">{l.isi}</td>
+                  <td className="px-3 py-2"><span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${l.status === 'langsung' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-100 text-amber-800'}`}>{l.status === 'langsung' ? 'Langsung' : 'Data segera tersedia'}</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
 
       <section className="skdr-section">

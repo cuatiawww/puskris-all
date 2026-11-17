@@ -33,6 +33,7 @@ import { PUBLIC_BASE_PATH } from '@/lib/public-path'
 import { nf } from '@/lib/analisa-api'
 import { areaVal, classesFor, classOf, fmtPct, METRICS, STATUS, statusFor, titikVal, type Area, type MapClass, type Metric, type SpasialResp, type Titik } from '@/lib/spasial-api'
 import type { ChoroConfig } from '@/lib/choropleth-classes'
+import type { ExtraPointLayer } from '@/lib/puskris/internal-layers'
 
 export type BaseMap = 'light' | 'osm' | 'satellite' | 'terrain' | 'none'
 export type PointMode = 'kluster' | 'titik' | 'off'
@@ -108,7 +109,7 @@ export interface MapHudCtrl {
   setShowLayers: (v: boolean) => void
 }
 
-export default function SpasialMap({ data, titik, metric, setMetric, layers, setLayers, choroCfg, sumber, selectedId, onSelectArea, onDrill, onUp, focus, rightPanel, panelOpen, setPanelOpen, height = 680, fullHeight = false, topHud, leftDock, topOffset, hideDefaultToolbar = false, intelLayers, radiusSupport, onIntelStatus, pointOpacity = 1, showBoundaries = true, windFlow = false, metricLabel, bnpbLayers, onBnpbStatus, fitPadding, legendDefaultOpen = true }: {
+export default function SpasialMap({ data, titik, metric, setMetric, layers, setLayers, choroCfg, sumber, selectedId, onSelectArea, onDrill, onUp, focus, rightPanel, panelOpen, setPanelOpen, height = 680, fullHeight = false, topHud, leftDock, topOffset, hideDefaultToolbar = false, intelLayers, radiusSupport, onIntelStatus, pointOpacity = 1, showBoundaries = true, windFlow = false, metricLabel, bnpbLayers, onBnpbStatus, fitPadding, legendDefaultOpen = true, extraLayers }: {
   data: SpasialResp | null; titik: Titik[]; metric: Metric; setMetric: (m: Metric) => void; layers: Layers; setLayers: (l: Layers) => void
   choroCfg: ChoroConfig | null; sumber: string; selectedId: number | null; onSelectArea: (a: Area | null) => void; onDrill: (a: Area) => void; onUp: (() => void) | null
   focus: Focus | null; rightPanel: ReactNode; panelOpen: boolean; setPanelOpen: (v: boolean) => void; height?: number
@@ -128,6 +129,8 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
   legendDefaultOpen?: boolean
   /** Label variabel arsiran (mengganti label metrik bawaan di legenda & tooltip). */
   metricLabel?: string
+  /** Lapisan titik tambahan (mis. API Internal: PSC, ambulans, panggilan) yang dihitung di luar peta. */
+  extraLayers?: ExtraPointLayer[]
 }) {
   const statusRef = useRef(onIntelStatus)
   statusRef.current = onIntelStatus
@@ -286,9 +289,17 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
     map.current = m
     m.on('pointermove', (e) => {
       if (e.dragging) return
-      const hit = m.forEachFeatureAtPixel(e.pixel, (f, l) => ({ f, l }), { hitTolerance: 3 })
+      const hit = m.forEachFeatureAtPixel(e.pixel, (f, l) => ({ f, l }), { hitTolerance: 3, layerFilter: (l) => l !== radiusL.current })
       let code: string | null = null, text: string | null = null
-      if (hit?.f.get('intelType')) {
+      const inner0: Feature[] | undefined = hit?.f.get('features')
+      if (inner0 && inner0[0]?.get('intelType') === 'internal') {
+        if (inner0.length > 1) {
+          const lay = inner0[0].get('layerUnit') || 'titik'
+          text = `${nf(inner0.length)} ${lay} berdekatan · klik untuk memperbesar`
+        } else text = `${inner0[0].get('badgeText')}: ${inner0[0].get('title') || ''}`
+      } else if (hit?.f.get('intelType') === 'internal') {
+        text = `${hit.f.get('badgeText')}: ${hit.f.get('title') || ''}`
+      } else if (hit?.f.get('intelType')) {
         const it = hit.f.get('intelType')
         const t = hit.f.get('title') || ''
         const sub = hit.f.get('subtitle') || ''
@@ -309,8 +320,30 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
       setHover(text ? { x: e.pixel[0], y: e.pixel[1], text } : null)
     })
     m.on('singleclick', (e) => {
-      const hit = m.forEachFeatureAtPixel(e.pixel, (f, l) => ({ f, l }), { hitTolerance: 3, layerFilter: (l) => l !== heatL.current })
+      const hit = m.forEachFeatureAtPixel(e.pixel, (f, l) => ({ f, l }), { hitTolerance: 3, layerFilter: (l) => l !== heatL.current && l !== radiusL.current })
       if (!hit) { setPopup(null); overlay.current?.setPosition(undefined); return }
+      const innerC: Feature[] | undefined = hit.f.get('features')
+      if (innerC && innerC[0]?.get('intelType') === 'internal') {
+        if (innerC.length > 1) {
+          const ext = boundingExtent(innerC.map((x) => (x.getGeometry() as Point).getCoordinates()))
+          const z = m.getView().getZoom() || 5
+          if (z < 12 && ext[2] - ext[0] + (ext[3] - ext[1]) > 30) {
+            m.getView().fit(ext, { padding: [80, 80, 80, 80], duration: 350, maxZoom: Math.min(14, z + 3) }); setPopup(null); overlay.current?.setPosition(undefined)
+          } else {
+            setPopup({
+              kind: 'intel', type: 'internal', badgeText: `${nf(innerC.length)} ${innerC[0].get('layerUnit') || 'titik'}`, badgeColor: innerC[0].get('badgeColor') || '#0f766e',
+              source: innerC[0].get('source') || '', title: 'Beberapa titik di lokasi yang sama', subtitle: innerC[0].get('subtitle'),
+              details: innerC.slice(0, 12).map((x) => ({ label: String(x.get('title') || ''), value: [String(x.get('badgeText') || ''), ...((x.get('details') || []) as Array<{ value: string }>).slice(1, 4).map((d) => d.value)].join(' · ') })).concat(innerC.length > 12 ? [{ label: `+${nf(innerC.length - 12)} lainnya`, value: 'perbesar peta untuk melihat' }] : []),
+            })
+            overlay.current?.setPosition(e.coordinate)
+          }
+          return
+        }
+        const f1 = innerC[0]
+        setPopup({ kind: 'intel', type: 'internal', badgeText: f1.get('badgeText'), badgeColor: f1.get('badgeColor'), source: f1.get('source'), title: f1.get('title'), subtitle: f1.get('subtitle'), details: f1.get('details') || [] })
+        overlay.current?.setPosition((f1.getGeometry() as Point).getCoordinates())
+        return
+      }
       if (hit.f.get('intelType')) {
         const it = hit.f.get('intelType')
         setPopup({
@@ -340,7 +373,8 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
         else { setPopup({ kind: 'cluster', items: fs2.map((x) => x.get('t')) }); overlay.current?.setPosition((fs2[0].getGeometry() as Point).getCoordinates()) }
         return
       }
-      const t: Titik = fs2[0].get('t')
+      const t: Titik | undefined = fs2[0]?.get('t')
+      if (!t) { setPopup(null); overlay.current?.setPosition(undefined); return }
       setPopup({ kind: 'titik', t }); overlay.current?.setPosition((fs2[0].getGeometry() as Point).getCoordinates())
     })
     const onFs = () => { setFs(Boolean(document.fullscreenElement)); setTimeout(() => m.updateSize(), 60) }
@@ -559,6 +593,67 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
     return () => { alive = false }
   }, [intelLayers?.vectors]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── lapisan titik tambahan (API Internal) ──
+  const extraRefs = useRef<Map<string, { src: VectorSource; layer: VectorLayer<any>; cluster: boolean }>>(new Map())
+  useEffect(() => {
+    const m = map.current
+    if (!m) return
+    const seen = new Set<string>()
+    for (const def of extraLayers || []) {
+      seen.add(def.id)
+      let ref = extraRefs.current.get(def.id)
+      if (!ref || ref.cluster !== def.cluster) {
+        if (ref) m.removeLayer(ref.layer)
+        const src = new VectorSource()
+        const ptStyle = (f: FeatureLike) => {
+          const c = f.get('pColor') as string
+          return new Style({
+            image: new CircleStyle({
+              radius: f.get('pRadius') || 5,
+              fill: new Fill({ color: f.get('dashed') ? `${c}99` : c }),
+              stroke: new Stroke({ color: f.get('dashed') ? '#334155' : '#ffffff', width: f.get('dashed') ? 1.4 : 1.8, lineDash: f.get('dashed') ? [3, 2] : undefined }),
+            }),
+            text: f.get('pLabel') ? new Text({ text: f.get('pLabel'), font: 'bold 9px Inter, sans-serif', fill: new Fill({ color: '#ffffff' }) }) : undefined,
+          })
+        }
+        const cache: Record<string, Style> = {}
+        const layer = def.cluster
+          ? new VectorLayer({
+              source: new Cluster({ distance: 38, minDistance: 10, source: src }),
+              zIndex: def.zIndex + 3,
+              style: (f: FeatureLike) => {
+                const fs2: Feature[] = f.get('features') || []
+                if (fs2.length === 1) return ptStyle(fs2[0])
+                const n = fs2.length
+                const col = fs2[0].get('layerColor') || '#0f766e'
+                const key = `${col}-${n}`
+                return (cache[key] ||= new Style({
+                  image: new CircleStyle({ radius: Math.min(22, 9 + Math.sqrt(n) * 1.6), fill: new Fill({ color: `${col}e6` }), stroke: new Stroke({ color: '#ffffff', width: 2 }) }),
+                  text: new Text({ text: nf(n), font: 'bold 10px Inter, sans-serif', fill: new Fill({ color: '#ffffff' }) }),
+                }))
+              },
+            })
+          : new VectorLayer({ source: src, zIndex: def.zIndex + 3, style: ptStyle })
+        m.addLayer(layer)
+        ref = { src, layer, cluster: def.cluster }
+        extraRefs.current.set(def.id, ref)
+      }
+      ref.src.clear()
+      if (def.visible) {
+        ref.src.addFeatures(def.points.map((p) => {
+          const feat = new Feature({ geometry: new Point(fromLonLat([p.lon, p.lat])) })
+          feat.setProperties({
+            intelType: 'internal', layerUnit: def.unit, layerColor: def.color, pColor: p.color, pRadius: p.radius, pLabel: p.label, dashed: p.dashed,
+            title: p.title, subtitle: p.subtitle, badgeText: p.badgeText, badgeColor: p.badgeColor, source: p.source, details: p.details,
+          })
+          return feat
+        }))
+      }
+      ref.layer.setVisible(def.visible)
+    }
+    for (const [id, ref] of extraRefs.current) if (!seen.has(id)) { m.removeLayer(ref.layer); extraRefs.current.delete(id) }
+  }, [extraLayers])
+
   // ── lapisan BNPB InaRISK (ArcGIS REST ImageServer / MapServer, viewport overlay seperti ABVC/kemkes-web) ──
   const bnpbRefs = useRef<Partial<Record<BnpbLayerId, ImageLayer<ImageArcGISRest>>>>({})
   useEffect(() => {
@@ -730,7 +825,7 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
           <div className="flex min-h-0 flex-1 items-start justify-between gap-3">
             <div className="flex max-h-full flex-col gap-2 overflow-y-auto pr-0.5">
               {leftDock}
-              {showLegend ? <Legend metric={metric} label={metricLabel} cls={cls} lvLabel={lvLabel} sumber={sumber} weekly={wi >= 0} points={layers.points !== 'off'} heat={layers.heat} onClose={() => setShowLegend(false)} inline /> : null}
+              {showLegend ? <Legend metric={metric} label={metricLabel} cls={cls} lvLabel={lvLabel} sumber={sumber} weekly={wi >= 0} points={layers.points !== 'off'} heat={layers.heat} extra={(extraLayers || []).filter((l) => l.visible)} onClose={() => setShowLegend(false)} inline /> : null}
             </div>
             <div className="flex min-w-0 flex-1 flex-col items-center justify-end self-stretch pb-0.5">
               {weeks.length > 1 ? (
@@ -798,7 +893,7 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
           ) : null}
 
           {/* legend */}
-          {showLegend && !showLayers ? <Legend metric={metric} label={metricLabel} cls={cls} lvLabel={lvLabel} sumber={sumber} weekly={wi >= 0} points={layers.points !== 'off'} heat={layers.heat} onClose={() => setShowLegend(false)} /> : null}
+          {showLegend && !showLayers ? <Legend metric={metric} label={metricLabel} cls={cls} lvLabel={lvLabel} sumber={sumber} weekly={wi >= 0} points={layers.points !== 'off'} heat={layers.heat} extra={(extraLayers || []).filter((l) => l.visible)} onClose={() => setShowLegend(false)} /> : null}
 
           {/* right panel */}
           {panelOpen ? <div className="absolute bottom-3 right-3 z-30 w-[350px] max-w-[calc(100%-24px)] transition-all duration-200" style={{ top: topOffset ?? 64 }} data-testid="spasial-panel">{rightPanel}</div> : null}
@@ -844,8 +939,10 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
                   <span className="rounded-full px-2 py-0.5 text-[10px] font-bold text-white" style={{ background: popup.badgeColor || '#0f766e' }}>{popup.badgeText}</span>
                   <span className="text-[10px] text-slate-500 font-medium">{popup.source}</span>
                 </div>
-                <div className="border-t border-slate-100 pt-1 mt-1 space-y-0.5">
-                  {popup.details.map((d, i) => (
+                <div className="border-t border-slate-100 pt-1 mt-1 space-y-0.5 max-h-60 overflow-auto">
+                  {popup.type === 'internal' && popup.title.startsWith('Beberapa') ? popup.details.map((d, i) => (
+                    <div key={i} className="border-b border-slate-100 py-1 last:border-0"><p className="font-bold text-slate-800">{d.label}</p><p className="text-[10px] text-slate-500">{d.value}</p></div>
+                  )) : popup.details.map((d, i) => (
                     <Row key={i} l={d.label} v={d.value} />
                   ))}
                 </div>
@@ -910,7 +1007,7 @@ function TitikPopup({ t, wi, label, weeks }: { t: Titik; wi: number; label?: str
   )
 }
 
-function Legend({ metric, label, cls, lvLabel, sumber, weekly, points, heat, onClose, inline = false }: { metric: Metric; label?: string; cls: MapClass[]; lvLabel: string; sumber: string; weekly: boolean; points: boolean; heat: boolean; onClose: () => void; inline?: boolean }) {
+function Legend({ metric, label, cls, lvLabel, sumber, weekly, points, heat, onClose, inline = false, extra = [] }: { metric: Metric; label?: string; cls: MapClass[]; lvLabel: string; sumber: string; weekly: boolean; points: boolean; heat: boolean; onClose: () => void; inline?: boolean; extra?: ExtraPointLayer[] }) {
   const [col, setCol] = useState(false)
   const mt = METRICS.find((x) => x.key === metric)!
   return (
@@ -938,6 +1035,20 @@ function Legend({ metric, label, cls, lvLabel, sumber, weekly, points, heat, onC
             </div>
           ) : null}
           {heat ? <div className="flex items-center gap-1.5"><span className="h-2.5 w-10 rounded-sm" style={{ background: 'linear-gradient(90deg,#00f,#0ff,#0f0,#ff0,#f00)' }} />Heatmap: kepadatan kasus</div> : null}
+          {extra.length ? (
+            <div data-testid="legend-api-internal">
+              <p className="font-bold text-slate-700">API Internal</p>
+              <ul className="mt-1 space-y-0.5">
+                {extra.flatMap((l) => l.legend.filter((g) => !g.dashed).map((g, i) => (
+                  <li key={`${l.id}-${i}`} className="flex items-center gap-1.5">
+                    <span className="h-2.5 w-2.5 shrink-0 rounded-full border-2 border-white shadow" style={{ background: g.color }} />{g.label}
+                  </li>
+                )))}
+                <li className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 shrink-0 rounded-full border border-dashed border-slate-700 bg-slate-300" />Garis putus-putus: lokasi perkiraan (pusat kab/kota / PSC induk)</li>
+                {extra.some((l) => l.cluster) ? <li className="flex items-center gap-1.5"><span className="flex h-4 w-4 items-center justify-center rounded-full bg-teal-600 text-[8px] font-black text-white">9</span>Kluster: jumlah titik berdekatan</li> : null}
+              </ul>
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>

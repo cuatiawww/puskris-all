@@ -88,7 +88,7 @@ export default function KejadianTerpaduCard({
       {radiusOn && radius && (
         <section className="rounded-xl border border-teal-200 bg-teal-50/40 p-3">
           <p className="mb-1 text-[10px] font-black uppercase tracking-wider text-teal-800">Radius dukungan 50 / 100 / 200 km</p>
-          <p className="mb-2 text-[10px] text-slate-500">{radius[0]?.titikNyata ? 'PSC, ambulans, dan rumah sakit dihitung dari koordinat fasilitas asli (API PSC 119). Tenaga cadangan dan gudang masih memakai pusat provinsi.' : `Jarak dihitung dari pusat provinsi (${CONTOH_LABEL} koordinat fasilitas; lokasi persis belum tersedia).`}</p>
+          <p className="mb-2 text-[10px] text-slate-500">{radius[0]?.titikNyata ? 'PSC, ambulans, dan rumah sakit dihitung dari koordinat API PSC 119 (PSC berkoordinat bawaan/kosong memakai pusat kab/kota; RS berkoordinat bawaan dibuang). Tenaga cadangan dan gudang masih memakai pusat provinsi.' : `Jarak dihitung dari pusat provinsi (${CONTOH_LABEL} koordinat fasilitas; lokasi persis belum tersedia).`}</p>
           <table className="w-full text-[10px]">
             <thead className="text-left text-slate-400">
               <tr>{['Radius', 'PSC aktif', 'Ambulans baik/total', ...(radius[0]?.titikNyata ? ['RS'] : []), 'Tenaga cadangan', 'Tim*', 'Gudang'].map((h) => <th key={h} className="pb-1 pr-1">{h}</th>)}</tr>

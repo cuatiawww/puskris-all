@@ -169,6 +169,8 @@ Token disimpan **hanya** di variabel lingkungan server `PUSKRIS_TTOKEN` (`.env.l
 | TCK `tenagacadangan…/web_api`, Logistik `…/web_api` | hanya alamat dasar (302 / halaman sambutan), **tanpa daftar endpoint** | – | tetap snapshot |
 
 Catatan selisih data resmi:
+- **Kualitas koordinat (17 Nov 2026):** 293 dari 450 PSC memakai koordinat bawaan yang sama (-6,2298; 106,8327 = Jakarta Selatan), 143 kosong; hanya **14 PSC** berkoordinat asli. Dasbor meletakkan PSC lainnya di pusat kab/kota (garis putus-putus). 217 RS juga memakai satu koordinat bawaan dan dibuang dari hitungan radius. Ambulans: 391 dari 1.629 punya koordinat sendiri; sisanya diletakkan di PSC induk/pusat kab/kota. Mohon pemilik data memperbaiki koordinat PSC & RS.
+- **Lapisan peta API Internal** (Pengaturan Peta → API Internal): Titik PSC, Titik Ambulans (filter "hanya siap" = aktif & kondisi baik, 1.055 unit), Titik Panggilan 119 = agregat per kab/kota dari sampel terbaru (rata-rata koordinat bila ≥ 5 panggilan berkoordinat, selain itu pusat kab/kota); tidak ada titik penelepon. Bagian **Risiko** (Risiko Krisis Kesehatan, Risiko Infeksi Penyakit) masih menunggu sumber data; registri di `lib/puskris/risiko-layers.ts`.
 - Ambulans yang terkait PSC 1.629 vs 1.759 terdaftar; RS jejaring unik 2.956 vs 3.389 terdaftar.
 - Ambulans ber-GPS menurut API 73 (kolom IMEI/vendor/alat terisi) vs 395 di snapshot dasbor PSC.
 - `data-pelaporan-panggilan` tidak punya filter tanggal/jenis dan maksimal 100 baris per halaman, jadi rincian harian, jam, jenis dan kategori hanya dari **sampel hari-hari terbaru**; jumlah gawat darurat nasional = proporsi sampel × total (ditandai "≈").

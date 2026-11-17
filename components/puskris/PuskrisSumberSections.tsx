@@ -410,6 +410,8 @@ export default function PuskrisSumberSections({
           <Card eyebrow="Layanan 119" title="Panggilan 119 (NCC)" desc={nc.live ? `Panggilan masuk, terjawab, dan tak terjawab (ditutup penelepon) di Pusat Panggilan Nasional 119, langsung dari API NCC (Apps Script, ${raw.ncc?.period?.label || ''}). Filter periode memotong rentang ini.${filteredWilayah ? ' ' + NASIONAL_NOTE : ''}` : 'Rekap panggilan 119 nasional dari API NCC (Apps Script).'}>
             {!nc.live ? (
               <ApiKosong pesan="Data NCC belum tersedia dari API" detail={nc.error} pending={Boolean(raw.ncc?.pending)} />
+            ) : !(nc.days || []).length ? (
+              <ApiKosong pesan="Tidak ada data NCC pada periode ini" detail={`API NCC saat ini berisi data ${raw.ncc?.period?.label || '-'}. Pilih periode di dalam rentang tersebut.`} />
             ) : (<>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
               <Stat label={NCC_LABEL.cof} value={nf(nc.totals?.cof)} />

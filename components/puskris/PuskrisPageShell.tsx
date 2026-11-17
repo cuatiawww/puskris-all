@@ -41,25 +41,27 @@ export default function PuskrisPageShell({
           <h1 className="mt-0.5 text-2xl font-black tracking-tight text-slate-900">{title}</h1>
           <p className="mt-1 max-w-4xl text-xs text-slate-500">{item.desc}</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={onTogglePanel}
-            className={`inline-flex items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-bold shadow-xs transition ${
-              panelOpen ? 'border-primary/40 bg-primary/10 text-primary' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
-            }`}
-          >
-            {panelOpen ? (
-              <><PanelLeftClose className="h-4 w-4" /><span>Sembunyikan Filter</span></>
-            ) : (
-              <>
-                <PanelLeftOpen className="h-4 w-4" />
-                <span>Buka Filter</span>
-                {count > 0 && <span className="rounded-full bg-primary px-1.5 text-[10px] text-white">{count}</span>}
-              </>
-            )}
-          </button>
-        </div>
+        {filterPanel ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={onTogglePanel}
+              className={`inline-flex items-center gap-2 rounded-xl border px-3.5 py-2 text-xs font-bold shadow-xs transition ${
+                panelOpen ? 'border-primary/40 bg-primary/10 text-primary' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              {panelOpen ? (
+                <><PanelLeftClose className="h-4 w-4" /><span>Sembunyikan Filter</span></>
+              ) : (
+                <>
+                  <PanelLeftOpen className="h-4 w-4" />
+                  <span>Buka Filter</span>
+                  {count > 0 && <span className="rounded-full bg-primary px-1.5 text-[10px] text-white">{count}</span>}
+                </>
+              )}
+            </button>
+          </div>
+        ) : null}
       </div>
 
       <div className="border-b border-slate-200 pb-3">
@@ -101,7 +103,7 @@ export default function PuskrisPageShell({
       </div>
 
       <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
-        {panelOpen ? (
+        {panelOpen && filterPanel ? (
           <div className="w-full max-w-full shrink-0 lg:sticky lg:top-4 lg:w-[280px]">
             {filterPanel}
           </div>

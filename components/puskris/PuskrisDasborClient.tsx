@@ -92,17 +92,19 @@ export default function PuskrisDasborClient() {
       panelOpen={panelOpen}
       onTogglePanel={togglePanel}
       filterPanel={
-        <PuskrisFilterPanel
-          f={f}
-          onApply={handleApply}
-          tab={item.key}
-          onClose={() => setPanelOpen(false)}
-          provinces={provinces}
-          kabOptions={(derivedForOpts?.kabOptions as string[]) || []}
-          jenisOptions={jenisList}
-          hidePilar
-          hideJenis={item.key === 'layanan' || item.key === 'kesiapsiagaan' || item.key === 'asistensi'}
-        />
+        item.key === 'analisis' ? null : (
+          <PuskrisFilterPanel
+            f={f}
+            onApply={handleApply}
+            tab={item.key}
+            onClose={() => setPanelOpen(false)}
+            provinces={provinces}
+            kabOptions={(derivedForOpts?.kabOptions as string[]) || []}
+            jenisOptions={jenisList}
+            hidePilar
+            hideJenis={item.key === 'layanan' || item.key === 'kesiapsiagaan' || item.key === 'asistensi'}
+          />
+        )
       }
     >
       {item.key === 'analisis'

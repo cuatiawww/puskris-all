@@ -93,12 +93,12 @@ export const PUSKRIS_NAV: PuskrisNavItem[] = [
   {
     key: 'analisis',
     href: '/dashboard/analisis',
-    label: 'Analisis',
+    label: 'Analisis & Matriks',
     shortLabel: 'Analisis',
-    eyebrow: 'Analisis terpadu',
-    title: 'Analisis Krisis Kesehatan',
-    desc: 'Indeks kesenjangan respons, tren jenis kejadian, posisi beban vs kapasitas, dan jam sibuk panggilan 119. Semua bagian mengikuti filter di panel kiri.',
-    sources: [],
+    eyebrow: 'Matriks & Analisis Terpadu',
+    title: 'Matriks Analisis & Rekap Data Krisis',
+    desc: 'Matriks komprehensif data ambulans, sebaran kejadian bencana, rekapitulasi jenis kejadian, dan indeks kesenjangan kapasitas respons 38 provinsi.',
+    sources: [SOURCE.ambulans, SOURCE.psc, SOURCE.eocResmi, SOURCE.eocVercel],
   },
 ]
 

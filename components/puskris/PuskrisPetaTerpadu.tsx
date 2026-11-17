@@ -18,6 +18,8 @@ import { toDeriveFilter, type PuskrisUiFilter } from '@/lib/puskris/ui-filter'
 import KejadianTerpaduCard from '@/components/puskris/KejadianTerpaduCard'
 import KejadianTerbaruList from '@/components/puskris/KejadianTerbaruList'
 import InfoHint from '@/components/puskris/InfoHint'
+import KategoriBencanaFilter from '@/components/puskris/KategoriBencanaFilter'
+import { hitungKategori, katOf, type JenisRow, type KategoriId } from '@/lib/puskris/kategori-bencana'
 import { BNPB_LAYERS, INTEL_LAYER_APIS, type BnpbLayerId, type BnpbStatus, type IntelLayerId } from '@/lib/puskris/open-data'
 import { KORBAN_LABEL } from '@/lib/puskris/labels'
 import { buildInternalLayers, DEFAULT_INTERNAL, type InternalLayerToggles } from '@/lib/puskris/internal-layers'
@@ -109,9 +111,32 @@ export default function PuskrisPetaTerpadu({
     [raw],
   )
 
+  // Filter lapisan: kategori & jenis bencana (dari data EOC yang sudah tersaring Filter Dasbor).
+  const [katOff, setKatOff] = useState<Set<KategoriId>>(new Set())
+  const [jenisOff, setJenisOff] = useState<Set<string>>(new Set())
+  const katHitung = useMemo(() => hitungKategori(kejadian || []), [kejadian])
+  const kejadianPeta = useMemo(
+    () => (katOff.size || jenisOff.size ? (kejadian || []).filter((k: any) => !katOff.has(katOf(k)) && !jenisOff.has(String(k.jenis || 'Tanpa jenis'))) : kejadian || []),
+    [kejadian, katOff, jenisOff],
+  )
+  const onKategori = (id: KategoriId, on: boolean) => {
+    setKatOff((s) => { const n = new Set(s); if (on) n.delete(id); else n.add(id); return n })
+    if (on) setJenisOff((s) => { const n = new Set(s); katHitung.jenis.filter((r) => r.kategori === id).forEach((r) => n.delete(r.jenis)); return n })
+  }
+  const onJenis = (r: JenisRow, on: boolean) => {
+    if (on && katOff.has(r.kategori)) {
+      // menyalakan satu jenis di kategori yang mati: kategori dinyalakan, jenis lain di kategori itu tetap mati
+      setKatOff((s) => { const n = new Set(s); n.delete(r.kategori); return n })
+      setJenisOff((s) => { const n = new Set(s); katHitung.jenis.filter((x) => x.kategori === r.kategori && x.jenis !== r.jenis).forEach((x) => n.add(x.jenis)); n.delete(r.jenis); return n })
+      return
+    }
+    setJenisOff((s) => { const n = new Set(s); if (on) n.delete(r.jenis); else n.add(r.jenis); return n })
+  }
+  const eocLive = (raw as any)?.eoc?.data_source === 'langsung'
+
   const mapPack = useMemo(() => toSpasial({
     rows: derived.rows,
-    kejadian,
+    kejadian: kejadianPeta,
     choro,
     centroids,
     filter: f,
@@ -121,7 +146,7 @@ export default function PuskrisPetaTerpadu({
     periodeLabel: periodeLabel(f),
     interpretasi: derived.narrative || [],
     raw,
-  }), [derived.rows, derived.narrative, kejadian, choro, centroids, f, logistikByCode, asistensiByCode, raw])
+  }), [derived.rows, derived.narrative, kejadianPeta, choro, centroids, f, logistikByCode, asistensiByCode, raw])
 
   const choroLabel = CHORO_OPTIONS.find((o) => o.id === choro)?.label || 'Kejadian terpantau'
   const data = mapPack.data
@@ -343,6 +368,9 @@ export default function PuskrisPetaTerpadu({
                     </div>
                   </div>
 
+                  <KategoriBencanaFilter live={eocLive} error={(raw as any)?.eoc?.error} kat={katHitung.kat} jenis={katHitung.jenis}
+                    katOff={katOff} jenisOff={jenisOff} onKategori={onKategori} onJenis={onJenis}
+                    onReset={() => { setKatOff(new Set()); setJenisOff(new Set()) }} />
 
                   <div data-testid="internal-group">
                     <div className="mb-2 flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-slate-400">
@@ -554,6 +582,8 @@ export default function PuskrisPetaTerpadu({
                       setIntelStatus({})
                       setRadiusOn(true)
                       setInternal(DEFAULT_INTERNAL)
+                      setKatOff(new Set())
+                      setJenisOff(new Set())
                       setPill('kasus', 'kejadian')
                     }}
                     className="w-full rounded-xl bg-[#00705a] py-2.5 text-center text-xs font-bold text-white shadow-sm transition hover:bg-[#005a48] active:scale-[0.99]">

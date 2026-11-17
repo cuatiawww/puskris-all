@@ -9,8 +9,6 @@ import { buildFilterOptions, tahunTersedia } from '@/lib/puskris/filter-options'
 import { filterQuery, matchPuskrisPath, parseFilterQuery } from '@/lib/puskris/pages'
 import PuskrisFilterPanel from '@/components/puskris/PuskrisFilterPanel'
 import PuskrisRingkasanView from '@/components/puskris/PuskrisRingkasanView'
-import SumberDataStrip from '@/components/puskris/SumberDataStrip'
-import PeriodeAktifBar from '@/components/puskris/PeriodeAktifBar'
 import PuskrisAnalisisView from '@/components/puskris/PuskrisAnalisisView'
 import PuskrisPageShell from '@/components/puskris/PuskrisPageShell'
 
@@ -96,8 +94,6 @@ export default function PuskrisDasborClient() {
         )
       }
     >
-      <SumberDataStrip status={raw.live_status} pending={pending} />
-      <PeriodeAktifBar f={f} raw={raw} page={item.key} bagian={bagian} loading={loadingRange} />
       {item.key === 'analisis'
         ? <PuskrisAnalisisView raw={raw} f={f} onApply={handleApply} years={years} />
         : <PuskrisRingkasanView raw={raw} f={f} tab={item.key} bagian={bagian} onApply={handleApply} />}

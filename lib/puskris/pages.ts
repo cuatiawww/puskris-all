@@ -97,7 +97,7 @@ export const PUSKRIS_NAV: PuskrisNavItem[] = [
     shortLabel: 'Analisis',
     eyebrow: 'Matriks & Analisis Terpadu',
     title: 'Matriks Analisis & Rekap Data Krisis',
-    desc: 'Matriks komprehensif data ambulans, sebaran kejadian bencana, rekapitulasi jenis kejadian, dan indeks kesenjangan kapasitas respons 38 provinsi.',
+    desc: 'Matriks tenaga cadangan kesehatan, panggilan darurat 119, kejadian bencana per provinsi × jenis, armada ambulans, rekap jenis kejadian, dan indeks kesenjangan respons 38 provinsi. Klik judul kolom untuk mengurutkan, unduh sebagai CSV.',
     sources: [SOURCE.ambulans, SOURCE.psc, SOURCE.eocResmi, SOURCE.eocVercel],
   },
 ]

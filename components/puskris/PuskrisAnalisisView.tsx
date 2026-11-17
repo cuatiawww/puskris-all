@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   AlertCircle,
   AlertTriangle,
@@ -27,12 +27,28 @@ import {
   Square,
   Users,
   X,
+  Grid3x3,
 } from 'lucide-react'
+import MatriksHeatTable, { fmtMatriks, matriksCsv, totalFor } from '@/components/puskris/MatriksHeatTable'
+import {
+  inPeriode,
+  matriksBencana,
+  matriksKategoriPanggilan,
+  matriksNcc,
+  matriksPsc,
+  matriksTck,
+  snapshotEvents,
+  type MatriksDef,
+} from '@/lib/puskris/matriks'
+import type { KejadianTerbaru } from '@/lib/puskris/kejadian-terbaru'
+import { PUBLIC_BASE_PATH } from '@/lib/public-path'
 import { applyDerive, nf, pf } from '@/lib/puskris/derive'
 import { toDeriveFilter, type PuskrisUiFilter } from '@/lib/puskris/ui-filter'
 import type { ProvinceRow } from '@/lib/puskris/types'
 
-type ActiveMatrixTab = 'ambulans' | 'kejadian' | 'jenis' | 'kesenjangan'
+type GenericTab = 'tck' | 'panggilan' | 'bencana'
+type ActiveMatrixTab = GenericTab | 'ambulans' | 'kejadian' | 'jenis' | 'kesenjangan'
+const GENERIC_TABS: GenericTab[] = ['tck', 'panggilan', 'bencana']
 
 interface DetailModalData {
   title: string
@@ -55,7 +71,9 @@ export default function PuskrisAnalisisView({
   onApply: (next: PuskrisUiFilter) => void
 }) {
   // Matriks Tab state
-  const [activeTab, setActiveTab] = useState<ActiveMatrixTab>('ambulans')
+  const [activeTab, setActiveTab] = useState<ActiveMatrixTab>('tck')
+  const [panggilanView, setPanggilanView] = useState<'ncc' | 'psc' | 'kategori'>('ncc')
+  const [liveEvents, setLiveEvents] = useState<{ events: KejadianTerbaru[]; live: boolean } | null>(null)
 
   // Search and Filter states for the Left Panel
   const [searchTerm, setSearchTerm] = useState('')
@@ -74,7 +92,7 @@ export default function PuskrisAnalisisView({
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1)
-  const [pageSize, setPageSize] = useState<number>(10)
+  const [pageSize, setPageSize] = useState<number>(9999)
 
   // Sorting states
   const [sortField, setSortField] = useState<string>('')
@@ -277,6 +295,55 @@ export default function PuskrisAnalisisView({
       })
   }, [derived.rows])
 
+  // 5. Matriks generik: Tenaga Cadangan, Panggilan, Kejadian Bencana (provinsi x jenis)
+  useEffect(() => {
+    let alive = true
+    fetch(`${PUBLIC_BASE_PATH}/api/v1/map-layers/kejadian-terbaru`, { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (alive && j?.events?.length) setLiveEvents({ events: j.events, live: j.mode === 'langsung' })
+      })
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [])
+  const eventsBencana = useMemo(() => liveEvents?.events || snapshotEvents(raw), [liveEvents, raw])
+  const genericDef: MatriksDef | null = useMemo(() => {
+    if (activeTab === 'tck') return matriksTck(raw)
+    if (activeTab === 'panggilan') {
+      if (panggilanView === 'psc') return matriksPsc(raw)
+      if (panggilanView === 'kategori') return matriksKategoriPanggilan(raw)
+      return matriksNcc(raw, periodeFilter)
+    }
+    if (activeTab === 'bencana')
+      return matriksBencana(raw, eventsBencana, { periode: periodeFilter, jenis: selectedDisasters, sumberLive: Boolean(liveEvents?.live) })
+    return null
+  }, [activeTab, panggilanView, raw, periodeFilter, eventsBencana, selectedDisasters, liveEvents])
+  const filteredGeneric = useMemo(() => {
+    if (!genericDef) return []
+    return genericDef.rows.filter((row) => {
+      if (genericDef.provinsiRows && selectedProvinces.length > 0 && !selectedProvinces.includes(String(row.code))) return false
+      if (genericDef.id === 'bencana') {
+        if (filterAdaKorban && !row.meninggal_2026) return false
+        if (filterAdaPengungsi && !row.pengungsi_2026) return false
+      }
+      for (const term of [searchTerm, tableSearch]) {
+        const q = term.trim().toLowerCase()
+        if (q && !`${row.label} ${row.sub || ''} ${row.code || ''} ${row.tanggal || ''}`.toLowerCase().includes(q)) return false
+      }
+      return true
+    })
+  }, [genericDef, selectedProvinces, filterAdaKorban, filterAdaPengungsi, searchTerm, tableSearch])
+  const genericCounts = useMemo(
+    () => ({
+      tck: (raw?.tck?.provinsi || []).length,
+      panggilan: (raw?.ncc?.days || []).filter((d: any) => d.available).length,
+      bencana: (raw?.regions || []).length,
+    }),
+    [raw],
+  )
+
   // Filter Logic per Tab
   const filteredAmbulans = useMemo(() => {
     return ambulansRows.filter((row) => {
@@ -298,6 +365,7 @@ export default function PuskrisAnalisisView({
     return kejadianRows.filter((row) => {
       if (selectedProvinces.length > 0 && !selectedProvinces.includes(row.code)) return false
       if (selectedDisasters.length > 0 && !selectedDisasters.includes(row.jenis)) return false
+      if (!inPeriode(row.tanggal, periodeFilter)) return false
       if (filterAdaKorban && row.meninggal === 0) return false
       if (filterAdaPengungsi && row.pengungsi === 0) return false
       if (searchTerm.trim()) {
@@ -319,7 +387,7 @@ export default function PuskrisAnalisisView({
       }
       return true
     })
-  }, [kejadianRows, selectedProvinces, selectedDisasters, filterAdaKorban, filterAdaPengungsi, searchTerm, tableSearch])
+  }, [kejadianRows, selectedProvinces, selectedDisasters, periodeFilter, filterAdaKorban, filterAdaPengungsi, searchTerm, tableSearch])
 
   const filteredJenis = useMemo(() => {
     return jenisRekapRows.filter((row) => {
@@ -366,8 +434,10 @@ export default function PuskrisAnalisisView({
         return filteredJenis
       case 'kesenjangan':
         return filteredKesenjangan
+      default:
+        return filteredGeneric
     }
-  }, [activeTab, filteredAmbulans, filteredKejadian, filteredJenis, filteredKesenjangan])
+  }, [activeTab, filteredAmbulans, filteredKejadian, filteredJenis, filteredKesenjangan, filteredGeneric])
 
   // Sorting
   const sortedDataset = useMemo(() => {
@@ -458,7 +528,12 @@ export default function PuskrisAnalisisView({
   const handleExportCSV = () => {
     let headers: string[] = []
     let rows: string[][] = []
-    let filename = `matriks-${activeTab}-puskris-${new Date().toISOString().slice(0, 10)}.csv`
+    let filename = `matriks-${genericDef ? genericDef.id : activeTab}-puskris-${new Date().toISOString().slice(0, 10)}.csv`
+    if (genericDef) {
+      const out = matriksCsv(genericDef, sortedDataset as any[])
+      headers = out.headers
+      rows = out.rows
+    } else
 
     if (activeTab === 'ambulans') {
       headers = [
@@ -595,6 +670,27 @@ export default function PuskrisAnalisisView({
   // Open Preview Modal
   const handleOpenPreview = (item: any) => {
     const now = new Date().toLocaleString('id-ID', { dateStyle: 'long', timeStyle: 'short' })
+    if (genericDef) {
+      const tot = genericDef.cols.filter((c) => c.heat).slice(0, 4)
+      setPreviewData({
+        title: genericDef.title,
+        subtitle: `${genericDef.rowLabel}: ${item.label}${item.sub ? ` · ${item.sub}` : ''}`,
+        badgeText: genericDef.id === 'tck' ? 'Kesiapsiagaan' : genericDef.id === 'bencana' ? 'Situasi Krisis' : 'Layanan Gawat Darurat',
+        badgeColor: 'bg-teal-50 text-[#0D6B67] border-teal-200',
+        docId: `MTX-${genericDef.id.toUpperCase()}-${item.code || item.tanggal || item.id}`,
+        timestamp: now,
+        kpis: tot.map((c) => {
+          const t = totalFor(c, filteredGeneric)
+          const share = typeof t === 'number' && t > 0 && c.fmt === 'int' ? ` · ${((Number(item[c.key]) / t) * 100).toFixed(1)}% total` : ''
+          return { label: c.label, value: fmtMatriks(item[c.key], c.fmt), hint: share ? share.slice(3) : undefined }
+        }),
+        details: [
+          { label: genericDef.rowLabel, value: item.label },
+          ...genericDef.cols.map((c) => ({ label: c.group ? `${c.label} (${c.group})` : c.label, value: fmtMatriks(item[c.key], c.fmt) })),
+        ],
+      })
+      return
+    }
     if (activeTab === 'ambulans') {
       setPreviewData({
         title: `Profil Kesiapsiagaan Armada Ambulans & PSC 119`,
@@ -1034,6 +1130,33 @@ export default function PuskrisAnalisisView({
           {/* TAB SELECTOR (Matching unduh-laporan navigation) */}
           <div className="skdr-card overflow-hidden p-2 print:hidden">
             <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+              {([
+                { id: 'tck', label: 'Tenaga Cadangan', Icon: Users },
+                { id: 'panggilan', label: 'Panggilan 119', Icon: PhoneCall },
+                { id: 'bencana', label: 'Kejadian Bencana', Icon: Grid3x3 },
+              ] as const).map(({ id, label, Icon }) => (
+                <button
+                  key={id}
+                  type="button"
+                  data-testid={`tab-${id}`}
+                  onClick={() => {
+                    setActiveTab(id)
+                    setCurrentPage(1)
+                    setPageSize(9999)
+                    setSortField('')
+                  }}
+                  className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition ${
+                    activeTab === id ? 'bg-primary text-white shadow-xs' : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                  <span>{label}</span>
+                  <span className={`rounded-full px-1.5 py-0.2 text-[10px] ${activeTab === id ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                    {activeTab === id ? filteredGeneric.length : genericCounts[id]}
+                  </span>
+                </button>
+              ))}
+              <span className="mx-0.5 hidden h-6 w-px bg-slate-200 sm:block" aria-hidden />
               <button
                 type="button"
                 onClick={() => {
@@ -1048,7 +1171,7 @@ export default function PuskrisAnalisisView({
                 }`}
               >
                 <Ambulance className="h-4 w-4" />
-                <span>Matriks Ambulans & PSC</span>
+                <span>Ambulans & PSC</span>
                 <span className={`rounded-full px-1.5 py-0.2 text-[10px] ${activeTab === 'ambulans' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'}`}>
                   {filteredAmbulans.length}
                 </span>
@@ -1068,7 +1191,7 @@ export default function PuskrisAnalisisView({
                 }`}
               >
                 <AlertTriangle className="h-4 w-4" />
-                <span>Matriks Kejadian Bencana</span>
+                <span>Daftar Laporan Kejadian</span>
                 <span className={`rounded-full px-1.5 py-0.2 text-[10px] ${activeTab === 'kejadian' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'}`}>
                   {filteredKejadian.length}
                 </span>
@@ -1088,7 +1211,7 @@ export default function PuskrisAnalisisView({
                 }`}
               >
                 <HeartPulse className="h-4 w-4" />
-                <span>Matriks Rekap Jenis Kejadian</span>
+                <span>Rekap Jenis Kejadian</span>
                 <span className={`rounded-full px-1.5 py-0.2 text-[10px] ${activeTab === 'jenis' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'}`}>
                   {filteredJenis.length}
                 </span>
@@ -1108,7 +1231,7 @@ export default function PuskrisAnalisisView({
                 }`}
               >
                 <ShieldAlert className="h-4 w-4" />
-                <span>Matriks Kesenjangan Wilayah</span>
+                <span>Kesenjangan Wilayah</span>
                 <span className={`rounded-full px-1.5 py-0.2 text-[10px] ${activeTab === 'kesenjangan' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'}`}>
                   {filteredKesenjangan.length}
                 </span>
@@ -1122,14 +1245,39 @@ export default function PuskrisAnalisisView({
             <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between print:hidden">
               <div>
                 <h2 className="text-base font-black text-slate-900">
+                  {genericDef?.title}
                   {activeTab === 'ambulans' && 'Matriks Data Armada Ambulans & PSC 119 per Provinsi'}
                   {activeTab === 'kejadian' && 'Matriks Laporan Kejadian Krisis & Bencana'}
                   {activeTab === 'jenis' && 'Matriks Rekapitulasi Kejadian Berdasarkan Jenis Bencana'}
                   {activeTab === 'kesenjangan' && 'Matriks Indeks Kesenjangan Respons & Beban Wilayah'}
                 </h2>
+                {genericDef ? <p className="mt-0.5 max-w-3xl text-xs text-slate-600">{genericDef.desc}</p> : null}
                 <p className="mt-0.5 text-xs text-slate-500">
                   Menampilkan {paginatedRows.length} dari total {totalRows} data yang terfilter
+                  {genericDef ? ' · klik judul kolom untuk mengurutkan, klik baris untuk rincian' : ''}
                 </p>
+                {activeTab === 'panggilan' ? (
+                  <div className="mt-2 inline-flex rounded-xl bg-slate-100 p-0.5 text-[11px] font-bold" data-testid="panggilan-view">
+                    {([
+                      ['ncc', 'Harian 119 Nasional'],
+                      ['psc', 'PSC 119 per Provinsi'],
+                      ['kategori', 'Kategori Panggilan'],
+                    ] as const).map(([k, l]) => (
+                      <button
+                        key={k}
+                        type="button"
+                        onClick={() => {
+                          setPanggilanView(k)
+                          setSortField('')
+                          setCurrentPage(1)
+                        }}
+                        className={`rounded-lg px-2.5 py-1 transition ${panggilanView === k ? 'bg-white text-primary shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}
+                      >
+                        {l}
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
               </div>
 
               {/* Actions & Export toolbar */}
@@ -1198,7 +1346,19 @@ export default function PuskrisAnalisisView({
             </div>
 
             {/* TABEL DATA MATRIKS */}
-            <div className="overflow-x-auto">
+            <div className={genericDef ? 'max-h-[70vh] overflow-auto' : 'overflow-x-auto'}>
+              {genericDef && (
+                <MatriksHeatTable
+                  def={genericDef}
+                  rows={paginatedRows as any[]}
+                  allRows={sortedDataset as any[]}
+                  sortField={sortField}
+                  sortOrder={sortOrder}
+                  onSort={handleSort}
+                  onRowClick={handleOpenPreview}
+                  startNo={pageSize >= 9999 ? 1 : (currentPage - 1) * pageSize + 1}
+                />
+              )}
               {activeTab === 'ambulans' && (
                 <table className="w-full text-left text-xs" data-testid="matriks-ambulans-table">
                   <thead className="bg-slate-50 text-[11px] font-bold uppercase tracking-wider text-slate-600">
@@ -1621,6 +1781,16 @@ export default function PuskrisAnalisisView({
               )}
             </div>
 
+            {genericDef?.notes.length ? (
+              <ul className="space-y-0.5 border-t border-slate-100 bg-amber-50/40 px-4 py-2 text-[11px] text-slate-600" data-testid="matriks-catatan">
+                {genericDef.notes.map((n, i) => (
+                  <li key={i} className="flex gap-1.5">
+                    <AlertCircle className="mt-0.5 h-3 w-3 shrink-0 text-amber-600" />
+                    <span>{n}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
             {/* PAGINATION FOOTER */}
             <div className="flex flex-col items-center justify-between gap-3 border-t border-slate-100 bg-slate-50/50 px-4 py-3 sm:flex-row print:hidden">
               <div className="text-xs text-slate-500">

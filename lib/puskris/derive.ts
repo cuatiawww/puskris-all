@@ -69,7 +69,7 @@ export function applyDerive(data: any, filter: PuskrisFilter) {
   })
 
   const logBy = Object.fromEntries((data.logistik?.regional || []).map((r) => [r.code, Number(r.total || 0)]))
-  const asisBy = Object.fromEntries((data.asistensi?.contoh_wilayah || [])
+  const asisBy = Object.fromEntries((data.asistensi?.wilayah?.length ? data.asistensi.wilayah : data.asistensi?.contoh_wilayah || [])
     .filter((x) => x.level === 'provinsi')
     .map((x) => [String(x.kode_wilayah).padStart(2, '0'), Number(x.poin_kapasitas_pct)]))
   rows = rows.map((r) => ({ ...r, stok: logBy[r.code] ?? null, asistensiPct: asisBy[r.code] ?? null }))
@@ -148,6 +148,8 @@ export function applyDerive(data: any, filter: PuskrisFilter) {
         panggilan: selected.panggilan,
         emergency: null as number | null,
         emergencyShare: null as number | null,
+        emergencyPerkiraan: false,
+        panggilanTahun: (pscS.tahun_panggilan as number | undefined) ?? null,
         scr: null as number | null,
         waktuRespons: pscS.waktu_respons_rata_rata,
         pscAktif: selected.pscAktif,
@@ -160,7 +162,9 @@ export function applyDerive(data: any, filter: PuskrisFilter) {
     : {
         panggilan: pscS.total_panggilan,
         emergency: pscS.total_emergency,
-        emergencyShare: pscS.total_panggilan ? (pscS.total_emergency / pscS.total_panggilan) * 100 : null,
+        emergencyShare: pscS.emergency_share ?? (pscS.total_panggilan ? (pscS.total_emergency / pscS.total_panggilan) * 100 : null),
+        emergencyPerkiraan: Boolean(pscS.emergency_perkiraan),
+        panggilanTahun: (pscS.tahun_panggilan as number | undefined) ?? null,
         scr: data.ncc?.totals?.scr ?? null,
         waktuRespons: pscS.waktu_respons_rata_rata,
         pscAktif: pscS.psc_aktif,
@@ -226,14 +230,14 @@ export function applyDerive(data: any, filter: PuskrisFilter) {
 
   const freshness: Record<string, Freshness> = {
     eoc: { sumber: 'Krisis Kesehatan / Pantauan Bencana', status: 'snapshot', at: data.eoc?.fetched_at_wib, label: data.eoc?.label, url: data.eoc?.sumber_resmi, filterable: { periode: !selected, provinsi: true, kabupaten: true } },
-    psc: { sumber: 'PSC 119 & Ambulans', status: 'snapshot', at: data.psc?.fetched_at_wib, label: 'Snapshot kumulatif; filter periode sumber belum tersedia', url: data.psc?.sumber, filterable: { periode: false, provinsi: true, kabupaten: false } },
+    psc: { sumber: 'PSC 119 & Ambulans', status: data.psc?.data_source === 'langsung' ? 'langsung' : 'snapshot', at: data.psc?.fetched_at_wib, label: data.psc?.data_source === 'langsung' ? data.psc.label : 'Snapshot kumulatif; filter periode sumber belum tersedia', url: data.psc?.sumber, filterable: { periode: false, provinsi: true, kabupaten: false } },
     ncc: { sumber: 'NCC Panggilan', status: 'snapshot', at: data.ncc?.fetched_at_wib, label: data.ncc?.label, url: data.ncc?.sumber, filterable: { periode: true, provinsi: false, kabupaten: false } },
     tck: { sumber: 'Tenaga Cadangan Kesehatan', status: 'snapshot', at: data.tck?.fetched_at_wib, label: data.tck?.label, url: data.tck?.sumber, filterable: { periode: false, provinsi: true, kabupaten: false } },
     logistik: { sumber: 'Logistik', status: 'snapshot', at: data.logistik?.fetched_at_wib, label: data.logistik?.label, url: data.logistik?.sumber, filterable: { periode: false, provinsi: false, kabupaten: false } },
-    asistensi: { sumber: 'Asistensi Risiko', status: 'snapshot', at: data.asistensi?.fetched_at_wib, label: data.asistensi?.label, url: data.asistensi?.sumber_provinsi, filterable: { periode: false, provinsi: false, kabupaten: false } },
+    asistensi: { sumber: 'Asistensi Risiko', status: data.asistensi?.data_source === 'langsung' ? 'langsung' : 'snapshot', at: data.asistensi?.fetched_at_wib, label: data.asistensi?.label, url: data.asistensi?.sumber_provinsi, filterable: { periode: false, provinsi: false, kabupaten: false } },
   }
 
-  const narrative = buildNarrative({ rows, selected, situasi, layanan, sdm, asisCakupan, filter, resmi, nccTot, nccScr })
+  const narrative = buildNarrative({ rows, selected, situasi, layanan, sdm, asisCakupan, asis, filter, resmi, nccTot, nccScr })
 
   return {
     generatedAt: data.generated_at_wib,
@@ -260,7 +264,7 @@ export function applyDerive(data: any, filter: PuskrisFilter) {
 }
 
 function buildNarrative(ctx: any): string[] {
-  const { rows, selected, situasi, layanan, sdm, asisCakupan, filter, resmi, nccTot, nccScr } = ctx
+  const { rows, selected, situasi, layanan, sdm, asisCakupan, asis, filter, resmi, nccTot, nccScr } = ctx
   const bullets: string[] = []
   if (selected) {
     bullets.push(`${selected.nama} mencatat ${nf(selected.kejadian)} kejadian terpantau pada 2026 (${nf(selected.krisis)} berdampak krisis), dengan ${nf(selected.meninggal)} meninggal dan ${nf(selected.pengungsi)} pengungsi.`)
@@ -286,7 +290,7 @@ function buildNarrative(ctx: any): string[] {
     bullets.push(`Tenaga cadangan individu ${nf(sdm.individu)} orang, bertambah ${nf(sdm.deltaIndividu)} pada bulan berjalan, didukung ${nf(sdm.tim)} tim dan ${nf(sdm.emt)} Tim Medis Darurat (EMT).`)
   }
   if (!selected && asisCakupan.provinsi_pct !== undefined) {
-    bullets.push(`Asistensi Risiko masih menipis pada sisi pelaporan: baru ${asisCakupan.provinsi_pct}% provinsi dan ${asisCakupan.kabkot_pct}% kabupaten/kota yang mengisi status kapasitas (snapshot manual 16 November 2026, sumber butuh login).`)
+    bullets.push(`Asistensi Risiko masih menipis pada sisi pelaporan: baru ${asisCakupan.provinsi_pct}% provinsi dan ${asisCakupan.kabkot_pct}% kabupaten/kota yang mengisi status kapasitas (${asis.data_source === 'langsung' ? `rekapitulasi ${asis.tahun || ''} langsung dari API Asistensi` : 'snapshot manual 16 November 2026'}).`)
   }
   return bullets.slice(0, 5)
 }

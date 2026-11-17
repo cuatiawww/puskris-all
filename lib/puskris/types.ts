@@ -10,7 +10,7 @@ export type PuskrisFilter = {
 
 export type Freshness = {
   sumber: string
-  status: 'snapshot'
+  status: 'snapshot' | 'langsung'
   at: string
   label: string
   url: string

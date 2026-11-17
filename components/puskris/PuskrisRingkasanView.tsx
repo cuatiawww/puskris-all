@@ -201,7 +201,7 @@ function DynamicKpiCards({
               label="Total Panggilan 119"
               value={nf(layanan.panggilan)}
               unit="panggilan"
-              sub="Snapshot kumulatif nasional"
+              sub={layanan.panggilanTahun ? `Tahun ${layanan.panggilanTahun}, langsung dari API PSC 119` : 'Snapshot kumulatif nasional'}
               icon={PhoneCall}
               tone="amber"
               note={isWilayah ? NASIONAL_NOTE : null}
@@ -216,9 +216,9 @@ function DynamicKpiCards({
             />
             <KpiCardItem
               label="Panggilan Kedaruratan"
-              value={nf(layanan.emergency || 0)}
+              value={`${layanan.emergencyPerkiraan ? '≈ ' : ''}${nf(layanan.emergency || 0)}`}
               unit="kasus"
-              sub={layanan.emergencyShare != null ? `${pf(layanan.emergencyShare, 1)} kedaruratan medik` : 'Kasus darurat 119'}
+              sub={layanan.emergencyShare != null ? (layanan.emergencyPerkiraan ? `≈ ${pf(layanan.emergencyShare, 1)} gawat darurat (perkiraan dari sampel panggilan terbaru)` : `${pf(layanan.emergencyShare, 1)} kedaruratan medik`) : 'Kasus darurat 119'}
               icon={AlertTriangle}
               tone="rose"
             />
@@ -285,7 +285,7 @@ function DynamicKpiCards({
             label="Total Panggilan 119"
             value={nf(layanan.panggilan)}
             unit="panggilan"
-            sub={layanan.emergencyShare != null ? `darurat ${pf(layanan.emergencyShare, 1)}` : 'Panggilan masyarakat'}
+            sub={`${layanan.panggilanTahun ? `Tahun ${layanan.panggilanTahun} · ` : ''}${layanan.emergencyShare != null ? `darurat ${layanan.emergencyPerkiraan ? '≈ ' : ''}${pf(layanan.emergencyShare, 1)}` : 'Panggilan masyarakat'}`}
             icon={PhoneCall}
             tone="amber"
             href={withQuery('/dashboard/layanan-gawat-darurat/panggilan-119', f)}
@@ -412,42 +412,44 @@ function DynamicKpiCards({
   }
 
   if (tab === 'asistensi') {
-    const asisContoh = raw.asistensi?.contoh_wilayah || []
-    const provCount = asisContoh.filter((x: any) => x.level === 'provinsi').length || 2
-    const kabCount = asisContoh.filter((x: any) => x.level !== 'provinsi').length || 4
+    const asis = raw.asistensi || {}
+    const live = asis.data_source === 'langsung'
+    const cak = asis.cakupan || {}
+    const irbiP = asis.provinsi?.irbi || {}
+    const irbiK = asis.kabupaten_kota?.irbi || {}
     return (
       <section className="skdr-section">
         <SectionHead eyebrow="Asistensi Risiko Daerah" title="Cakupan Pendampingan &amp; Kesiapsiagaan Daerah" />
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
           <KpiCardItem
-            label="Provinsi Terdampingi"
-            value={`${provCount}`}
-            unit="provinsi"
-            sub="Asesmen risiko krisis tingkat provinsi"
+            label="Provinsi Mengisi Kapasitas"
+            value={`${cak.provinsi_mengisi_kapasitas ?? '—'}`}
+            unit={`dari ${cak.provinsi_total ?? 38}`}
+            sub={`${cak.provinsi_pct ?? 0}% provinsi sudah menilai kapasitas`}
             icon={ShieldCheck}
             tone="teal"
             href={withQuery('/dashboard/asistensi-risiko/provinsi', f)}
           />
           <KpiCardItem
-            label="Kab/Kota Terdampingi"
-            value={`${kabCount}`}
-            unit="kab/kota"
-            sub="Rencana kontinjensi kab/kota"
+            label="Kab/Kota Mengisi Kapasitas"
+            value={`${cak.kabkot_mengisi_kapasitas ?? '—'}`}
+            unit={`dari ${cak.kabkot_total ?? 514}`}
+            sub={`${cak.kabkot_pct ?? 0}% kab/kota sudah menilai kapasitas`}
             icon={Building2}
             tone="emerald"
             href={withQuery('/dashboard/asistensi-risiko/kabupaten-kota', f)}
           />
           <KpiCardItem
-            label="Indeks IRBI Daerah"
-            value="Sedang / Tinggi"
-            sub="Tingkat risiko bencana wilayah"
+            label="Risiko Bencana Tinggi"
+            value={live ? `${irbiP.Tinggi ?? 0} prov · ${irbiK.Tinggi ?? 0} kab/kota` : 'Sedang / Tinggi'}
+            sub="Status Indeks Risiko Bencana Indonesia (IRBI)"
             icon={AlertTriangle}
             tone="amber"
           />
           <KpiCardItem
-            label="Status Asesmen"
-            value="Aktif"
-            sub="Snapshot modul asistensi resmi"
+            label="Sumber Data"
+            value={live ? 'Langsung' : 'Snapshot'}
+            sub={live ? `API rekapitulasi Asistensi ${asis.tahun} · ${asis.fetched_at_wib || ''}` : `Snapshot ${asis.fetched_at_wib || ''}`}
             icon={CheckCircle}
             tone="blue"
           />
@@ -478,7 +480,7 @@ function DynamicKpiCards({
             <>
               {layanan.scr != null ? `${NCC_LABEL.scr.replace(' (%)', '')} ${pf(layanan.scr, 1)}` : `${NCC_LABEL.scr.replace(' (%)', '')} tidak tersedia`}
               <InfoHint text={NCC_LABEL.scrHint} label={NCC_LABEL.scrHint} />
-              {layanan.emergencyShare != null ? ` · darurat ${pf(layanan.emergencyShare, 1)}` : ''}
+              {layanan.emergencyShare != null ? ` · darurat ${layanan.emergencyPerkiraan ? '≈ ' : ''}${pf(layanan.emergencyShare, 1)}` : ''}
             </>
           }
           icon={PhoneCall}
@@ -562,9 +564,13 @@ export default function PuskrisRingkasanView({
   const [selectedEvent, setSelectedEvent] = useState<any | null>(null)
   const footnote = [
     situasi.catatanPeriode,
-    'Panggilan PSC bersifat kumulatif dan tidak mengikuti filter periode.',
+    raw.psc?.summary?.tahun_panggilan
+      ? `Panggilan PSC 119 adalah hitungan tahun ${raw.psc.summary.tahun_panggilan} langsung dari API PSC 119 (belum bisa disaring per bulan/minggu).`
+      : 'Panggilan PSC bersifat kumulatif dan tidak mengikuti filter periode.',
     'Data NCC hanya tersedia untuk November 2026.',
-    'Asistensi Risiko adalah snapshot manual 16 November 2026 (sumber butuh login); peta arsiran hanya memuat dua contoh wilayah.',
+    raw.asistensi?.data_source === 'langsung'
+      ? `Asistensi Risiko diambil langsung dari API rekapitulasi Asistensi ${raw.asistensi.tahun || ''}.`
+      : 'Asistensi Risiko adalah snapshot manual 16 November 2026; peta arsiran hanya memuat dua contoh wilayah.',
     'Titik kejadian diletakkan di pusat provinsi karena sumber belum punya koordinat tepat.',
     'Slider waktu mengikuti tren bulanan nasional; sebaran arsiran per provinsi tetap angka tahunan karena sumber tidak merilis deret bulanan per wilayah.',
   ].filter(Boolean).join(' ')

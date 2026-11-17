@@ -173,3 +173,56 @@ export const OPEN_DATA_APIS: OpenDataApi[] = [
 export const INTEL_LAYER_APIS = OPEN_DATA_APIS.filter((a) => a.kategori === 'Lapisan peta intelijen') as (OpenDataApi & { id: IntelLayerId })[]
 
 export type IntelStatus = { state: 'loading' | 'ok' | 'empty' | 'error'; count?: number; message?: string; sumber?: string; at?: string }
+
+/** API resmi Pusat Krisis Kesehatan yang dipakai langsung (token hanya di server, keluaran agregat). */
+export type OfficialApi = {
+  id: 'asistensi' | 'psc' | 'panggilan'
+  nama: string
+  icon: string
+  deskripsi: string
+  dipakai: string
+  proxy: string
+  upstream: { nama: string; metode: string; url: string; parameter: string }[]
+  belum?: string
+}
+export const OFFICIAL_APIS: OfficialApi[] = [
+  {
+    id: 'asistensi',
+    nama: 'Asistensi Risiko — rekapitulasi',
+    icon: '🛡️',
+    deskripsi: 'Poin dan status kapasitas serta status Indeks Risiko Bencana Indonesia (IRBI) untuk 38 provinsi dan 514 kabupaten/kota.',
+    dipakai: 'Halaman Asistensi Risiko, variabel peta Poin Kapasitas Asistensi, Indeks Kesenjangan, Kartu Kejadian Terpadu, peringatan otomatis, Matriks Asistensi.',
+    proxy: '/api/puskris/live/asistensi',
+    upstream: [
+      { nama: 'Rekapitulasi provinsi', metode: 'POST (kueri baca)', url: 'https://pusatkrisis.kemkes.go.id/asistensi/web_api/v1/rekapitulasi-asistensi-provinsi', parameter: 'tahun, kd_prop (kosong = semua), id_user_level' },
+      { nama: 'Rekapitulasi kabupaten/kota', metode: 'POST (kueri baca)', url: 'https://pusatkrisis.kemkes.go.id/asistensi/web_api/v1/rekapitulasi-asistensi-kabupaten', parameter: 'tahun, kd_kab (kosong = semua), id_user_level' },
+    ],
+    belum: 'Kelengkapan per modul (Profil Umum, Kerentanan, Ancaman, Kapasitas) belum ada di API, masih snapshot. Endpoint SSO (auth-prov, auth-kab) sengaja tidak dipanggil.',
+  },
+  {
+    id: 'psc',
+    nama: 'PSC 119 — master data',
+    icon: '🚑',
+    deskripsi: 'Daftar PSC 119 beserta armada ambulans, personel, rumah sakit jejaring, dan anggaran; diringkas per provinsi di server.',
+    dipakai: 'Layanan Gawat Darurat (PSC, Ambulans), KPI Ringkasan, peta (PSC aktif, ambulans), Radius Dukungan dari koordinat PSC & rumah sakit asli, Matriks PSC.',
+    proxy: '/api/puskris/live/psc',
+    upstream: [
+      { nama: 'Data PSC (berisi ambulans, personel, RS, anggaran)', metode: 'POST (kueri baca)', url: 'https://psc.kemkes.go.id/web_api/v1/data-psc', parameter: 'kode_psc, kd_prop, kd_kab, kepemilikan, status, page, per_page' },
+      { nama: 'Data ambulans (total terdaftar)', metode: 'POST (kueri baca)', url: 'https://psc.kemkes.go.id/web_api/v1/data-ambulan-psc', parameter: 'kode_psc, page, per_page' },
+      { nama: 'Data rumah sakit/sarana (total terdaftar)', metode: 'POST (kueri baca)', url: 'https://psc.kemkes.go.id/web_api/v1/data-rumahsakit-sarana', parameter: 'kode_psc, page, per_page' },
+    ],
+    belum: 'Nama, telepon, alamat, plat nomor, dan data personel perorangan dibuang di server; yang dikirim ke browser hanya hitungan dan koordinat fasilitas.',
+  },
+  {
+    id: 'panggilan',
+    nama: 'PSC 119 — pelaporan panggilan',
+    icon: '📞',
+    deskripsi: 'Jumlah panggilan tahun berjalan per provinsi dan yang selesai ditangani, ditambah sampel ±3.500 laporan terbaru untuk rekap harian, jenis, sumber, dan jam.',
+    dipakai: 'KPI Panggilan PSC 119, peta panggilan per provinsi, Matriks Panggilan (PSC harian, provinsi × jenis).',
+    proxy: '/api/puskris/live/panggilan',
+    upstream: [
+      { nama: 'Data pelaporan panggilan', metode: 'POST (kueri baca)', url: 'https://psc.kemkes.go.id/web_api/v1/data-pelaporan-panggilan', parameter: 'kode_psc, kd_prop, kd_kab, status_penanganan, tahun, page, per_page' },
+    ],
+    belum: 'API tidak punya filter tanggal/kategori, jadi rekap harian dan per jenis hanya dari sampel laporan terbaru. Data pelapor/korban tidak pernah dikirim ke browser.',
+  },
+]

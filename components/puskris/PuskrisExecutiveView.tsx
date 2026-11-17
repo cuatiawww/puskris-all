@@ -16,7 +16,7 @@ import {
 import { toDeriveFilter, type PuskrisUiFilter } from '@/lib/puskris/ui-filter'
 import { NASIONAL_NOTE, withQuery } from '@/lib/puskris/pages'
 import { EMT_LABEL, NCC_LABEL } from '@/lib/puskris/labels'
-import { attachTimEstimate, buildPeringatan, buildTerpadu, countRadius, CONTOH_LABEL } from '@/lib/puskris/integrasi'
+import { asistensiWilayah, attachTimEstimate, titikFasilitas, buildPeringatan, buildTerpadu, countRadius, CONTOH_LABEL } from '@/lib/puskris/integrasi'
 
 const SpasialMap = dynamic(() => import('@/components/spasial/SpasialMap'), {
   ssr: false,
@@ -122,7 +122,7 @@ export default function PuskrisExecutiveView({
 
   const logistikByCode = useMemo(() => Object.fromEntries((raw.logistik?.regional || []).map((r: any) => [r.code, r.total])), [raw])
   const asistensiByCode = useMemo(
-    () => Object.fromEntries((raw.asistensi?.contoh_wilayah || []).filter((r: any) => r.level === 'provinsi').map((r: any) => [String(r.kode_wilayah).padStart(2, '0'), r.poin_kapasitas_pct])),
+    () => Object.fromEntries(asistensiWilayah(raw).map((r: any) => [String(r.kode_wilayah).padStart(2, '0'), r.poin_kapasitas_pct])),
     [raw],
   )
 
@@ -162,9 +162,9 @@ export default function PuskrisExecutiveView({
     : (mapPack.titik[0] ? { lat: mapPack.titik[0].lat, lon: mapPack.titik[0].lon } : null)
   const radiusCounts = useMemo(() => {
     if (!radiusCenter) return null
-    const rawCounts = countRadius(radiusCenter, derived.rows, centroids)
+    const rawCounts = countRadius(radiusCenter, derived.rows, centroids, titikFasilitas(raw))
     return attachTimEstimate(rawCounts, derived.sdm?.tim ?? null, derived.sdm?.individu || 1)
-  }, [radiusCenter, derived.rows, derived.sdm, centroids])
+  }, [radiusCenter, derived.rows, derived.sdm, centroids, raw])
 
   const topGap = useMemo(
     () => [...derived.rows].sort((a, b) => b.indeksRespons - a.indeksRespons).slice(0, 5),

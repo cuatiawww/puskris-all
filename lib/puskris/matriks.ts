@@ -134,33 +134,144 @@ export function matriksNcc(raw: any, periode: PeriodeMatriks): MatriksDef {
 
 export function matriksPsc(raw: any): MatriksDef {
   const names = provNames(raw)
+  const live = raw?.psc?.data_source === 'langsung'
+  const sm = raw?.psc?.summary || {}
+  const tahun = sm.tahun_panggilan
   const rows: MatriksRow[] = (raw?.psc?.provinsi || []).map((p: any) => {
     const code = String(p.code)
     const aktif = Number(p.psc_aktif || 0)
+    const pg = Number(p.panggilan || 0)
     return {
       id: `psc-${code}`, code, label: names.get(code) || p.nama, sub: `Kode ${code}`,
-      panggilan: Number(p.panggilan || 0), psc_total: Number(p.psc_total || 0), psc_aktif: aktif,
-      pct_aktif: pct(aktif, Number(p.psc_total || 0)), ambulans: Number(p.ambulans || 0), ambulans_aktif: Number(p.ambulans_aktif || 0),
-      rs_jejaring: Number(p.rs_jejaring || 0), per_psc: aktif > 0 ? Number(p.panggilan || 0) / aktif : 0,
+      panggilan: pg, pct_selesai: p.panggilan_selesai != null && pg > 0 ? pct(Number(p.panggilan_selesai), pg) : null,
+      psc_total: Number(p.psc_total || 0), psc_aktif: aktif,
+      pct_aktif: pct(aktif, Number(p.psc_total || 0)), ambulans: Number(p.ambulans || 0), ambulans_baik: Number(p.ambulans_baik || 0), ambulans_aktif: Number(p.ambulans_aktif || 0),
+      rs_jejaring: Number(p.rs_jejaring || 0), personil: p.personil != null ? Number(p.personil) : null, per_psc: aktif > 0 ? pg / aktif : 0,
     }
   })
+  const hasPersonil = rows.some((r) => r.personil != null)
   return {
     id: 'psc', provinsiRows: true,
     title: 'Matriks Panggilan & Kesiapan PSC 119 per Provinsi',
-    desc: 'Panggilan yang ditangani Pusat Pelayanan Keselamatan Terpadu (Public Safety Center/PSC 119) di daerah, beserta jumlah PSC, armada ambulans, dan rumah sakit jejaring.',
+    desc: 'Panggilan yang ditangani Pusat Pelayanan Keselamatan Terpadu (Public Safety Center/PSC 119) di daerah, beserta jumlah PSC, armada ambulans, personel, dan rumah sakit jejaring.',
     rowLabel: 'Provinsi',
     cols: [
-      { key: 'panggilan', label: 'Panggilan Ditangani', hint: 'Jumlah panggilan yang tercatat ditangani PSC 119 provinsi ini (kumulatif).', fmt: 'int', heat: true, group: 'Panggilan' },
+      { key: 'panggilan', label: tahun ? `Panggilan ${tahun}` : 'Panggilan Ditangani', hint: tahun ? `Jumlah laporan panggilan PSC 119 provinsi ini sepanjang ${tahun} (API PSC 119).` : 'Jumlah panggilan yang tercatat ditangani PSC 119 provinsi ini (kumulatif).', fmt: 'int', heat: true, group: 'Panggilan' },
+      ...(live && tahun ? [{ key: 'pct_selesai', label: '% Selesai Ditangani', hint: 'Laporan berstatus selesai dibagi seluruh laporan panggilan provinsi ini.', fmt: 'pct' as const, group: 'Panggilan', total: () => (sm.panggilan_selesai && sm.total_panggilan ? pct(sm.panggilan_selesai, sm.total_panggilan) : null) }] : []),
       { key: 'per_psc', label: 'Panggilan per PSC Aktif', hint: 'Panggilan dibagi jumlah PSC aktif; gambaran beban per pos.', fmt: 'dec1', heat: true, group: 'Panggilan', total: (r) => { const a = sum(r, 'psc_aktif'); return a ? sum(r, 'panggilan') / a : 0 } },
       { key: 'psc_total', label: 'PSC Terdaftar', hint: 'Jumlah PSC 119 kabupaten/kota yang terdaftar.', fmt: 'int', heat: true, group: 'Kesiapan' },
       { key: 'psc_aktif', label: 'PSC Aktif', hint: 'PSC 119 yang berstatus aktif melayani.', fmt: 'int', heat: true, group: 'Kesiapan' },
       { key: 'pct_aktif', label: '% PSC Aktif', hint: 'PSC aktif dibagi PSC terdaftar.', fmt: 'pct', group: 'Kesiapan', total: (r) => pct(sum(r, 'psc_aktif'), sum(r, 'psc_total')) },
       { key: 'ambulans', label: 'Ambulans', hint: 'Jumlah armada ambulans yang terdaftar di PSC.', fmt: 'int', heat: true, group: 'Kesiapan' },
-      { key: 'ambulans_aktif', label: 'Ambulans Aktif', hint: 'Ambulans yang sedang aktif/terhubung saat data diambil.', fmt: 'int', heat: true, group: 'Kesiapan' },
+      { key: 'ambulans_baik', label: 'Ambulans Kondisi Baik', hint: 'Ambulans yang kondisi kendaraannya tercatat baik.', fmt: 'int', heat: true, group: 'Kesiapan' },
+      { key: 'ambulans_aktif', label: 'Ambulans Aktif', hint: 'Ambulans berstatus aktif.', fmt: 'int', heat: true, group: 'Kesiapan' },
+      ...(hasPersonil ? [{ key: 'personil', label: 'Personel PSC', hint: 'Jumlah personel PSC (perawat, bidan, dokter, pengemudi ambulans, dan lainnya).', fmt: 'int' as const, heat: true, group: 'Kesiapan' }] : []),
       { key: 'rs_jejaring', label: 'RS Jejaring', hint: 'Rumah sakit rujukan yang terhubung dengan PSC 119.', fmt: 'int', heat: true, group: 'Kesiapan' },
     ],
     rows,
-    notes: ['Angka PSC bersifat kumulatif sejak sistem berjalan, belum bisa disaring per periode.', `Sumber: Dasbor PSC 119, diambil ${raw?.psc?.fetched_at_wib || '-'}.`],
+    notes: live
+      ? [`Sumber: API PSC 119 (langsung, ${raw?.psc?.fetched_at_wib || '-'}). Panggilan = jumlah laporan tahun ${tahun || 'berjalan'}; armada, personel, dan rumah sakit = master data saat ini.`, 'Ambulans dihitung dari armada yang tertaut ke PSC; jumlah ini bisa sedikit berbeda dengan total terdaftar di sistem PSC.']
+      : ['Angka PSC bersifat kumulatif sejak sistem berjalan, belum bisa disaring per periode.', `Sumber: snapshot Dasbor PSC 119, diambil ${raw?.psc?.fetched_at_wib || '-'}.`],
+  }
+}
+
+export function matriksPscHarian(raw: any, periode: PeriodeMatriks): MatriksDef | null {
+  const s = raw?.psc?.panggilan_sampel
+  if (!s?.harian?.length) return null
+  const rows: MatriksRow[] = s.harian
+    .filter((d: any) => inPeriode(d.tanggal, periode))
+    .map((d: any) => {
+      const dt = new Date(`${d.tanggal}T00:00:00Z`)
+      return {
+        id: `pscd-${d.tanggal}`, tanggal: d.tanggal,
+        label: dt.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' }),
+        sub: `${HARI[dt.getUTCDay()]}${d.berjalan ? ' · hari berjalan' : ''}`,
+        total: d.total, gawat_darurat: d.gawat_darurat, bukan_gawat_darurat: d.bukan_gawat_darurat, tanpa_kategori: d.tanpa_kategori,
+        selesai: d.selesai, diproses: d.diproses, pct_selesai: pct(d.selesai, d.total), ambulans: d.ambulans,
+      }
+    })
+  return {
+    id: 'psc-harian',
+    title: 'Matriks Laporan Panggilan PSC 119 Harian (Seluruh Daerah)',
+    desc: 'Laporan panggilan yang dicatat PSC 119 kabupaten/kota per hari, dipilah jenis layanan dan status penanganan.',
+    rowLabel: 'Tanggal', rowHint: 'Tanggal laporan panggilan (WIB).',
+    cols: [
+      { key: 'total', label: 'Total Laporan', hint: 'Semua laporan panggilan pada hari itu.', fmt: 'int', heat: true, group: 'Jenis layanan' },
+      { key: 'gawat_darurat', label: 'Gawat Darurat', hint: 'Panggilan dengan kondisi gawat darurat (emergency).', fmt: 'int', heat: true, group: 'Jenis layanan' },
+      { key: 'bukan_gawat_darurat', label: 'Bukan Gawat Darurat', hint: 'Permintaan layanan yang tidak gawat darurat (non-emergency), misalnya informasi atau transportasi.', fmt: 'int', heat: true, group: 'Jenis layanan' },
+      { key: 'tanpa_kategori', label: 'Tanpa Kategori', hint: 'Panggilan tidak valid atau belum dikategorikan (non category).', fmt: 'int', heat: true, group: 'Jenis layanan' },
+      { key: 'selesai', label: 'Selesai', hint: 'Laporan yang penanganannya sudah selesai.', fmt: 'int', heat: true, group: 'Penanganan' },
+      { key: 'diproses', label: 'Diproses', hint: 'Laporan yang masih dalam proses penanganan.', fmt: 'int', heat: true, group: 'Penanganan' },
+      { key: 'pct_selesai', label: '% Selesai', hint: 'Laporan selesai dibagi total laporan.', fmt: 'pct', group: 'Penanganan', total: (r) => pct(sum(r, 'selesai'), sum(r, 'total')) },
+      { key: 'ambulans', label: 'Ambulans Dikerahkan', hint: 'Laporan yang tercatat memakai layanan ambulans.', fmt: 'int', heat: true, group: 'Penanganan' },
+    ],
+    rows,
+    notes: [
+      `Sumber: API PSC 119 (langsung, ${raw?.psc?.fetched_at_wib || '-'}), dari ${Number(s.jumlah || 0).toLocaleString('id-ID')} laporan terbaru (${s.dari} s.d. ${s.sampai}). API belum punya filter tanggal, jadi hanya beberapa hari terakhir yang tersedia; hari berjalan belum lengkap.`,
+      'Ini laporan PSC 119 daerah, berbeda dengan Panggilan 119 Nasional (Pusat Panggilan Nasional).',
+    ],
+  }
+}
+
+export function matriksPscProvJenis(raw: any): MatriksDef | null {
+  const s = raw?.psc?.panggilan_sampel
+  if (!s?.provinsi?.length) return null
+  const names = provNames(raw)
+  const by = new Map<string, any>(s.provinsi.map((p: any) => [String(p.code), p]))
+  const rows: MatriksRow[] = (raw?.regions || []).map((r: any) => {
+    const code = String(r.code)
+    const p = by.get(code) || {}
+    return {
+      id: `pscj-${code}`, code, label: names.get(code) || code, sub: `Kode ${code}`,
+      total: Number(p.total || 0), gawat_darurat: Number(p.gawat_darurat || 0), bukan_gawat_darurat: Number(p.bukan_gawat_darurat || 0),
+      tanpa_kategori: Number(p.tanpa_kategori || 0), pct_gd: pct(Number(p.gawat_darurat || 0), Number(p.total || 0)),
+      selesai: Number(p.selesai || 0), ambulans: Number(p.ambulans || 0),
+    }
+  })
+  return {
+    id: 'psc-jenis', provinsiRows: true,
+    title: 'Matriks Panggilan PSC 119 per Provinsi × Jenis Layanan',
+    desc: 'Sebaran laporan panggilan terbaru per provinsi menurut jenis layanan, status selesai, dan pengerahan ambulans.',
+    rowLabel: 'Provinsi',
+    cols: [
+      { key: 'total', label: 'Total Laporan', fmt: 'int', heat: true, group: 'Jenis layanan', hint: 'Laporan panggilan provinsi ini dalam rentang sampel.' },
+      { key: 'gawat_darurat', label: 'Gawat Darurat', fmt: 'int', heat: true, group: 'Jenis layanan', hint: 'Panggilan dengan kondisi gawat darurat (emergency).' },
+      { key: 'bukan_gawat_darurat', label: 'Bukan Gawat Darurat', fmt: 'int', heat: true, group: 'Jenis layanan', hint: 'Permintaan layanan tidak gawat darurat (non-emergency).' },
+      { key: 'tanpa_kategori', label: 'Tanpa Kategori', fmt: 'int', heat: true, group: 'Jenis layanan', hint: 'Panggilan tidak valid atau belum dikategorikan.' },
+      { key: 'pct_gd', label: '% Gawat Darurat', fmt: 'pct', heat: true, group: 'Jenis layanan', hint: 'Porsi panggilan gawat darurat dari total laporan.', total: (r) => pct(sum(r, 'gawat_darurat'), sum(r, 'total')) },
+      { key: 'selesai', label: 'Selesai', fmt: 'int', heat: true, group: 'Penanganan', hint: 'Laporan yang penanganannya sudah selesai.' },
+      { key: 'ambulans', label: 'Ambulans Dikerahkan', fmt: 'int', heat: true, group: 'Penanganan', hint: 'Laporan yang tercatat memakai layanan ambulans.' },
+    ],
+    rows,
+    notes: [`Sumber: API PSC 119 (langsung), sampel ${Number(s.jumlah || 0).toLocaleString('id-ID')} laporan terbaru (${s.dari} s.d. ${s.sampai}); bukan total setahun. Total setahun per provinsi ada di tab PSC 119 per Provinsi.`],
+  }
+}
+
+export function matriksAsistensi(raw: any, level: 'provinsi' | 'kabkota'): MatriksDef | null {
+  const a = raw?.asistensi
+  const list = level === 'provinsi' ? a?.wilayah : a?.wilayah_kabkota
+  if (!list?.length) return null
+  const rank = (s: string) => ({ Tinggi: 3, Sedang: 2, Rendah: 1 } as Record<string, number>)[s] ?? 0
+  const rows: MatriksRow[] = list.map((r: any) => ({
+    id: `as-${r.kode_wilayah}`, code: level === 'provinsi' ? r.kode_wilayah : r.kd_prop, kode: r.kode_wilayah,
+    label: r.nama, sub: `Kode ${r.kode_wilayah}`,
+    poin: Number(r.poin_kapasitas_pct || 0), status: r.status_kapasitas, status_rank: rank(r.status_kapasitas),
+    irbi: r.status_risiko_irbi || r.status_risiko_irbi_2024, irbi_rank: rank(r.status_risiko_irbi || r.status_risiko_irbi_2024),
+    prioritas: /tinggi/i.test(r.status_risiko_irbi || '') && /belum|rendah/i.test(r.status_kapasitas) ? 'Perlu pendampingan' : '—',
+  }))
+  return {
+    id: level === 'provinsi' ? 'asistensi-prov' : 'asistensi-kab', provinsiRows: true,
+    title: `Matriks Asistensi Risiko per ${level === 'provinsi' ? 'Provinsi' : 'Kabupaten/Kota'} (${a.tahun})`,
+    desc: 'Poin dan status kapasitas hasil asesmen mandiri daerah dalam modul Asistensi, berdampingan dengan status Indeks Risiko Bencana Indonesia (IRBI).',
+    rowLabel: level === 'provinsi' ? 'Provinsi' : 'Kabupaten/Kota',
+    cols: [
+      { key: 'poin', label: 'Poin Kapasitas (%)', hint: 'Skor kapasitas penanggulangan krisis kesehatan hasil isian daerah (0–100). 0 berarti belum mengisi.', fmt: 'dec1', heat: true, total: (r) => { const f = r.filter((x) => x.poin > 0); return f.length ? f.reduce((s2, x) => s2 + x.poin, 0) / f.length : 0 } },
+      { key: 'status', label: 'Status Kapasitas', hint: 'Tinggi, Sedang, Rendah, atau Belum Mengisi.', fmt: 'text', total: (r) => `${r.filter((x) => !/belum/i.test(x.status)).length} mengisi` },
+      { key: 'irbi', label: 'Indeks Risiko Bencana (IRBI)', hint: 'Status Indeks Risiko Bencana Indonesia dari BNPB untuk wilayah ini.', fmt: 'text', total: (r) => `${r.filter((x) => /tinggi/i.test(x.irbi)).length} tinggi` },
+      { key: 'prioritas', label: 'Catatan', hint: 'Ditandai "Perlu pendampingan" bila risiko bencana tinggi tetapi kapasitas rendah atau belum diisi.', fmt: 'text', total: (r) => `${r.filter((x) => x.prioritas !== '—').length} wilayah` },
+    ],
+    rows,
+    notes: [`Sumber: API rekapitulasi Asistensi ${a.tahun} (langsung, ${a.fetched_at_wib || '-'}). Baris Total untuk poin = rata-rata wilayah yang sudah mengisi.`],
   }
 }
 

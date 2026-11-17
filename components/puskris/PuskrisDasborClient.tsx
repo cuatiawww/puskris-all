@@ -9,6 +9,7 @@ import { jenisOptions } from '@/lib/puskris/to-spasial'
 import { filterQuery, matchPuskrisPath } from '@/lib/puskris/pages'
 import PuskrisFilterPanel from '@/components/puskris/PuskrisFilterPanel'
 import PuskrisRingkasanView from '@/components/puskris/PuskrisRingkasanView'
+import SumberDataStrip from '@/components/puskris/SumberDataStrip'
 import PuskrisAnalisisView from '@/components/puskris/PuskrisAnalisisView'
 import PuskrisPageShell from '@/components/puskris/PuskrisPageShell'
 
@@ -38,14 +39,23 @@ export default function PuskrisDasborClient() {
   const [ready, setReady] = useState(false)
   const [panelOpen, setPanelOpen] = useState(true)
 
+  const [pending, setPending] = useState(false)
+  const [tries, setTries] = useState(0)
   useEffect(() => {
     let on = true
     fetch(`${PUBLIC_BASE_PATH}/api/puskris/ringkasan`, { cache: 'no-store' })
       .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json() })
-      .then((j) => { if (on) setRaw(j.data || j) })
-      .catch((e) => { if (on) setError(e.message || 'Gagal memuat data') })
+      .then((j) => { if (on) { setRaw(j.data || j); setPending(Boolean(j.pending)) } })
+      .catch((e) => { if (on && !raw) setError(e.message || 'Gagal memuat data') })
     return () => { on = false }
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tries])
+  // Data langsung yang belum selesai diambil server: muat ulang diam-diam (maks. 4 kali).
+  useEffect(() => {
+    if (!pending || tries >= 4) return
+    const t = setTimeout(() => setTries((n) => n + 1), 20000)
+    return () => clearTimeout(t)
+  }, [pending, tries])
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -107,6 +117,7 @@ export default function PuskrisDasborClient() {
         )
       }
     >
+      <SumberDataStrip status={raw.live_status} pending={pending && tries < 4} />
       {item.key === 'analisis'
         ? <PuskrisAnalisisView raw={raw} f={f} onApply={handleApply} />
         : <PuskrisRingkasanView raw={raw} f={f} tab={item.key} bagian={bagian} onApply={handleApply} />}

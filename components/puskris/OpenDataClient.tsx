@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { CheckCircle2, Copy, Database, ExternalLink, Loader2, RefreshCw, XCircle, AlertTriangle, Map as MapIcon } from 'lucide-react'
 import { PUBLIC_BASE_PATH } from '@/lib/public-path'
-import { OPEN_DATA_APIS, type OpenDataApi } from '@/lib/puskris/open-data'
+import { OFFICIAL_APIS, OPEN_DATA_APIS, type OpenDataApi } from '@/lib/puskris/open-data'
 import SectionHead from '@/components/puskris/SectionHead'
 import InfoHint from '@/components/puskris/InfoHint'
 
@@ -37,7 +37,7 @@ async function checkApi(api: OpenDataApi): Promise<Check> {
         ? { state: 'ok', count: Number(j[0]?.data?.length || 0), at: nowWib(), ms, message: `Grid ${j[0]?.header?.nx}×${j[0]?.header?.ny}, model ${String(j[0]?.header?.refTime || '').slice(0, 16).replace('T', ' ')} UTC` }
         : { state: 'error', ms, message: `Sumber angin tidak tersedia (HTTP ${r.status})` }
     }
-    const items = api.itemKey ? (j?.[api.itemKey] || []) : []
+    const items = api.itemKey ? (j?.[api.itemKey] || []) : null
     const count = Array.isArray(items) ? items.length : Number(j?.count || 0)
     if (!r.ok) return { state: 'error', ms, count: 0, at: j?.fetched_at, upstream: j?.upstream, message: `Semua sumber gagal (HTTP ${r.status})` }
     return { state: count ? 'ok' : 'empty', count, ms, at: j?.fetched_at || nowWib(), upstream: j?.upstream, message: count ? undefined : 'Sumber aktif, tetapi tidak ada data saat ini' }
@@ -80,7 +80,21 @@ export default function OpenDataClient() {
   }, [])
   const runAll = useCallback(() => { OPEN_DATA_APIS.forEach((a) => { void runOne(a) }) }, [runOne])
 
+  const [official, setOfficial] = useState<Record<string, { state: 'loading' | 'ok' | 'error'; count?: number; at?: string; ms?: number; message?: string }>>({})
+  const runOfficial = useCallback(async (id: string) => {
+    setOfficial((p) => ({ ...p, [id]: { ...(p[id] || {}), state: 'loading' } }))
+    const t0 = performance.now()
+    try {
+      const r = await fetch(`${PUBLIC_BASE_PATH}/api/puskris/live/${id}`, { cache: 'no-store' })
+      const j: any = await r.json().catch(() => null)
+      const ms = Math.round(performance.now() - t0)
+      setOfficial((p) => ({ ...p, [id]: j?.ok ? { state: 'ok', count: j.count, at: j.fetched_at, ms, message: id === 'panggilan' && j.ringkas ? `Tahun ${j.ringkas.tahun}: ${Number(j.ringkas.total).toLocaleString('id-ID')} panggilan, ${Number(j.ringkas.selesai || 0).toLocaleString('id-ID')} selesai ditangani` : id === 'asistensi' && j.ringkas ? `${j.ringkas.provinsi_mengisi}/${j.ringkas.provinsi} provinsi dan ${j.ringkas.kabkota_mengisi}/${j.ringkas.kabkota} kab/kota sudah mengisi kapasitas` : id === 'psc' && j.ringkas ? `${Number(j.ringkas.psc_aktif).toLocaleString('id-ID')} PSC aktif, ${Number(j.ringkas.total_ambulan).toLocaleString('id-ID')} ambulans, ${Number(j.ringkas.total_rs).toLocaleString('id-ID')} rumah sakit jejaring` : undefined } : { state: 'error', ms, message: `Memakai snapshot${j?.error ? `: ${j.error}` : ` (HTTP ${r.status})`}` } }))
+    } catch (e: any) {
+      setOfficial((p) => ({ ...p, [id]: { state: 'error', message: `Memakai snapshot: ${String(e?.message || e)}` } }))
+    }
+  }, [])
   useEffect(() => { runAll() }, [runAll])
+  useEffect(() => { OFFICIAL_APIS.forEach((a) => { void runOfficial(a.id) }) }, [runOfficial])
   useEffect(() => {
     fetch(`${PUBLIC_BASE_PATH}/api/puskris/ringkasan`, { cache: 'no-store' }).then((r) => r.json()).then((j) => setRaw(j.data || j)).catch(() => {})
   }, [])
@@ -91,13 +105,13 @@ export default function OpenDataClient() {
   const loading = vals.some((c) => c.state === 'loading')
 
   const snapshots = raw ? [
-    { nama: 'Pantauan Bencana / EOC', url: raw.eoc?.sumber_resmi, at: raw.eoc?.nasional?.fetched_at_wib || raw.eoc?.fetched_at_wib, label: raw.eoc?.label, isi: 'Kejadian terpantau & berdampak krisis, meninggal, hilang, luka berat/rawat inap, luka ringan/rawat jalan, pengungsi, penduduk terdampak, tren 5 tahun' },
-    { nama: 'Dasbor EOC (sebaran provinsi)', url: raw.eoc?.sumber_vercel, at: raw.eoc?.fetched_at_wib, label: raw.eoc?.vercel_kumulatif?.catatan, isi: 'Agregat kejadian & korban per provinsi, jenis kejadian, daftar kejadian krisis terbaru' },
-    { nama: 'PSC 119', url: raw.psc?.sumber, at: raw.psc?.fetched_at_wib, label: raw.psc?.label, isi: 'Panggilan, PSC aktif, armada ambulans, waktu respons' },
-    { nama: 'Panggilan 119 (NCC)', url: raw.ncc?.sumber, at: raw.ncc?.source?.updatedAt ? new Date(raw.ncc.source.updatedAt).toLocaleString('sv-SE', { timeZone: 'Asia/Jakarta' }).slice(0, 16) + ' WIB' : null, label: raw.ncc?.period?.label, isi: 'Panggilan masuk, terjawab, tak terjawab, tingkat keberhasilan layanan per hari' },
-    { nama: 'Tenaga Cadangan Kesehatan', url: raw.tck?.sumber, at: raw.tck?.fetched_at_wib, label: raw.tck?.label, isi: 'Individu, tim, Tim Medis Darurat (EMT) per provinsi' },
-    { nama: 'Logistik Kesehatan', url: raw.logistik?.sumber, at: raw.logistik?.fetched_at_wib, label: raw.logistik?.label, isi: 'Stok obat, sarana prasarana, alat kesehatan, bahan medis habis pakai per regional' },
-    { nama: 'Asistensi Risiko', url: raw.asistensi?.sumber_provinsi, at: raw.asistensi?.fetched_at_wib, label: raw.asistensi?.label, isi: 'Kelengkapan asesmen & status kapasitas provinsi dan kabupaten/kota' },
+    { key: 'eoc', nama: 'Pantauan Bencana / EOC', url: raw.eoc?.sumber_resmi, at: raw.eoc?.nasional?.fetched_at_wib || raw.eoc?.fetched_at_wib, label: raw.eoc?.label, isi: 'Kejadian terpantau & berdampak krisis, meninggal, hilang, luka berat/rawat inap, luka ringan/rawat jalan, pengungsi, penduduk terdampak, tren 5 tahun' },
+    { key: 'eoc', nama: 'Dasbor EOC (sebaran provinsi)', url: raw.eoc?.sumber_vercel, at: raw.eoc?.fetched_at_wib, label: raw.eoc?.vercel_kumulatif?.catatan, isi: 'Agregat kejadian & korban per provinsi, jenis kejadian, daftar kejadian krisis terbaru' },
+    { key: 'psc', nama: 'PSC 119', url: raw.psc?.sumber, at: raw.psc?.fetched_at_wib, label: raw.psc?.label, isi: 'Panggilan, PSC aktif, armada ambulans, waktu respons' },
+    { key: 'ncc', nama: 'Panggilan 119 (NCC)', url: raw.ncc?.sumber, at: raw.ncc?.source?.updatedAt ? new Date(raw.ncc.source.updatedAt).toLocaleString('sv-SE', { timeZone: 'Asia/Jakarta' }).slice(0, 16) + ' WIB' : null, label: raw.ncc?.period?.label, isi: 'Panggilan masuk, terjawab, tak terjawab, tingkat keberhasilan layanan per hari' },
+    { key: 'tck', nama: 'Tenaga Cadangan Kesehatan', url: raw.tck?.sumber, at: raw.tck?.fetched_at_wib, label: raw.tck?.label, isi: 'Individu, tim, Tim Medis Darurat (EMT) per provinsi' },
+    { key: 'logistik', nama: 'Logistik Kesehatan', url: raw.logistik?.sumber, at: raw.logistik?.fetched_at_wib, label: raw.logistik?.label, isi: 'Stok obat, sarana prasarana, alat kesehatan, bahan medis habis pakai per regional' },
+    { key: 'asistensi', nama: 'Asistensi Risiko', url: raw.asistensi?.sumber_provinsi, at: raw.asistensi?.fetched_at_wib, label: raw.asistensi?.label, isi: 'Kelengkapan asesmen & status kapasitas provinsi dan kabupaten/kota' },
   ].filter((s) => s.url) : []
 
   return (
@@ -204,8 +218,49 @@ export default function OpenDataClient() {
         </div>
       </section>
 
+      <section className="skdr-section" data-testid="open-data-resmi">
+        <SectionHead eyebrow="API resmi" title="API resmi Pusat Krisis Kesehatan (langsung)" desc="Dipanggil dari server aplikasi dengan token yang disimpan di variabel lingkungan server (tidak pernah dikirim ke browser). Hanya endpoint baca/rekap; hasil diringkas menjadi agregat dan disimpan sementara 15 menit." />
+        <div className="grid grid-cols-1 gap-3 xl:grid-cols-3">
+          {OFFICIAL_APIS.map((api) => {
+            const c = official[api.id]
+            return (
+              <article key={api.id} className="skdr-card flex flex-col p-4" data-testid={`open-data-resmi-${api.id}`}>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span className="text-lg" aria-hidden>{api.icon}</span>
+                    <h3 className="text-sm font-black text-slate-900">{api.nama}</h3>
+                  </div>
+                  <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${!c ? 'bg-slate-100 text-slate-500' : c.state === 'loading' ? 'bg-sky-50 text-sky-700' : c.state === 'ok' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-800'}`}>
+                    {!c || c.state === 'loading' ? 'Memeriksa…' : c.state === 'ok' ? 'Langsung' : 'Snapshot'}
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-slate-600">{api.deskripsi}</p>
+                <p className="mt-0.5 text-[11px] text-slate-500"><b className="text-slate-700">Dipakai di:</b> {api.dipakai}</p>
+                <dl className="mt-2 grid grid-cols-3 gap-2 text-[11px]">
+                  <div className="rounded-lg bg-slate-50 px-2 py-1.5"><dt className="text-[10px] font-bold uppercase text-slate-400">Jumlah</dt><dd className="font-black tabular-nums text-slate-800">{c?.count != null ? c.count.toLocaleString('id-ID') : '—'}</dd></div>
+                  <div className="col-span-2 rounded-lg bg-slate-50 px-2 py-1.5"><dt className="text-[10px] font-bold uppercase text-slate-400">Terakhir diambil</dt><dd className="font-bold text-slate-800">{c?.at || '—'}{c?.ms != null ? ` · ${c.ms.toLocaleString('id-ID')} ms` : ''}</dd></div>
+                </dl>
+                {c?.message ? <p className={`mt-1 text-[11px] font-semibold ${c.state === 'ok' ? 'text-slate-600' : 'text-amber-800'}`}>{c.message}</p> : null}
+                <div className="mt-2 flex items-center gap-1.5 rounded-lg border border-dashed border-slate-200 px-2 py-1.5 text-[11px]">
+                  <span className="shrink-0 font-bold text-slate-500">Endpoint aplikasi (GET)</span>
+                  <code className="min-w-0 flex-1 truncate font-mono text-slate-800">{api.proxy}</code>
+                  <button type="button" onClick={() => void runOfficial(api.id)} className="shrink-0 font-bold text-primary hover:underline">Cek</button>
+                </div>
+                <ul className="mt-2 space-y-1 text-[10.5px] text-slate-600">
+                  {api.upstream.map((u) => (
+                    <li key={u.url}><span className="font-semibold text-slate-700">{u.nama}</span> · {u.metode}<br /><code className="break-all font-mono text-[10px] text-slate-500">{u.url}</code><br /><span className="text-slate-400">Parameter: {u.parameter}</span></li>
+                  ))}
+                </ul>
+                {api.belum ? <p className="mt-2 rounded-lg bg-amber-50/60 px-2 py-1 text-[10.5px] text-slate-600">{api.belum}</p> : null}
+              </article>
+            )
+          })}
+        </div>
+        <p className="mt-2 text-[11px] text-slate-500">Tenaga Cadangan Kesehatan dan Logistik baru diberi alamat dasar tanpa daftar endpoint, jadi keduanya masih memakai snapshot.</p>
+      </section>
+
       <section className="skdr-section">
-        <SectionHead eyebrow="Sumber dasbor" title="Data agregat Pusat Krisis Kesehatan (snapshot)" desc="Angka di Ringkasan dan halaman pilar diambil dari dasbor resmi ini, disimpan sebagai agregat tanpa data individu." />
+        <SectionHead eyebrow="Sumber dasbor" title="Data agregat Pusat Krisis Kesehatan (langsung &amp; snapshot)" desc="Angka di Ringkasan dan halaman pilar diambil dari dasbor resmi ini, disimpan sebagai agregat tanpa data individu." />
         <div className="skdr-card overflow-x-auto p-0">
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500">
@@ -222,7 +277,10 @@ export default function OpenDataClient() {
                 <tr key={s.nama}>
                   <td className="px-3 py-2 font-bold text-slate-800">{s.nama}</td>
                   <td className="px-3 py-2 text-slate-600">{s.isi}{s.label ? <div className="text-[10px] text-slate-400">{s.label}</div> : null}</td>
-                  <td className="px-3 py-2 whitespace-nowrap text-slate-600">{s.at || '—'}</td>
+                  <td className="px-3 py-2 whitespace-nowrap text-slate-600">
+                    <span className={`mr-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${raw?.live_status?.[s.key]?.status === 'langsung' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-800'}`}>{raw?.live_status?.[s.key]?.status === 'langsung' ? 'langsung' : 'snapshot'}</span>
+                    {s.at || '—'}
+                  </td>
                   <td className="px-3 py-2"><a href={s.url} target="_blank" rel="noreferrer" className="inline-flex max-w-[320px] items-center gap-1 truncate text-[11px] font-semibold text-primary hover:underline" title={s.url}>{s.url.replace(/^https?:\/\//, '')}<ExternalLink className="h-3 w-3 shrink-0" /></a></td>
                 </tr>
               ))}

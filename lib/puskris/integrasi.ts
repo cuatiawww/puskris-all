@@ -24,6 +24,20 @@ export function haversineKm(a: { lat: number; lon: number }, b: { lat: number; l
 
 export const RADIUS_KM = [50, 100, 200] as const
 
+/** Daftar wilayah Asistensi (langsung dari API bila ada, selain itu snapshot contoh). */
+export function asistensiWilayah(raw: any): any[] {
+  const a = raw?.asistensi || {}
+  return (a.wilayah && a.wilayah.length ? a.wilayah : a.contoh_wilayah || []).filter((x: any) => x.level === 'provinsi')
+}
+export const asistensiLangsung = (raw: any) => Boolean(raw?.asistensi?.wilayah?.length)
+
+/** Titik fasilitas asli dari API PSC: [lat, lon, aktif(0/1), ambulans, ambulansBaik, kodeProv]. */
+export type TitikFasilitas = { psc: [number, number, number, number, number, string][]; rs: [number, number][] }
+export function titikFasilitas(raw: any): TitikFasilitas | null {
+  const psc = raw?.psc?.titik_psc
+  return Array.isArray(psc) && psc.length ? { psc, rs: raw?.psc?.titik_rs || [] } : null
+}
+
 export type RadiusCounts = {
   km: number
   psc: number
@@ -34,9 +48,13 @@ export type RadiusCounts = {
   gudang: number
   stok: number
   provinsi: string[]
+  /** jumlah rumah sakit jejaring dalam radius (hanya bila titik asli tersedia) */
+  rs?: number
+  /** true bila PSC/ambulans/RS dihitung dari koordinat fasilitas asli */
+  titikNyata?: boolean
 }
 
-export function countRadius(center: { lat: number; lon: number }, rows: ProvinceRow[], centroids: Centroids): RadiusCounts[] {
+export function countRadius(center: { lat: number; lon: number }, rows: ProvinceRow[], centroids: Centroids, titik?: TitikFasilitas | null): RadiusCounts[] {
   return RADIUS_KM.map((km) => {
     const inside = rows.filter((r) => {
       const c = centroids[r.code]
@@ -46,6 +64,22 @@ export function countRadius(center: { lat: number; lon: number }, rows: Province
     const tckIndividu = inside.reduce((a, r) => a + r.tck, 0)
     const tckTotal = rows.reduce((a, r) => a + r.tck, 0) || 1
     const timNasional = rows.reduce((a, r) => a + (r as any)._timNasional || 0, 0)
+    if (titik) {
+      const pts = titik.psc.filter((p) => haversineKm(center, { lat: p[0], lon: p[1] }) <= km)
+      return {
+        km,
+        psc: pts.filter((p) => p[2] === 1).length,
+        ambulans: pts.reduce((a, p) => a + p[3], 0),
+        ambulansBaik: pts.reduce((a, p) => a + p[4], 0),
+        tckIndividu,
+        tckTimPerkiraan: 0,
+        gudang: gudangRows.length,
+        stok: gudangRows.reduce((a, r) => a + (r.stok || 0), 0),
+        provinsi: inside.map((r) => r.nama),
+        rs: titik.rs.filter((p) => haversineKm(center, { lat: p[0], lon: p[1] }) <= km).length,
+        titikNyata: true,
+      }
+    }
     return {
       km,
       psc: inside.reduce((a, r) => a + r.pscAktif, 0),
@@ -99,8 +133,24 @@ export function buildPeringatan(opts: {
     }
   }
 
+  if (asistensiLangsung(opts.raw)) {
+    const risk = asistensiWilayah(opts.raw)
+      .filter((x: any) => /tinggi/i.test(String(x.status_risiko_irbi_2024 || x.status_risiko_irbi || '')) && /belum/i.test(String(x.status_kapasitas || '')))
+      .map((x: any) => ({ x, row: opts.rows.find((r) => r.code === String(x.kode_wilayah).padStart(2, '0')) }))
+      .sort((a: any, b: any) => (b.row?.indeksRespons || 0) - (a.row?.indeksRespons || 0))
+    for (const { x, row } of risk.slice(0, 4)) {
+      const code = String(x.kode_wilayah).padStart(2, '0')
+      out.push({
+        id: `irbi-${code}`,
+        tingkat: 'tinggi',
+        judul: `${row?.nama || x.nama} berisiko tinggi menurut Indeks Risiko Bencana Indonesia, belum mengisi kapasitas Asistensi`,
+        detail: `Indeks kesenjangan ${row ? Math.round(row.indeksRespons) : 0} dari 100. Sumber: rekapitulasi Asistensi ${opts.raw?.asistensi?.tahun || ''} (langsung).`,
+        code,
+      })
+    }
+  }
   const filled = new Set((opts.raw?.asistensi?.contoh_wilayah || []).filter((x: any) => x.level === 'provinsi').map((x: any) => String(x.kode_wilayah).padStart(2, '0')))
-  for (const irbi of IRBI_CONTOH) {
+  for (const irbi of asistensiLangsung(opts.raw) ? [] : IRBI_CONTOH) {
     if (!filled.has(irbi.code)) {
       const row = opts.rows.find((r) => r.code === irbi.code)
       out.push({
@@ -255,8 +305,9 @@ export function buildTerpadu(opts: {
   if (!row) return null
   const evs = (opts.kejadian || []).filter((k: any) => k.code === row.code)
   const ev = selectedEvent && selectedEvent.code === row.code ? selectedEvent : evs[0]
-  const asis = (raw.asistensi?.contoh_wilayah || []).find((x: any) => String(x.kode_wilayah).padStart(2, '0') === row.code)
-  const irbiContoh = IRBI_CONTOH.find((x) => x.code === row.code)
+  const asis = asistensiWilayah(raw).find((x: any) => String(x.kode_wilayah).padStart(2, '0') === row.code)
+  const asisLive = asistensiLangsung(raw)
+  const irbiContoh = asisLive ? undefined : IRBI_CONTOH.find((x) => x.code === row.code)
   const logName = row.stok != null ? row.nama : null
   return {
     judul: ev ? `${ev.jenis} · ${ev.kabupaten || row.nama}` : row.nama,
@@ -296,7 +347,7 @@ export function buildTerpadu(opts: {
       catatan: row.stok != null ? `Regional ${row.nama} termasuk 11 gudang yang dilaporkan.` : 'Provinsi ini tidak masuk 11 regional landing Logistik.',
     },
     asistensi: asis
-      ? { nama: asis.nama, poin: asis.poin_kapasitas_pct, status: asis.status_kapasitas, irbi: asis.status_risiko_irbi_2024, catatan: 'Snapshot manual 16 November 2026, sumber butuh login.' }
+      ? { nama: asis.nama, poin: asis.poin_kapasitas_pct, status: asis.status_kapasitas, irbi: asis.status_risiko_irbi_2024, catatan: asisLive ? `Rekapitulasi Asistensi ${raw.asistensi?.tahun || ''}, diambil langsung ${raw.asistensi?.fetched_at_wib || ''}.` : 'Snapshot manual 16 November 2026, sumber butuh login.' }
       : { nama: row.nama, poin: null, status: 'Belum terpetakan', irbi: irbiContoh ? `${irbiContoh.status_irbi} (${CONTOH_LABEL})` : 'Tidak tersedia', catatan: irbiContoh ? `Status Indeks Risiko Bencana Indonesia memakai ${CONTOH_LABEL}. Cakupan Asistensi per wilayah selain dua contoh tidak lengkap.` : 'Cakupan Asistensi per wilayah, selain dua contoh, tidak lengkap di snapshot.' },
   }
 }

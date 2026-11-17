@@ -35,7 +35,10 @@ import {
   matriksBencana,
   matriksKategoriPanggilan,
   matriksNcc,
+  matriksAsistensi,
   matriksPsc,
+  matriksPscHarian,
+  matriksPscProvJenis,
   matriksTck,
   snapshotEvents,
   type MatriksDef,
@@ -46,9 +49,9 @@ import { applyDerive, nf, pf } from '@/lib/puskris/derive'
 import { toDeriveFilter, type PuskrisUiFilter } from '@/lib/puskris/ui-filter'
 import type { ProvinceRow } from '@/lib/puskris/types'
 
-type GenericTab = 'tck' | 'panggilan' | 'bencana'
+type GenericTab = 'tck' | 'panggilan' | 'bencana' | 'asistensi'
 type ActiveMatrixTab = GenericTab | 'ambulans' | 'kejadian' | 'jenis' | 'kesenjangan'
-const GENERIC_TABS: GenericTab[] = ['tck', 'panggilan', 'bencana']
+const GENERIC_TABS: GenericTab[] = ['tck', 'panggilan', 'bencana', 'asistensi']
 
 interface DetailModalData {
   title: string
@@ -72,7 +75,8 @@ export default function PuskrisAnalisisView({
 }) {
   // Matriks Tab state
   const [activeTab, setActiveTab] = useState<ActiveMatrixTab>('tck')
-  const [panggilanView, setPanggilanView] = useState<'ncc' | 'psc' | 'kategori'>('ncc')
+  const [panggilanView, setPanggilanView] = useState<'ncc' | 'psc-harian' | 'psc' | 'psc-jenis' | 'kategori'>('ncc')
+  const [asisView, setAsisView] = useState<'provinsi' | 'kabkota'>('provinsi')
   const [liveEvents, setLiveEvents] = useState<{ events: KejadianTerbaru[]; live: boolean } | null>(null)
 
   // Search and Filter states for the Left Panel
@@ -313,13 +317,16 @@ export default function PuskrisAnalisisView({
     if (activeTab === 'tck') return matriksTck(raw)
     if (activeTab === 'panggilan') {
       if (panggilanView === 'psc') return matriksPsc(raw)
+      if (panggilanView === 'psc-harian') return matriksPscHarian(raw, periodeFilter) || matriksNcc(raw, periodeFilter)
+      if (panggilanView === 'psc-jenis') return matriksPscProvJenis(raw) || matriksPsc(raw)
       if (panggilanView === 'kategori') return matriksKategoriPanggilan(raw)
       return matriksNcc(raw, periodeFilter)
     }
+    if (activeTab === 'asistensi') return matriksAsistensi(raw, asisView)
     if (activeTab === 'bencana')
       return matriksBencana(raw, eventsBencana, { periode: periodeFilter, jenis: selectedDisasters, sumberLive: Boolean(liveEvents?.live) })
     return null
-  }, [activeTab, panggilanView, raw, periodeFilter, eventsBencana, selectedDisasters, liveEvents])
+  }, [activeTab, panggilanView, asisView, raw, periodeFilter, eventsBencana, selectedDisasters, liveEvents])
   const filteredGeneric = useMemo(() => {
     if (!genericDef) return []
     return genericDef.rows.filter((row) => {
@@ -340,6 +347,7 @@ export default function PuskrisAnalisisView({
       tck: (raw?.tck?.provinsi || []).length,
       panggilan: (raw?.ncc?.days || []).filter((d: any) => d.available).length,
       bencana: (raw?.regions || []).length,
+      asistensi: (raw?.asistensi?.wilayah || []).length,
     }),
     [raw],
   )
@@ -1134,7 +1142,8 @@ export default function PuskrisAnalisisView({
                 { id: 'tck', label: 'Tenaga Cadangan', Icon: Users },
                 { id: 'panggilan', label: 'Panggilan 119', Icon: PhoneCall },
                 { id: 'bencana', label: 'Kejadian Bencana', Icon: Grid3x3 },
-              ] as const).map(({ id, label, Icon }) => (
+                ...(raw?.asistensi?.wilayah?.length ? [{ id: 'asistensi', label: 'Asistensi Risiko', Icon: ShieldAlert }] : []),
+              ] as { id: GenericTab; label: string; Icon: any }[]).map(({ id, label, Icon }) => (
                 <button
                   key={id}
                   type="button"
@@ -1256,13 +1265,23 @@ export default function PuskrisAnalisisView({
                   Menampilkan {paginatedRows.length} dari total {totalRows} data yang terfilter
                   {genericDef ? ' · klik judul kolom untuk mengurutkan, klik baris untuk rincian' : ''}
                 </p>
+                {activeTab === 'asistensi' ? (
+                  <div className="mt-2 inline-flex rounded-xl bg-slate-100 p-0.5 text-[11px] font-bold">
+                    {([['provinsi', 'Provinsi'], ['kabkota', 'Kabupaten/Kota']] as const).map(([k, l]) => (
+                      <button key={k} type="button" onClick={() => { setAsisView(k); setSortField(''); setCurrentPage(1) }}
+                        className={`rounded-lg px-2.5 py-1 transition ${asisView === k ? 'bg-white text-primary shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}>{l}</button>
+                    ))}
+                  </div>
+                ) : null}
                 {activeTab === 'panggilan' ? (
                   <div className="mt-2 inline-flex rounded-xl bg-slate-100 p-0.5 text-[11px] font-bold" data-testid="panggilan-view">
                     {([
                       ['ncc', 'Harian 119 Nasional'],
+                      ...(raw?.psc?.panggilan_sampel ? [['psc-harian', 'PSC 119 Harian']] : []),
                       ['psc', 'PSC 119 per Provinsi'],
+                      ...(raw?.psc?.panggilan_sampel ? [['psc-jenis', 'Provinsi × Jenis Layanan']] : []),
                       ['kategori', 'Kategori Panggilan'],
-                    ] as const).map(([k, l]) => (
+                    ] as [typeof panggilanView, string][]).map(([k, l]) => (
                       <button
                         key={k}
                         type="button"

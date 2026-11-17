@@ -19,7 +19,7 @@ import KejadianTerbaruList from '@/components/puskris/KejadianTerbaruList'
 import InfoHint from '@/components/puskris/InfoHint'
 import { BNPB_LAYERS, INTEL_LAYER_APIS, type BnpbLayerId, type BnpbStatus, type IntelLayerId } from '@/lib/puskris/open-data'
 import { KORBAN_LABEL } from '@/lib/puskris/labels'
-import { attachTimEstimate, buildTerpadu, countRadius, CONTOH_LABEL } from '@/lib/puskris/integrasi'
+import { asistensiWilayah, attachTimEstimate, titikFasilitas, buildTerpadu, countRadius, CONTOH_LABEL } from '@/lib/puskris/integrasi'
 
 const SpasialMap = dynamic(() => import('@/components/spasial/SpasialMap'), {
   ssr: false,
@@ -94,7 +94,7 @@ export default function PuskrisPetaTerpadu({
 
   const logistikByCode = useMemo(() => Object.fromEntries((raw.logistik?.regional || []).map((r: any) => [r.code, r.total])), [raw])
   const asistensiByCode = useMemo(
-    () => Object.fromEntries((raw.asistensi?.contoh_wilayah || []).filter((r: any) => r.level === 'provinsi').map((r: any) => [String(r.kode_wilayah).padStart(2, '0'), r.poin_kapasitas_pct])),
+    () => Object.fromEntries(asistensiWilayah(raw).map((r: any) => [String(r.kode_wilayah).padStart(2, '0'), r.poin_kapasitas_pct])),
     [raw],
   )
 
@@ -132,9 +132,9 @@ export default function PuskrisPetaTerpadu({
   const radiusCenter = selectedRow && centroids[selectedRow.code] ? centroids[selectedRow.code] : (mapPack.titik[0] ? { lat: mapPack.titik[0].lat, lon: mapPack.titik[0].lon } : null)
   const radiusCounts = useMemo(() => {
     if (!radiusCenter) return null
-    const rawCounts = countRadius(radiusCenter, derived.rows, centroids)
+    const rawCounts = countRadius(radiusCenter, derived.rows, centroids, titikFasilitas(raw))
     return attachTimEstimate(rawCounts, derived.sdm?.tim ?? null, derived.sdm?.individu || 1)
-  }, [radiusCenter, derived.rows, derived.sdm, centroids])
+  }, [radiusCenter, derived.rows, derived.sdm, centroids, raw])
 
   const pickArea = (a: SpasialArea, fromMap = false) => {
     setSel(a)
@@ -304,7 +304,7 @@ export default function PuskrisPetaTerpadu({
                             aria-label="Radius dukungan"
                           />
                         </div>
-                        <p className="mt-0.5 text-[10px] text-slate-500">Lingkaran di sekitar titik/provinsi terpilih. Jarak memakai pusat provinsi ({CONTOH_LABEL} koordinat fasilitas).</p>
+                        <p className="mt-0.5 text-[10px] text-slate-500">Lingkaran di sekitar titik/provinsi terpilih. {titikFasilitas(raw) ? 'PSC, ambulans, dan rumah sakit dihitung dari koordinat fasilitas asli (API PSC 119); tenaga cadangan dan gudang masih memakai pusat provinsi.' : `Jarak memakai pusat provinsi (${CONTOH_LABEL} koordinat fasilitas).`}</p>
                       </label>
                       <label className={`block cursor-pointer rounded-xl border p-2.5 transition select-none ${layers.choro ? 'border-teal-200 bg-white shadow-2xs' : 'border-slate-100 bg-slate-50'}`}>
                         <div className="flex items-center justify-between gap-2">

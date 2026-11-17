@@ -38,16 +38,25 @@ export default function SpatialModeClient() {
   const [filterOpen, setFilterOpen] = useState(false)
   const [selectedEvent, setSelectedEvent] = useState<any | null>(null)
 
+  const [tries, setTries] = useState(0)
+  const [pending, setPending] = useState(false)
   useEffect(() => {
     let on = true
     fetch(`${PUBLIC_BASE_PATH}/api/puskris/ringkasan`, { cache: 'no-store' })
       .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json() })
-      .then((j) => { if (on) setRaw(j.data || j) })
-      .catch((e) => { if (on) setError(e.message || 'Gagal memuat data') })
-    setF(readFilterFromSearch())
-    setReady(true)
+      .then((j) => { if (on) { setRaw(j.data || j); setPending(Boolean(j.pending)) } })
+      .catch((e) => { if (on && tries === 0) setError(e.message || 'Gagal memuat data') })
+    if (tries === 0) {
+      setF(readFilterFromSearch())
+      setReady(true)
+    }
     return () => { on = false }
-  }, [])
+  }, [tries])
+  useEffect(() => {
+    if (!pending || tries >= 4) return
+    const t = setTimeout(() => setTries((n) => n + 1), 20000)
+    return () => clearTimeout(t)
+  }, [pending, tries])
 
   const onApply = useCallback((next: PuskrisUiFilter) => {
     setF(next)

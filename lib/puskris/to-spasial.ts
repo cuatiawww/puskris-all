@@ -22,7 +22,7 @@ export const CHORO_OPTIONS: { id: ChoroId; label: string; group: string; kind: '
   { id: 'panggilan', label: 'Panggilan 119', group: 'Kapasitas respons', kind: 'count' },
   { id: 'tck', label: 'Tenaga cadangan (individu)', group: 'Kesiapsiagaan', kind: 'count' },
   { id: 'logistik', label: 'Stok logistik regional', group: 'Kesiapsiagaan', kind: 'sparse' },
-  { id: 'asistensi', label: 'Cakupan Asistensi (contoh)', group: 'Kesiapsiagaan', kind: 'sparse' },
+  { id: 'asistensi', label: 'Poin Kapasitas Asistensi', group: 'Kesiapsiagaan', kind: 'sparse' },
   { id: 'kesenjangan', label: 'Indeks kesenjangan respons', group: 'Indeks', kind: 'count' },
 ]
 

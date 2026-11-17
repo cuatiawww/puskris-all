@@ -148,6 +148,12 @@ export default function PuskrisSumberSections({
   const capK = asis.kabupaten_kota?.status_kapasitas || {}
   const kelP = asis.provinsi?.kelengkapan || {}
   const kelK = asis.kabupaten_kota?.kelengkapan || {}
+  const asisLive = asis.data_source === 'langsung' && Array.isArray(asis.wilayah)
+  const asisRows: any[] = asisLive
+    ? [...(bagian === 'kabupaten-kota' ? asis.wilayah_kabkota || [] : asis.wilayah || [])]
+        .filter((r: any) => !view.selected || String(r.kd_prop || r.kode_wilayah).slice(0, 2) === view.selected.code)
+        .sort((a: any, b: any) => b.poin_kapasitas_pct - a.poin_kapasitas_pct || String(a.nama).localeCompare(String(b.nama)))
+    : asis.contoh_wilayah || []
 
   const alam = [
     { nama: 'Alam', tahun: tahun.alam || 0, oktober: okt.alam || 0, krisis: krisisY.alam || 0 },
@@ -442,10 +448,12 @@ export default function PuskrisSumberSections({
       </>
 
       {show.asis && (
-        <Card eyebrow="Asesmen risiko" title="Asistensi risiko" desc="Snapshot manual 16 November 2026 (sumber butuh login). Yang diutamakan: cakupan pengisian status kapasitas dan kelengkapan modul, di provinsi dan kab/kota.">
+        <Card eyebrow="Asesmen risiko" title="Asistensi risiko" desc={asisLive ? `Rekapitulasi Asistensi ${asis.tahun}, diambil langsung ${asis.fetched_at_wib || ''}. Poin dan status kapasitas serta status Indeks Risiko Bencana Indonesia per wilayah dari API resmi; kelengkapan per modul masih snapshot 16 November 2026.` : 'Sumber: snapshot manual 16 November 2026 (API langsung belum terhubung). Yang diutamakan: cakupan pengisian status kapasitas dan kelengkapan modul, di provinsi dan kab/kota.'}>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             <Stat label="Provinsi mengisi" value={`${asis.cakupan?.provinsi_mengisi_kapasitas ?? 5} / ${asis.cakupan?.provinsi_total ?? 38}`} sub={`${asis.cakupan?.provinsi_pct ?? 13.2}%`} />
             <Stat label="Kab/kota mengisi" value={`${asis.cakupan?.kabkot_mengisi_kapasitas ?? 77} / ${asis.cakupan?.kabkot_total ?? 514}`} sub={`${asis.cakupan?.kabkot_pct ?? 15}%`} />
+            {asisLive ? <Stat label="Provinsi risiko tinggi" value={`${asis.provinsi?.irbi?.Tinggi ?? 0} / ${asis.provinsi?.total ?? 38}`} sub="Indeks Risiko Bencana Indonesia" hint={IRBI_HINT} /> : null}
+            {asisLive ? <Stat label="Kab/kota risiko tinggi" value={`${asis.kabupaten_kota?.irbi?.Tinggi ?? 0} / ${asis.kabupaten_kota?.total ?? 514}`} sub="Indeks Risiko Bencana Indonesia" hint={IRBI_HINT} /> : null}
           </div>
           <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
             <div className="h-52">
@@ -477,18 +485,19 @@ export default function PuskrisSumberSections({
               </ResponsiveContainer>
             </div>
           </div>
-          <div className="mt-3 overflow-x-auto">
+          <div className="mt-3 max-h-80 overflow-auto">
+            {asisLive ? <p className="mb-1 text-[10px] text-slate-500">{asisRows.length} {bagian === 'kabupaten-kota' ? 'kab/kota' : 'provinsi'}{view.selected ? ` di ${view.selected.nama}` : ''}, urut poin kapasitas tertinggi. Rincian lengkap ada di Analisis &amp; Matriks.</p> : null}
             <table className="min-w-full text-xs">
-              <thead className="text-left text-[10px] font-black uppercase text-slate-500">
-                <tr>{['Wilayah', 'Poin kapasitas', 'Status', IRBI_LABEL + ' 2024'].map((h) => <th key={h} className="pb-2 pr-4">{h}{h.startsWith('Indeks Risiko') ? <InfoHint text={IRBI_HINT} /> : null}</th>)}</tr>
+              <thead className="sticky top-0 bg-white text-left text-[10px] font-black uppercase text-slate-500">
+                <tr>{['Wilayah', 'Poin kapasitas', 'Status', IRBI_LABEL].map((h) => <th key={h} className="pb-2 pr-4">{h}{h.startsWith('Indeks Risiko') ? <InfoHint text={IRBI_HINT} /> : null}</th>)}</tr>
               </thead>
               <tbody>
-                {(asis.contoh_wilayah || []).map((r: any) => (
+                {asisRows.map((r: any) => (
                   <tr key={r.kode_wilayah} className="border-t border-slate-100">
                     <td className="py-2 pr-4 font-semibold">{r.nama}</td>
                     <td className="py-2 pr-4 tabular-nums">{r.poin_kapasitas_pct}%</td>
                     <td className="py-2 pr-4">{r.status_kapasitas}</td>
-                    <td className="py-2 pr-4">{r.status_risiko_irbi_2024}</td>
+                    <td className="py-2 pr-4">{r.status_risiko_irbi_2024 || r.status_risiko_irbi}</td>
                   </tr>
                 ))}
               </tbody>

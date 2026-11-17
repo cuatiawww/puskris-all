@@ -2,7 +2,10 @@
 
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
-import { AlertTriangle, Ambulance, PhoneCall, Users } from 'lucide-react'
+import {
+  AlertTriangle, Ambulance, Building2, CheckCircle, Clock, HeartPulse,
+  Layers, Package, PhoneCall, ShieldCheck, Users, XCircle,
+} from 'lucide-react'
 import { applyDerive, nf, pf, situasiTerfilter } from '@/lib/puskris/derive'
 import { buildJenisCards } from '@/lib/puskris/to-spasial'
 import { toDeriveFilter, type PuskrisTab, type PuskrisUiFilter } from '@/lib/puskris/ui-filter'
@@ -88,6 +91,448 @@ function TrenJenisCard({ raw, f }: { raw: any; f: PuskrisUiFilter }) {
   )
 }
 
+function KpiCardItem({
+  label, value, unit, sub, icon: Icon, tone = 'primary', href, note,
+}: {
+  label: string
+  value: React.ReactNode
+  unit?: string
+  sub?: React.ReactNode
+  icon: any
+  tone?: 'primary' | 'amber' | 'emerald' | 'blue' | 'rose' | 'orange' | 'teal'
+  href?: string
+  note?: string | null
+}) {
+  const toneClasses = {
+    primary: { border: 'border-l-primary hover:border-primary/60', bg: 'bg-primary/10 text-primary' },
+    amber: { border: 'border-l-amber-500 hover:border-amber-400', bg: 'bg-amber-50 text-amber-600' },
+    emerald: { border: 'border-l-emerald-500 hover:border-emerald-400', bg: 'bg-emerald-50 text-emerald-600' },
+    blue: { border: 'border-l-blue-500 hover:border-blue-400', bg: 'bg-blue-50 text-primary' },
+    rose: { border: 'border-l-rose-500 hover:border-rose-400', bg: 'bg-rose-50 text-rose-600' },
+    orange: { border: 'border-l-orange-500 hover:border-orange-400', bg: 'bg-orange-50 text-orange-600' },
+    teal: { border: 'border-l-teal-600 hover:border-teal-500', bg: 'bg-teal-50 text-teal-700' },
+  }[tone] || { border: 'border-l-primary', bg: 'bg-primary/10 text-primary' }
+
+  const content = (
+    <div className={`skdr-card relative block overflow-hidden border-l-4 ${toneClasses.border} p-3 transition`}>
+      <div className="flex items-center justify-between text-slate-500">
+        <span className="text-[11px] font-black uppercase tracking-wider">{label}</span>
+        <div className={`rounded-lg p-1.5 ${toneClasses.bg}`}><Icon className="h-4 w-4" /></div>
+      </div>
+      <div className="mt-1.5 flex items-baseline gap-2">
+        <span className="text-2xl font-black tracking-tight text-slate-900">{value}</span>
+        {unit ? <span className="text-xs font-semibold text-slate-500">{unit}</span> : null}
+      </div>
+      {sub ? <div className="mt-2 text-xs font-bold text-slate-600">{sub}</div> : null}
+      {note ? <div className="mt-2 text-[10px] font-medium text-amber-800">{note}</div> : null}
+    </div>
+  )
+
+  if (href) {
+    return <Link href={href} className="no-underline">{content}</Link>
+  }
+  return content
+}
+
+function DynamicKpiCards({
+  tab, bagian, f, situasi, layanan, sdm, raw, derived,
+}: {
+  tab: PuskrisTab
+  bagian?: string | null
+  f: PuskrisUiFilter
+  situasi: any
+  layanan: any
+  sdm: any
+  raw: any
+  derived: any
+}) {
+  const isWilayah = Boolean(f.provinsi || f.kabupaten)
+
+  if (tab === 'krisis') {
+    return (
+      <section className="skdr-section">
+        <SectionHead eyebrow="Situasi Krisis" title="Indikator Kejadian &amp; Dampak Bencana" />
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <KpiCardItem
+            label="Kejadian Bencana"
+            value={nf(situasi.terpantau)}
+            unit="kejadian"
+            sub={`${nf(situasi.berdampak_krisis)} berdampak krisis kesehatan`}
+            icon={AlertTriangle}
+            tone="primary"
+          />
+          <KpiCardItem
+            label="Korban Jiwa"
+            value={nf((situasi.meninggal || 0) + (situasi.hilang || 0))}
+            unit="jiwa"
+            sub={`${nf(situasi.meninggal)} meninggal · ${nf(situasi.hilang)} hilang`}
+            icon={Users}
+            tone="rose"
+          />
+          <KpiCardItem
+            label="Korban Luka"
+            value={nf((situasi.luka_berat || 0) + (situasi.luka_ringan || 0))}
+            unit="orang"
+            sub={`${nf(situasi.luka_berat)} rawat inap · ${nf(situasi.luka_ringan)} rawat jalan`}
+            icon={HeartPulse}
+            tone="orange"
+          />
+          <KpiCardItem
+            label="Penduduk Terdampak"
+            value={nf((situasi.pengungsi || 0) + (situasi.terdampak || 0))}
+            unit="jiwa"
+            sub={`${nf(situasi.pengungsi)} mengungsi · ${nf(situasi.terdampak)} terdampak`}
+            icon={Users}
+            tone="blue"
+          />
+        </div>
+        <DampakPendudukStrip raw={raw} situasi={situasi} f={f} />
+      </section>
+    )
+  }
+
+  if (tab === 'layanan') {
+    if (bagian === 'panggilan-119') {
+      return (
+        <section className="skdr-section">
+          <SectionHead eyebrow="Layanan 119 · Panggilan" title="Indikator Panggilan Masuk &amp; Kedaruratan" />
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            <KpiCardItem
+              label="Total Panggilan 119"
+              value={nf(layanan.panggilan)}
+              unit="panggilan"
+              sub="Snapshot kumulatif nasional"
+              icon={PhoneCall}
+              tone="amber"
+              note={isWilayah ? NASIONAL_NOTE : null}
+            />
+            <KpiCardItem
+              label="Tingkat Terjawab (SCR)"
+              value={layanan.scr != null ? `${pf(layanan.scr, 1)}` : '—'}
+              unit={layanan.scr != null ? '%' : ''}
+              sub={NCC_LABEL.scr.replace(' (%)', '')}
+              icon={CheckCircle}
+              tone="emerald"
+            />
+            <KpiCardItem
+              label="Panggilan Kedaruratan"
+              value={nf(layanan.emergency || 0)}
+              unit="kasus"
+              sub={layanan.emergencyShare != null ? `${pf(layanan.emergencyShare, 1)} kedaruratan medik` : 'Kasus darurat 119'}
+              icon={AlertTriangle}
+              tone="rose"
+            />
+            <KpiCardItem
+              label="Waktu Respons Rata-rata"
+              value={`${layanan.waktuRespons ?? 0}`}
+              unit="menit"
+              sub="Kecepatan respons PSC 119"
+              icon={Clock}
+              tone="teal"
+            />
+          </div>
+        </section>
+      )
+    }
+
+    if (bagian === 'ambulans') {
+      return (
+        <section className="skdr-section">
+          <SectionHead eyebrow="Layanan 119 · Ambulans" title="Kapasitas &amp; Kelaikan Armada Ambulans" />
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            <KpiCardItem
+              label="Total Ambulans"
+              value={nf(layanan.ambulans)}
+              unit="unit"
+              sub="Armada penanganan &amp; transport"
+              icon={Ambulance}
+              tone="emerald"
+            />
+            <KpiCardItem
+              label="Kondisi Baik"
+              value={nf(layanan.ambulansBaik || 0)}
+              unit="unit"
+              sub={layanan.ambulans ? `${Math.round(((layanan.ambulansBaik || 0) / (layanan.ambulans || 1)) * 100)}% siap operasi` : 'Siap operasi'}
+              icon={CheckCircle}
+              tone="teal"
+            />
+            <KpiCardItem
+              label="Rusak Ringan"
+              value={nf(layanan.ambulansRusakRingan || 0)}
+              unit="unit"
+              sub="Perlu pemeliharaan berkala"
+              icon={AlertTriangle}
+              tone="amber"
+            />
+            <KpiCardItem
+              label="Rusak Berat"
+              value={nf(layanan.ambulansRusakBerat || 0)}
+              unit="unit"
+              sub="Tidak siap operasi"
+              icon={XCircle}
+              tone="rose"
+            />
+          </div>
+        </section>
+      )
+    }
+
+    return (
+      <section className="skdr-section">
+        <SectionHead eyebrow="Layanan Gawat Darurat" title="Indikator Kesiapsiagaan PSC &amp; Layanan 119" />
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <KpiCardItem
+            label="Total Panggilan 119"
+            value={nf(layanan.panggilan)}
+            unit="panggilan"
+            sub={layanan.emergencyShare != null ? `darurat ${pf(layanan.emergencyShare, 1)}` : 'Panggilan masyarakat'}
+            icon={PhoneCall}
+            tone="amber"
+            href={withQuery('/dashboard/layanan-gawat-darurat/panggilan-119', f)}
+            note={isWilayah ? NASIONAL_NOTE : null}
+          />
+          <KpiCardItem
+            label="Tingkat Layanan (SCR)"
+            value={layanan.scr != null ? `${pf(layanan.scr, 1)}` : '—'}
+            unit={layanan.scr != null ? '%' : ''}
+            sub="Keberhasilan layanan NCC 119"
+            icon={CheckCircle}
+            tone="emerald"
+          />
+          <KpiCardItem
+            label="PSC 119 Aktif"
+            value={nf(layanan.pscAktif)}
+            unit="PSC"
+            sub={`${nf(layanan.pscAktif)} dari ${nf(layanan.pscTotal)} kab/kota`}
+            icon={Building2}
+            tone="teal"
+            href={withQuery('/dashboard/layanan-gawat-darurat/psc', f)}
+          />
+          <KpiCardItem
+            label="Armada Ambulans"
+            value={nf(layanan.ambulans)}
+            unit="unit"
+            sub={`${layanan.waktuRespons ?? 0} mnt respons rata-rata`}
+            icon={Ambulance}
+            tone="blue"
+            href={withQuery('/dashboard/layanan-gawat-darurat/ambulans', f)}
+          />
+        </div>
+      </section>
+    )
+  }
+
+  if (tab === 'kesiapsiagaan') {
+    if (bagian === 'logistik') {
+      const stokTotal = derived.logistik?.total || raw.logistik?.summary?.total_stok || 0
+      const gudangCount = raw.logistik?.regional?.length || derived.logistik?.rows?.length || 10
+      return (
+        <section className="skdr-section">
+          <SectionHead eyebrow="Kesiapsiagaan · Logistik" title="Ketersediaan Stok &amp; Buffer Logistik Regional" />
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            <KpiCardItem
+              label="Total Stok Logistik"
+              value={nf(stokTotal)}
+              unit="unit"
+              sub="Buffer logistik kesehatan regional"
+              icon={Package}
+              tone="emerald"
+            />
+            <KpiCardItem
+              label="Gudang Regional"
+              value={`${gudangCount}`}
+              unit="lokasi"
+              sub="Pusat sebaran logistik se-Indonesia"
+              icon={Building2}
+              tone="teal"
+            />
+            <KpiCardItem
+              label="Kategori Logistik"
+              value={`${raw.logistik?.summary?.kategori_count || 5}`}
+              unit="kategori"
+              sub="Obat, tenda, MPASI, hygiene kit"
+              icon={Layers}
+              tone="blue"
+            />
+            <KpiCardItem
+              label="TCK Siaga Logistik"
+              value={nf(sdm.individu)}
+              unit="personel"
+              sub="Tenaga cadangan terlatih"
+              icon={Users}
+              tone="amber"
+            />
+          </div>
+        </section>
+      )
+    }
+
+    return (
+      <section className="skdr-section">
+        <SectionHead eyebrow="Kesiapsiagaan SDM &amp; Logistik" title="Tenaga Cadangan &amp; Tim Siaga Bencana" />
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <KpiCardItem
+            label="TCK Individu"
+            value={nf(sdm.individu)}
+            unit="personel"
+            sub={`${nf(sdm.nakes || 0)} Nakes · ${nf(sdm.nonNakes || 0)} Non-Nakes`}
+            icon={Users}
+            tone="blue"
+            href={withQuery('/dashboard/kesiapsiagaan/tenaga-cadangan', f)}
+          />
+          <KpiCardItem
+            label="TCK Tim"
+            value={sdm.tim != null ? nf(sdm.tim) : '—'}
+            unit={sdm.tim != null ? 'tim' : ''}
+            sub="Tim cadangan siap mobilisasi"
+            icon={ShieldCheck}
+            tone="teal"
+            note={isWilayah && sdm.tim == null ? NASIONAL_NOTE : null}
+          />
+          <KpiCardItem
+            label="Emergency Medical Team"
+            value={sdm.emt != null ? nf(sdm.emt) : '—'}
+            unit={sdm.emt != null ? 'tim' : ''}
+            sub={`${EMT_LABEL} terverifikasi`}
+            icon={HeartPulse}
+            tone="emerald"
+          />
+          <KpiCardItem
+            label="Buffer Logistik"
+            value={nf(derived.logistik?.total || 0)}
+            unit="unit"
+            sub="Stok logistik regional siap salur"
+            icon={Package}
+            tone="amber"
+            href={withQuery('/dashboard/kesiapsiagaan/logistik', f)}
+          />
+        </div>
+      </section>
+    )
+  }
+
+  if (tab === 'asistensi') {
+    const asisContoh = raw.asistensi?.contoh_wilayah || []
+    const provCount = asisContoh.filter((x: any) => x.level === 'provinsi').length || 2
+    const kabCount = asisContoh.filter((x: any) => x.level !== 'provinsi').length || 4
+    return (
+      <section className="skdr-section">
+        <SectionHead eyebrow="Asistensi Risiko Daerah" title="Cakupan Pendampingan &amp; Kesiapsiagaan Daerah" />
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <KpiCardItem
+            label="Provinsi Terdampingi"
+            value={`${provCount}`}
+            unit="provinsi"
+            sub="Asesmen risiko krisis tingkat provinsi"
+            icon={ShieldCheck}
+            tone="teal"
+            href={withQuery('/dashboard/asistensi-risiko/provinsi', f)}
+          />
+          <KpiCardItem
+            label="Kab/Kota Terdampingi"
+            value={`${kabCount}`}
+            unit="kab/kota"
+            sub="Rencana kontinjensi kab/kota"
+            icon={Building2}
+            tone="emerald"
+            href={withQuery('/dashboard/asistensi-risiko/kabupaten-kota', f)}
+          />
+          <KpiCardItem
+            label="Indeks IRBI Daerah"
+            value="Sedang / Tinggi"
+            sub="Tingkat risiko bencana wilayah"
+            icon={AlertTriangle}
+            tone="amber"
+          />
+          <KpiCardItem
+            label="Status Asesmen"
+            value="Aktif"
+            sub="Snapshot modul asistensi resmi"
+            icon={CheckCircle}
+            tone="blue"
+          />
+        </div>
+      </section>
+    )
+  }
+
+  // Default: tab === 'ringkasan' (Ringkasan Utama)
+  return (
+    <section className="skdr-section">
+      <SectionHead eyebrow="Indikator utama" title="Kinerja nasional krisis kesehatan" />
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+        <KpiCardItem
+          label="Kejadian Krisis"
+          value={nf(situasi.terpantau)}
+          unit="kejadian"
+          sub={`${nf(situasi.berdampak_krisis)} berdampak krisis`}
+          icon={AlertTriangle}
+          tone="primary"
+          href={withQuery('/dashboard/situasi-krisis', f)}
+        />
+        <KpiCardItem
+          label="Panggilan 119"
+          value={nf(layanan.panggilan)}
+          unit="panggilan"
+          sub={
+            <>
+              {layanan.scr != null ? `${NCC_LABEL.scr.replace(' (%)', '')} ${pf(layanan.scr, 1)}` : `${NCC_LABEL.scr.replace(' (%)', '')} tidak tersedia`}
+              <InfoHint text={NCC_LABEL.scrHint} label={NCC_LABEL.scrHint} />
+              {layanan.emergencyShare != null ? ` · darurat ${pf(layanan.emergencyShare, 1)}` : ''}
+            </>
+          }
+          icon={PhoneCall}
+          tone="amber"
+          href={withQuery('/dashboard/layanan-gawat-darurat/panggilan-119', f)}
+          note={isWilayah ? NASIONAL_NOTE : null}
+        />
+        <KpiCardItem
+          label="Kapasitas Respons"
+          value={
+            <div className="flex items-baseline gap-3">
+              <div>
+                <span className="text-2xl font-black text-slate-900">{nf(layanan.pscAktif)}</span>
+                <span className="block text-[10px] font-bold uppercase text-slate-500">PSC aktif</span>
+              </div>
+              <div className="h-7 w-px bg-slate-200" />
+              <div>
+                <span className="text-2xl font-black text-slate-900">{nf(layanan.ambulans)}</span>
+                <span className="block text-[10px] font-bold uppercase text-slate-500">Ambulans</span>
+              </div>
+            </div>
+          }
+          sub={<span className="font-bold text-slate-800">{nf(layanan.pscAktif)} dari {nf(layanan.pscTotal)} PSC aktif</span>}
+          icon={Ambulance}
+          tone="emerald"
+          href={withQuery('/dashboard/layanan-gawat-darurat', f)}
+        />
+        <KpiCardItem
+          label="Kesiapsiagaan SDM"
+          value={
+            <div className="flex items-baseline gap-3">
+              <div>
+                <span className="text-2xl font-black text-slate-900">{nf(sdm.individu)}</span>
+                <span className="block text-[10px] font-bold uppercase text-slate-500">Individu</span>
+              </div>
+              <div className="h-7 w-px bg-slate-200" />
+              <div>
+                <span className="text-2xl font-black text-slate-900">{sdm.tim == null ? '—' : nf(sdm.tim)}</span>
+                <span className="block text-[10px] font-bold uppercase text-slate-500">Tim</span>
+              </div>
+            </div>
+          }
+          sub={sdm.emt == null ? `${EMT_LABEL} hanya di angka nasional` : `${nf(sdm.emt)} ${EMT_LABEL}`}
+          icon={Users}
+          tone="blue"
+          href={withQuery('/dashboard/kesiapsiagaan/tenaga-cadangan', f)}
+          note={isWilayah && sdm.tim == null ? NASIONAL_NOTE : null}
+        />
+      </div>
+      <DampakPendudukStrip raw={raw} situasi={situasi} f={f} />
+    </section>
+  )
+}
+
 export default function PuskrisRingkasanView({
   raw, f, tab, bagian = null, onApply,
 }: {
@@ -129,84 +574,17 @@ export default function PuskrisRingkasanView({
 
   return (
     <div className="space-y-4" data-testid="puskris-ringkasan-view">
-      <section className="skdr-section">
-      <SectionHead eyebrow="Indikator utama" title="Kinerja nasional krisis kesehatan" />
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
-        <Link href={withQuery('/dashboard/situasi-krisis', f)} className="skdr-card relative block overflow-hidden border-l-4 border-l-primary p-3 no-underline transition hover:border-primary/60">
-          <div className="flex items-center justify-between text-slate-500">
-            <span className="text-[11px] font-black uppercase tracking-wider">Kejadian Krisis</span>
-            <div className="rounded-lg bg-primary/10 p-1.5 text-primary"><AlertTriangle className="h-4 w-4" /></div>
-          </div>
-          <div className="mt-1.5 flex items-baseline gap-2">
-            <span className="text-2xl font-black tracking-tight text-slate-900">{nf(situasi.terpantau)}</span>
-            <span className="text-xs font-semibold text-slate-500">kejadian</span>
-          </div>
-          <div className="mt-2 text-xs font-bold text-slate-600">{nf(situasi.berdampak_krisis)} berdampak krisis</div>
-        </Link>
-
-        <Link href={withQuery('/dashboard/layanan-gawat-darurat/panggilan-119', f)} className="skdr-card relative block overflow-hidden border-l-4 border-l-amber-500 p-3 no-underline transition hover:border-amber-400">
-          <div className="flex items-center justify-between text-slate-500">
-            <span className="text-[11px] font-black uppercase tracking-wider">Panggilan 119</span>
-            <div className="rounded-lg bg-amber-50 p-1.5 text-amber-600"><PhoneCall className="h-4 w-4" /></div>
-          </div>
-          <div className="mt-1.5 flex items-baseline gap-2">
-            <span className="text-2xl font-black tracking-tight text-slate-900">{nf(layanan.panggilan)}</span>
-            <span className="text-xs font-semibold text-slate-500">panggilan</span>
-          </div>
-          <div className="mt-2 text-xs font-bold text-amber-700">
-            {layanan.scr != null ? `${NCC_LABEL.scr.replace(' (%)', '')} ${pf(layanan.scr, 1)}` : `${NCC_LABEL.scr.replace(' (%)', '')} tidak tersedia`}
-            <InfoHint text={NCC_LABEL.scrHint} label={NCC_LABEL.scrHint} />
-            {layanan.emergencyShare != null ? ` · darurat ${pf(layanan.emergencyShare, 1)}` : ''}
-          </div>
-          {(f.provinsi || f.kabupaten) ? <div className="mt-2 text-[10px] font-medium text-amber-800">{NASIONAL_NOTE}</div> : null}
-        </Link>
-
-        <Link href={withQuery('/dashboard/layanan-gawat-darurat', f)} className="skdr-card relative block overflow-hidden border-l-4 border-l-emerald-500 p-3 no-underline transition hover:border-emerald-400">
-          <div className="flex items-center justify-between text-slate-500">
-            <span className="text-[11px] font-black uppercase tracking-wider">Kapasitas Respons</span>
-            <div className="rounded-lg bg-emerald-50 p-1.5 text-emerald-600"><Ambulance className="h-4 w-4" /></div>
-          </div>
-          <div className="mt-1.5 flex items-baseline gap-3">
-            <div>
-              <span className="text-2xl font-black text-slate-900">{nf(layanan.pscAktif)}</span>
-              <span className="block text-[10px] font-bold uppercase text-slate-500">PSC aktif</span>
-            </div>
-            <div className="h-7 w-px bg-slate-200" />
-            <div>
-              <span className="text-2xl font-black text-slate-900">{nf(layanan.ambulans)}</span>
-              <span className="block text-[10px] font-bold uppercase text-slate-500">Ambulans</span>
-            </div>
-          </div>
-          <div className="mt-2 text-xs text-slate-500">
-            <span className="font-bold text-slate-800">{nf(layanan.pscAktif)} dari {nf(layanan.pscTotal)}</span> PSC aktif
-          </div>
-        </Link>
-
-        <Link href={withQuery('/dashboard/kesiapsiagaan/tenaga-cadangan', f)} className="skdr-card relative block overflow-hidden border-l-4 border-l-blue-500 p-3 no-underline transition hover:border-blue-400">
-          <div className="flex items-center justify-between text-slate-500">
-            <span className="text-[11px] font-black uppercase tracking-wider">Kesiapsiagaan SDM</span>
-            <div className="rounded-lg bg-blue-50 p-1.5 text-primary"><Users className="h-4 w-4" /></div>
-          </div>
-          <div className="mt-1.5 flex items-baseline gap-3">
-            <div>
-              <span className="text-2xl font-black text-slate-900">{nf(sdm.individu)}</span>
-              <span className="block text-[10px] font-bold uppercase text-slate-500">Individu</span>
-            </div>
-            <div className="h-7 w-px bg-slate-200" />
-            <div>
-              <span className="text-2xl font-black text-slate-900">{sdm.tim == null ? '—' : nf(sdm.tim)}</span>
-              <span className="block text-[10px] font-bold uppercase text-slate-500">Tim</span>
-            </div>
-          </div>
-          <div className="mt-2 text-xs font-semibold text-slate-600">
-            {sdm.emt == null ? `${EMT_LABEL} hanya di angka nasional` : `${nf(sdm.emt)} ${EMT_LABEL}`}
-          </div>
-          {(f.provinsi || f.kabupaten) && sdm.tim == null ? <div className="mt-2 text-[10px] font-medium text-amber-800">{NASIONAL_NOTE}</div> : null}
-        </Link>
-      </div>
-      <DampakPendudukStrip raw={raw} situasi={situasi} f={f} />
+      <DynamicKpiCards
+        tab={tab}
+        bagian={bagian}
+        f={f}
+        situasi={situasi}
+        layanan={layanan}
+        sdm={sdm}
+        raw={raw}
+        derived={derived}
+      />
       <p className="mt-1.5 line-clamp-1 text-[10px] leading-relaxed text-slate-400" title={footnote}>{footnote}</p>
-      </section>
 
       <PuskrisPetaTerpadu raw={raw} f={f} onApply={onApply} derived={derived} kejadian={kejadian} selectedEvent={selectedEvent} setSelectedEvent={setSelectedEvent} />
 

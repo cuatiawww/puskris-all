@@ -152,7 +152,7 @@ export default function OpenDataClient() {
                   </div>
                 </div>
                 <dl className="mt-3 grid grid-cols-2 gap-2 text-[11px] sm:grid-cols-4">
-                  <div className="rounded-lg bg-slate-50 px-2 py-1.5"><dt className="text-[10px] font-bold uppercase text-slate-400">Jumlah data</dt><dd className="font-black tabular-nums text-slate-800">{c?.count != null ? c.count.toLocaleString('id-ID') : '—'}</dd></div>
+                  <div className="rounded-lg bg-slate-50 px-2 py-1.5"><dt className="text-[10px] font-bold uppercase text-slate-400">Jumlah data</dt><dd className="font-black tabular-nums text-slate-800">{c?.count != null ? `${c.count.toLocaleString('id-ID')}${api.id === 'bnpb' ? ` / ${api.upstream.length} lapisan aktif` : ''}` : '—'}</dd></div>
                   <div className="rounded-lg bg-slate-50 px-2 py-1.5"><dt className="text-[10px] font-bold uppercase text-slate-400">Terakhir diambil</dt><dd className="font-bold text-slate-800">{c?.at || '—'}</dd></div>
                   <div className="rounded-lg bg-slate-50 px-2 py-1.5"><dt className="flex items-center text-[10px] font-bold uppercase text-slate-400">Waktu respons<InfoHint text="Lama proxy aplikasi menjawab, termasuk mengambil data dari penyedia bila cache sudah kedaluwarsa." /></dt><dd className="font-bold tabular-nums text-slate-800">{c?.ms != null ? `${c.ms.toLocaleString('id-ID')} ms` : '—'}</dd></div>
                   <div className="rounded-lg bg-slate-50 px-2 py-1.5"><dt className="text-[10px] font-bold uppercase text-slate-400">Pembaruan</dt><dd className="font-bold text-slate-800">{api.pembaruan}</dd></div>
@@ -193,7 +193,7 @@ export default function OpenDataClient() {
                   <div className="mt-2 flex flex-wrap gap-1" aria-label="Hasil cek tiap sumber">
                     {c.upstream.map((u) => (
                       <span key={u.nama} title={u.error} className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${u.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
-                        {u.nama}: {u.ok ? `OK · ${u.count.toLocaleString('id-ID')} data` : `gagal${u.error ? ` (${u.error})` : ''}`}
+                        {u.nama}: {u.ok ? (api.id === 'bnpb' ? `OK${u.error ? ` · ${u.error}` : ''}` : `OK · ${u.count.toLocaleString('id-ID')} data`) : `gagal${u.error ? ` (${u.error})` : ''}`}
                       </span>
                     ))}
                   </div>

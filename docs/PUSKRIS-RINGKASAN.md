@@ -92,3 +92,14 @@ Singkatan NCC tidak dipakai di tampilan. Dipakai: Panggilan Masuk, Panggilan Ter
 - **Situasi Krisis:** kartu tren 5 tahun (semua kejadian vs berdampak krisis) per variabel, indikator turunan, provinsi dengan pengungsi/terdampak terbanyak.
 - **API Intelijen Eksternal:** proxy GET `/api/v1/map-layers/{hazards,fires,flights,flight-airports,wildlife,vectors}` (BMKG + GDACS + USGS cadangan, NASA FIRMS CSV publik, adsb.lol/adsb.fi, GBIF, iNaturalist). Aliran angin memakai `/wind-data`. Batas administrasi, opasitas titik, dan peta Medan (OpenTopoMap) kini berfungsi.
 - **Open Data:** `/dashboard/open-data` mendaftar semua API luar + status langsung, dan sumber snapshot dasbor.
+
+## Kejadian Terbaru, angin animasi, BNPB InaRISK (Nov 2026)
+
+- Tab dok kiri peta "Peringatan" (data contoh) diganti **Kejadian Terbaru**: daftar kejadian bencana terbaru (terbaru di atas) dari
+  Pusat Krisis dashboard-new (`/api/v1/map-layers/kejadian-terbaru`, proxy GET langsung + cadangan snapshot `eoc.dashboard_new_terbaru`),
+  snapshot EOC `kejadian_krisis_terbaru` (melengkapi meninggal/pengungsi), dan gempa BMKG + GDACS (`/api/v1/map-layers/hazards`).
+  Mengikuti filter provinsi/kab, periode, jenis. Klik item → peta diperbesar ke lokasi.
+- Aliran angin memakai `ol-wind` WindLayer (partikel bergerak) dengan opsi sama seperti ABVC.
+- 14 lapisan BNPB InaRISK (`BNPB_LAYERS` di `lib/puskris/open-data.ts`) dengan tombol masing-masing di Pengaturan Lapisan, dimuat langsung
+  dari gis.bnpb.go.id (TileArcGISRest). Cek ketersediaan: `/api/v1/map-layers/bnpb` (juga tampil di Open Data).
+- Kartu "Situasi krisis kesehatan" (9 angka) di halaman Situasi Krisis dihapus karena duplikat dengan strip "Dampak terhadap penduduk" dan KPI.

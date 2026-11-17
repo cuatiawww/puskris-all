@@ -14,6 +14,8 @@ import VectorSource from 'ol/source/Vector'
 import Cluster from 'ol/source/Cluster'
 import XYZ from 'ol/source/XYZ'
 import OSM from 'ol/source/OSM'
+import TileArcGISRest from 'ol/source/TileArcGISRest'
+import { BNPB_LAYERS, type BnpbLayerId, type BnpbStatus } from '@/lib/puskris/open-data'
 import GeoJSON from 'ol/format/GeoJSON'
 import Feature from 'ol/Feature'
 import Point from 'ol/geom/Point'
@@ -104,7 +106,7 @@ export interface MapHudCtrl {
   setShowLayers: (v: boolean) => void
 }
 
-export default function SpasialMap({ data, titik, metric, setMetric, layers, setLayers, choroCfg, sumber, selectedId, onSelectArea, onDrill, onUp, focus, rightPanel, panelOpen, setPanelOpen, height = 680, fullHeight = false, topHud, leftDock, topOffset, hideDefaultToolbar = false, intelLayers, radiusSupport, onIntelStatus, pointOpacity = 1, showBoundaries = true, windFlow = false, metricLabel }: {
+export default function SpasialMap({ data, titik, metric, setMetric, layers, setLayers, choroCfg, sumber, selectedId, onSelectArea, onDrill, onUp, focus, rightPanel, panelOpen, setPanelOpen, height = 680, fullHeight = false, topHud, leftDock, topOffset, hideDefaultToolbar = false, intelLayers, radiusSupport, onIntelStatus, pointOpacity = 1, showBoundaries = true, windFlow = false, metricLabel, bnpbLayers, onBnpbStatus }: {
   data: SpasialResp | null; titik: Titik[]; metric: Metric; setMetric: (m: Metric) => void; layers: Layers; setLayers: (l: Layers) => void
   choroCfg: ChoroConfig | null; sumber: string; selectedId: number | null; onSelectArea: (a: Area | null) => void; onDrill: (a: Area) => void; onUp: (() => void) | null
   focus: Focus | null; rightPanel: ReactNode; panelOpen: boolean; setPanelOpen: (v: boolean) => void; height?: number
@@ -116,6 +118,8 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
   pointOpacity?: number
   showBoundaries?: boolean
   windFlow?: boolean
+  bnpbLayers?: Partial<Record<BnpbLayerId, boolean>>
+  onBnpbStatus?: (id: BnpbLayerId, st: BnpbStatus) => void
   /** Label variabel arsiran (mengganti label metrik bawaan di legenda & tooltip). */
   metricLabel?: string
 }) {
@@ -155,8 +159,6 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
   const wildlifeSrc = useRef(new VectorSource())
   const vectorsSrc = useRef(new VectorSource())
   const radiusSrc = useRef(new VectorSource())
-  const windSrc = useRef(new VectorSource())
-  const windL = useRef<VectorLayer<any> | null>(null)
   const [windErr, setWindErr] = useState<string | null>(null)
 
   const flightsL = useRef<VectorLayer<any> | null>(null)
@@ -244,7 +246,6 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
     hazardsL.current = new VectorLayer({ source: hazardsSrc.current, zIndex: 12 })
     wildlifeL.current = new VectorLayer({ source: wildlifeSrc.current, zIndex: 13 })
     vectorsL.current = new VectorLayer({ source: vectorsSrc.current, zIndex: 14 })
-    windL.current = new VectorLayer({ source: windSrc.current, zIndex: 9, visible: false })
     radiusL.current = new VectorLayer({
       source: radiusSrc.current,
       zIndex: 15,
@@ -265,7 +266,6 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
         heatL.current,
         clL.current,
         ptL.current,
-        windL.current,
         flightsL.current,
         firesL.current,
         hazardsL.current,
@@ -553,41 +553,65 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
     return () => { alive = false }
   }, [intelLayers?.vectors]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── aliran angin (GFS u/v lewat /wind-data) → panah arah angin ──
+  // ── lapisan BNPB InaRISK (ArcGIS REST, langsung dari gis.bnpb.go.id seperti ABVC) ──
+  const bnpbRefs = useRef<Partial<Record<BnpbLayerId, TileLayer<any>>>>({})
+  useEffect(() => {
+    const m = map.current
+    if (!m) return
+    for (const def of BNPB_LAYERS) {
+      const on = Boolean(bnpbLayers?.[def.id])
+      let l = bnpbRefs.current[def.id]
+      if (!l && on) {
+        const src = new TileArcGISRest({ url: def.url })
+        let ok = 0, bad = 0
+        src.on('tileloadstart', () => { if (!ok && !bad) onBnpbStatus?.(def.id, { state: 'loading' }) })
+        src.on('tileloadend', () => { ok++; onBnpbStatus?.(def.id, { state: 'ok', message: `${ok} ubin dimuat${bad ? `, ${bad} gagal` : ''}` }) })
+        src.on('tileloaderror', () => { bad++; onBnpbStatus?.(def.id, ok ? { state: 'ok', message: `${ok} ubin dimuat, ${bad} gagal` } : { state: 'error', message: 'Server BNPB tidak merespons / ubin gagal dimuat' }) })
+        l = new TileLayer({ source: src, opacity: def.opacity, zIndex: 5, visible: false })
+        bnpbRefs.current[def.id] = l
+        m.addLayer(l)
+      }
+      if (l) l.setVisible(on)
+    }
+  }, [bnpbLayers]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── aliran angin animasi (ol-wind, sama seperti ABVC) dari GFS u/v lewat /wind-data ──
+  const windAnim = useRef<any>(null)
   useEffect(() => {
     let alive = true
-    const src = windSrc.current
-    windL.current?.setVisible(Boolean(windFlow))
-    if (!windFlow) { src.clear(); setWindErr(null); return }
-    getJson('/wind-data').then((res) => {
-      if (!alive) return
-      src.clear()
+    const m = map.current
+    if (!windFlow) {
+      if (windAnim.current) { try { windAnim.current.setVisible?.(false); windAnim.current.stop?.() } catch {} }
+      setWindErr(null)
+      return
+    }
+    if (windAnim.current) {
+      try { windAnim.current.setVisible?.(true); windAnim.current.start?.() } catch {}
+      return
+    }
+    Promise.all([getJson('/wind-data'), import('ol-wind')]).then(([res, mod]) => {
+      if (!alive || !m) return
       const [u, v] = Array.isArray(res) ? res : []
-      const h = u?.header
-      if (!h || !Array.isArray(u?.data) || !Array.isArray(v?.data)) throw new Error('format GFS tidak dikenali')
-      const nx = h.nx, ny = h.ny, lo1 = h.lo1, la1 = h.la1, dx = h.dx, dy = h.dy
-      const step = 3
-      for (let lat = 6; lat >= -11; lat -= step) {
-        for (let lon = 95; lon <= 141; lon += step) {
-          const ix = Math.round((((lon - lo1) % 360) + 360) % 360 / dx)
-          const iy = Math.round((la1 - lat) / dy)
-          if (ix < 0 || ix >= nx || iy < 0 || iy >= ny) continue
-          const uu = Number(u.data[iy * nx + ix]), vv = Number(v.data[iy * nx + ix])
-          if (!Number.isFinite(uu) || !Number.isFinite(vv)) continue
-          const spd = Math.sqrt(uu * uu + vv * vv)
-          const kmh = Math.round(spd * 3.6)
-          const color = spd > 10 ? '#b91c1c' : spd > 6 ? '#ea580c' : spd > 3 ? '#0d9488' : '#64748b'
-          src.addFeature(intelFeat(lon, lat, {
-            intelType: 'wind', badgeText: 'ANGIN', badgeColor: '#0d9488', source: 'GFS NOAA (via Opsroom SIPONGI)',
-            title: `${kmh} km/jam`, subtitle: `Koordinat ${lat}, ${lon}`,
-            details: [{ label: 'Kecepatan', value: `${spd.toFixed(1)} m/detik (${kmh} km/jam)` }, { label: 'Arah ke', value: `${Math.round((Math.atan2(uu, vv) * 180) / Math.PI + 360) % 360}°` }, { label: 'Waktu model', value: String(h.refTime || '–').replace('T', ' ').slice(0, 16) + ' UTC' }],
-          }, new Style({ text: new Text({ text: '➜', font: `bold ${Math.round(10 + Math.min(6, spd * 0.6))}px sans-serif`, rotation: -Math.atan2(vv, uu), fill: new Fill({ color }), stroke: new Stroke({ color: 'rgba(255,255,255,0.85)', width: 2 }) }) })))
-        }
-      }
+      if (!u?.header || !Array.isArray(u?.data) || !Array.isArray(v?.data)) throw new Error('format GFS tidak dikenali')
+      const WindLayer = (mod as any).WindLayer
+      const layer = new WindLayer(res, {
+        zIndex: 18,
+        windOptions: {
+          velocityScale: 0.015, paths: 350, lineWidth: 2.2, generateParticleOption: true,
+          colorScale: ['rgb(15,60,140)', 'rgb(70,150,145)', 'rgb(85,160,115)', 'rgb(215,195,60)', 'rgb(210,125,35)', 'rgb(185,35,10)', 'rgb(155,8,12)'],
+        },
+        fieldOptions: { wrapX: true },
+      })
+      m.addLayer(layer)
+      windAnim.current = layer
       setWindErr(null)
     }).catch((e) => { if (alive) setWindErr(`Data angin tidak tersedia (${String(e?.message || e).slice(0, 80)})`) })
     return () => { alive = false }
   }, [windFlow]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => () => {
+    const l = windAnim.current
+    if (l) { try { map.current?.removeLayer(l); l.dispose?.() } catch {} ; windAnim.current = null }
+  }, [])
 
   // ── opasitas titik & garis batas wilayah ──
   useEffect(() => { clL.current?.setOpacity(pointOpacity); ptL.current?.setOpacity(pointOpacity) }, [pointOpacity])

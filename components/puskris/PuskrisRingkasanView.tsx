@@ -22,19 +22,19 @@ import {
 import { toDeriveFilter, type PuskrisTab, type PuskrisUiFilter } from '@/lib/puskris/ui-filter'
 import PuskrisSumberSections from '@/components/puskris/PuskrisSumberSections'
 import KejadianTerpaduCard from '@/components/puskris/KejadianTerpaduCard'
-import PeringatanList from '@/components/puskris/PeringatanList'
+import KejadianTerbaruList from '@/components/puskris/KejadianTerbaruList'
 import LiniMasaRespons from '@/components/puskris/LiniMasaRespons'
 import SectionHead from '@/components/puskris/SectionHead'
 import InfoHint from '@/components/puskris/InfoHint'
 import DampakPendudukStrip from '@/components/puskris/DampakPendudukStrip'
-import { INTEL_LAYER_APIS, type IntelLayerId } from '@/lib/puskris/open-data'
+import { BNPB_LAYERS, INTEL_LAYER_APIS, type BnpbLayerId, type BnpbStatus, type IntelLayerId } from '@/lib/puskris/open-data'
 import type { IntelLayerStatus } from '@/components/spasial/SpasialMap'
 import { EMT_LABEL, KORBAN_LABEL, NCC_LABEL } from '@/lib/puskris/labels'
 import { NASIONAL_NOTE, withQuery } from '@/lib/puskris/pages'
 import { jenisTrendSeries } from '@/lib/puskris/analisis-charts'
 import { Area, AreaChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import {
-  attachTimEstimate, buildPeringatan, buildTerpadu, buildTimeline, countRadius, CONTOH_LABEL,
+  attachTimEstimate, buildTerpadu, buildTimeline, countRadius, CONTOH_LABEL,
 } from '@/lib/puskris/integrasi'
 
 const SpasialMap = dynamic(() => import('@/components/spasial/SpasialMap'), {
@@ -198,7 +198,11 @@ export default function PuskrisRingkasanView({
   const [intelLayers, setIntelLayers] = useState({ flights: false, fires: false, hazards: false, wildlife: false, vectors: false })
   const [intelStatus, setIntelStatus] = useState<Partial<Record<IntelLayerId, IntelLayerStatus>>>({})
   const onIntelStatus = useCallback((id: IntelLayerId, st: IntelLayerStatus) => setIntelStatus((prev) => ({ ...prev, [id]: st })), [])
-  const [dockTab, setDockTab] = useState<'analisa' | 'peringatan' | 'terpadu'>('analisa')
+  const [bnpbLayers, setBnpbLayers] = useState<Partial<Record<BnpbLayerId, boolean>>>({})
+  const [bnpbStatus, setBnpbStatus] = useState<Partial<Record<BnpbLayerId, BnpbStatus>>>({})
+  const onBnpbStatus = useCallback((id: BnpbLayerId, st: BnpbStatus) => setBnpbStatus((prev) => (prev[id]?.state === st.state && prev[id]?.message === st.message ? prev : { ...prev, [id]: st })), [])
+  const [dockTab, setDockTab] = useState<'analisa' | 'terbaru' | 'terpadu'>('analisa')
+  const [terbaruCount, setTerbaruCount] = useState<number | null>(null)
   const [radiusOn, setRadiusOn] = useState(true)
   const [selectedEvent, setSelectedEvent] = useState<any | null>(null)
   const baseChoro = useChoroConfig()
@@ -249,7 +253,6 @@ export default function PuskrisRingkasanView({
   ].filter(Boolean).join(' ')
 
 
-  const peringatan = useMemo(() => buildPeringatan({ raw, rows: derived.rows, nccDays: derived.ncc?.days || [], kejadian }), [raw, derived.rows, derived.ncc, kejadian])
   const timeline = useMemo(() => buildTimeline({ kejadian, nccDays: derived.ncc?.days || [], selectedTanggal: selectedEvent?.tanggal || null }), [kejadian, derived.ncc, selectedEvent])
   const selectedRow = sel ? derived.rows.find((r) => r.code === sel.code) || null : (f.provinsi ? derived.selected : null)
   const terpadu = useMemo(() => buildTerpadu({
@@ -417,7 +420,7 @@ export default function PuskrisRingkasanView({
           {leftDockOpen ? (
             <div className="z-20 flex h-full w-[340px] shrink-0 flex-col overflow-hidden border-r border-slate-200 bg-white transition-all duration-300" data-testid="peta-left-dock">
               <div className="flex shrink-0 gap-1 border-b border-slate-200 bg-white px-2 py-1.5">
-                {([['analisa', 'Analisa'], ['peringatan', `Peringatan${peringatan.length ? ` (${peringatan.length})` : ''}`], ['terpadu', 'Terpadu']] as const).map(([k, l]) => (
+                {([['analisa', 'Analisa'], ['terbaru', `Kejadian Terbaru${terbaruCount ? ` (${terbaruCount})` : ''}`], ['terpadu', 'Terpadu']] as const).map(([k, l]) => (
                   <button key={k} type="button" onClick={() => setDockTab(k)}
                     className={`flex-1 rounded-lg px-1.5 py-1 text-[10px] font-bold ${dockTab === k ? 'bg-teal-50 text-teal-800' : 'text-slate-500 hover:bg-slate-100'}`}>
                     {l}
@@ -445,15 +448,13 @@ export default function PuskrisRingkasanView({
                     metricLabel={choroLabel}
                   />
                 )}
-                {dockTab === 'peringatan' && (
-                  <PeringatanList items={peringatan} onPick={(code) => {
-                    const row = derived.rows.find((r) => r.code === code)
-                    if (row) {
-                      const area = data.wilayah.find((a) => a.code === row.code)
-                      if (area) pickArea(area)
-                    }
-                  }} />
-                )}
+                <div className={dockTab === 'terbaru' ? 'h-full' : 'hidden'}>
+                  <KejadianTerbaruList f={f as any} eocSnapshot={(raw as any).eoc?.kejadian_krisis_terbaru} onCount={setTerbaruCount}
+                    onPick={(k) => {
+                      if (k.lat != null && k.lon != null) setFocus({ lat: k.lat, lon: k.lon, zoom: 9, nonce: Date.now() })
+                      else if (k.provCode && centroids[k.provCode]) setFocus({ lat: centroids[k.provCode].lat, lon: centroids[k.provCode].lon, zoom: 6.5, nonce: Date.now() })
+                    }} />
+                </div>
                 {dockTab === 'terpadu' && (
                   <div className="p-3">
                     {terpadu ? (
@@ -506,6 +507,8 @@ export default function PuskrisRingkasanView({
               pointOpacity={pointOpacity}
               showBoundaries={adminBoundaries}
               windFlow={windFlow}
+              bnpbLayers={bnpbLayers}
+              onBnpbStatus={onBnpbStatus}
               metricLabel={choroLabel}
               radiusSupport={{ enabled: radiusOn && Boolean(radiusCenter), center: radiusCenter, ringsKm: [50, 100, 200] }}
             />
@@ -612,6 +615,39 @@ export default function PuskrisRingkasanView({
                     </div>
                   </div>
 
+                  <div data-testid="bnpb-group">
+                    <div className="mb-2 flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-slate-400">
+                      <span className="inline-flex items-center gap-1">BNPB InaRISK
+                        <InfoHint text="InaRISK: peta indeks bahaya bencana resmi dari BNPB (Badan Nasional Penanggulangan Bencana). Diambil langsung dari gis.bnpb.go.id; server BNPB kadang lambat." label="Penjelasan BNPB InaRISK" />
+                      </span>
+                      <span className="normal-case tracking-normal text-slate-400">{Object.values(bnpbLayers).filter(Boolean).length} aktif</span>
+                    </div>
+                    <div className="space-y-1">
+                      {BNPB_LAYERS.map((l) => {
+                        const on = Boolean(bnpbLayers[l.id])
+                        const st = bnpbStatus[l.id]
+                        return (
+                          <div key={l.id} data-testid={`bnpb-${l.id}`}
+                            className={`cursor-pointer rounded-lg border px-2 py-1.5 transition ${on ? 'border-teal-300 bg-teal-50/50' : 'border-slate-100 bg-white hover:border-slate-200'}`}
+                            onClick={() => setBnpbLayers((p) => ({ ...p, [l.id]: !p[l.id] }))}>
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="min-w-0">
+                                <span className="block truncate text-[11px] font-bold text-slate-800">{l.nama}</span>
+                                <span className="block truncate text-[9.5px] leading-tight text-slate-500">{l.deskripsi}</span>
+                              </span>
+                              <Switch on={on} color="#00705a" label={l.nama} onChange={() => setBnpbLayers((p) => ({ ...p, [l.id]: !p[l.id] }))} />
+                            </div>
+                            {on && st ? (
+                              <p className={`mt-0.5 text-[9.5px] font-bold ${st.state === 'error' ? 'text-red-700' : st.state === 'loading' ? 'text-slate-500' : 'text-emerald-700'}`} data-testid={`bnpb-status-${l.id}`}>
+                                {st.state === 'loading' ? 'Memuat ubin dari gis.bnpb.go.id…' : st.message}
+                              </p>
+                            ) : null}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+
                   <div>
                     <div className="mb-2 text-[10px] font-black uppercase tracking-wider text-slate-400">Konteks Spasial &amp; Risiko</div>
                     <div className="space-y-1.5">
@@ -630,7 +666,7 @@ export default function PuskrisRingkasanView({
                           <Wind className="mt-0.5 h-4 w-4 shrink-0 text-slate-600" />
                           <div>
                             <span className="block text-xs font-bold text-slate-800">Aliran Angin</span>
-                            <span className="block text-[10px] leading-tight text-slate-500">Panah arah &amp; kecepatan angin model GFS (NOAA) sebagai konteks sebaran asap/abu</span>
+                            <span className="block text-[10px] leading-tight text-slate-500">Partikel angin bergerak (animasi) model GFS (NOAA, Badan Kelautan dan Atmosfer AS) sebagai konteks sebaran asap/abu</span>
                           </div>
                         </div>
                         <input type="checkbox" checked={windFlow} onChange={(e) => setWindFlow(e.target.checked)} className="mt-1 h-4 w-4 cursor-pointer rounded border-slate-300 text-teal-700 focus:ring-teal-500" />
@@ -662,6 +698,8 @@ export default function PuskrisRingkasanView({
                       setPointOpacity(1)
                       setAdminBoundaries(true)
                       setWindFlow(false)
+                      setBnpbLayers({})
+                      setBnpbStatus({})
                       setIntelLayers({ flights: false, fires: false, hazards: false, wildlife: false, vectors: false })
                       setIntelStatus({})
                       setRadiusOn(true)

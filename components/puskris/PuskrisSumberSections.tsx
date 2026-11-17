@@ -136,7 +136,6 @@ export default function PuskrisSumberSections({
   filteredWilayah?: boolean
 }) {
   const psc = raw.psc?.summary || {}
-  const eoc = view.situasi
   const resmi = raw.eoc?.nasional || {}
   const tahun = resmi.kejadian_tahun || {}
   const okt = resmi.kejadian_oktober || {}
@@ -190,19 +189,6 @@ export default function PuskrisSumberSections({
     <div className="space-y-6">
       {show.krisis && (
         <>
-          <Card eyebrow="Pantauan bencana" title="Situasi krisis kesehatan" desc="Angka resmi dashboard Pantauan Bencana / EOC. Filter 7/30 hari tidak memecah KPI tahunan ini.">
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-9">
-              <Stat label="Terpantau" value={nf(eoc.terpantau)} />
-              <Stat label="Berdampak krisis" value={nf(eoc.berdampak_krisis)} />
-              <Stat label="Meninggal" value={nf(eoc.meninggal)} />
-              <Stat label="Hilang" value={eoc.hilang == null ? '—' : nf(eoc.hilang)} sub={eoc.hilang == null ? NASIONAL_NOTE : undefined} hint={KORBAN_LABEL.hilangHint} />
-              <Stat label="Luka berat / rawat inap" value={eoc.luka_berat == null ? '—' : nf(eoc.luka_berat)} sub={eoc.luka_berat == null ? NASIONAL_NOTE : 'LB/RI'} hint={KORBAN_LABEL.lbHint} />
-              <Stat label="Luka ringan / rawat jalan" value={eoc.luka_ringan == null ? '—' : nf(eoc.luka_ringan)} sub={eoc.luka_ringan == null ? NASIONAL_NOTE : 'LR/RJ'} hint={KORBAN_LABEL.lrHint} />
-              <Stat label="Pengungsi" value={nf(eoc.pengungsi)} hint={KORBAN_LABEL.pengungsiHint} />
-              <Stat label="Penduduk terdampak" value={nf(eoc.terdampak)} hint={KORBAN_LABEL.terdampakHint} />
-              <Stat label="Korban total" value={eoc.korban_total == null ? '—' : nf(eoc.korban_total)} sub={eoc.korban_total == null ? NASIONAL_NOTE : undefined} hint={KORBAN_LABEL.totalHint} />
-            </div>
-          </Card>
           {tab === 'krisis' ? <DampakPenduduk raw={raw} rows={view.rows || []} filtered={filteredWilayah} /> : null}
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             <Card eyebrow="Pantauan bencana" title="Jenis kejadian: Alam, Non alam, Sosial" desc="Pembagian resmi tahun 2026, dibanding Oktober, dan yang berdampak krisis.">

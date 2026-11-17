@@ -14,7 +14,7 @@ export type UpstreamApi = {
 }
 
 export type OpenDataApi = {
-  id: IntelLayerId | 'wind' | 'basemap'
+  id: IntelLayerId | 'wind' | 'basemap' | 'bnpb'
   nama: string
   icon: string
   kategori: 'Lapisan peta intelijen' | 'Konteks peta'
@@ -26,6 +26,31 @@ export type OpenDataApi = {
   upstream: UpstreamApi[]
   pembaruan: string
 }
+
+
+const BNPB = 'https://gis.bnpb.go.id/server/rest/services'
+export type BnpbLayerId =
+  | 'flood' | 'flashFlood' | 'earthquake' | 'tsunami' | 'landslide' | 'forestFire' | 'volcano'
+  | 'drought' | 'extremeWeather' | 'wave' | 'liquefaction' | 'multi' | 'hillshade' | 'population'
+
+/** Lapisan peta BNPB InaRISK (ArcGIS REST, publik). Enam pertama mengikuti ABVC; sisanya layanan bahaya lain di direktori inarisk. */
+export const BNPB_LAYERS: { id: BnpbLayerId; nama: string; deskripsi: string; url: string; opacity: number; kelompok: 'Bahaya' | 'Konteks' }[] = [
+  { id: 'flood', nama: 'Bahaya Banjir', deskripsi: 'Indeks bahaya banjir InaRISK', url: `${BNPB}/inarisk/layer_bahaya_banjir/ImageServer`, opacity: 0.58, kelompok: 'Bahaya' },
+  { id: 'flashFlood', nama: 'Bahaya Banjir Bandang', deskripsi: 'Indeks bahaya banjir bandang', url: `${BNPB}/inarisk/layer_bahaya_banjir_bandang/ImageServer`, opacity: 0.58, kelompok: 'Bahaya' },
+  { id: 'earthquake', nama: 'Bahaya Gempa Bumi', deskripsi: 'Indeks bahaya guncangan gempa bumi', url: `${BNPB}/inarisk/layer_bahaya_gempabumi/ImageServer`, opacity: 0.65, kelompok: 'Bahaya' },
+  { id: 'tsunami', nama: 'Bahaya Tsunami', deskripsi: 'Indeks bahaya tsunami di pesisir', url: `${BNPB}/inarisk/layer_bahaya_tsunami/ImageServer`, opacity: 0.6, kelompok: 'Bahaya' },
+  { id: 'landslide', nama: 'Bahaya Tanah Longsor', deskripsi: 'Indeks bahaya tanah longsor', url: `${BNPB}/inarisk/layer_bahaya_tanah_longsor/ImageServer`, opacity: 0.58, kelompok: 'Bahaya' },
+  { id: 'forestFire', nama: 'Bahaya Karhutla', deskripsi: 'Kebakaran hutan dan lahan (karhutla)', url: `${BNPB}/inarisk/layer_bahaya_kebakaran_hutan_dan_lahan/ImageServer`, opacity: 0.58, kelompok: 'Bahaya' },
+  { id: 'volcano', nama: 'Bahaya Letusan Gunung Api', deskripsi: 'Kawasan bahaya letusan gunung api', url: `${BNPB}/inarisk/layer_bahaya_letusan_gunungapi/ImageServer`, opacity: 0.6, kelompok: 'Bahaya' },
+  { id: 'drought', nama: 'Bahaya Kekeringan', deskripsi: 'Indeks bahaya kekeringan', url: `${BNPB}/inarisk/layer_bahaya_kekeringan/ImageServer`, opacity: 0.55, kelompok: 'Bahaya' },
+  { id: 'extremeWeather', nama: 'Bahaya Cuaca Ekstrem', deskripsi: 'Indeks bahaya cuaca ekstrem (angin kencang, hujan lebat)', url: `${BNPB}/inarisk/layer_bahaya_cuaca_ekstrim/ImageServer`, opacity: 0.55, kelompok: 'Bahaya' },
+  { id: 'wave', nama: 'Bahaya Gelombang Ekstrem & Abrasi', deskripsi: 'Gelombang tinggi dan pengikisan pantai (abrasi)', url: `${BNPB}/inarisk/layer_bahaya_gelombang_ekstrim_dan_abrasi/ImageServer`, opacity: 0.6, kelompok: 'Bahaya' },
+  { id: 'liquefaction', nama: 'Bahaya Likuefaksi', deskripsi: 'Tanah kehilangan kekuatan saat gempa (likuefaksi)', url: `${BNPB}/inarisk/layer_bahaya_likuefaksi/ImageServer`, opacity: 0.6, kelompok: 'Bahaya' },
+  { id: 'multi', nama: 'Multi Bahaya', deskripsi: 'Gabungan indeks beberapa jenis bahaya', url: `${BNPB}/inarisk/layer_bahaya_multi/ImageServer`, opacity: 0.55, kelompok: 'Bahaya' },
+  { id: 'hillshade', nama: 'Hillshade (Relief)', deskripsi: 'Bayangan relief permukaan bumi', url: `${BNPB}/Basemap/Indo_Hillshade/MapServer`, opacity: 0.45, kelompok: 'Konteks' },
+  { id: 'population', nama: 'Kepadatan Penduduk 2020', deskripsi: 'Kepadatan penduduk per wilayah (2020)', url: `${BNPB}/Basemap/Kepadatan_penduduk_2020/MapServer`, opacity: 0.5, kelompok: 'Konteks' },
+]
+export type BnpbStatus = { state: 'loading' | 'ok' | 'error'; message?: string }
 
 export const OPEN_DATA_APIS: OpenDataApi[] = [
   {
@@ -108,13 +133,25 @@ export const OPEN_DATA_APIS: OpenDataApi[] = [
     nama: 'Aliran Angin (GFS)',
     icon: '🌬️',
     kategori: 'Konteks peta',
-    deskripsi: 'Komponen angin u/v model cuaca global GFS (NOAA), ditampilkan sebagai panah arah angin.',
+    deskripsi: 'Komponen angin u/v model cuaca global GFS (NOAA), ditampilkan sebagai partikel angin bergerak (animasi, seperti ABVC).',
     manfaat: 'Membaca arah sebaran asap kebakaran atau abu vulkanik.',
     proxy: '/wind-data',
     upstream: [
       { nama: 'GFS wind u/v (via Opsroom)', penyedia: 'NOAA NCEP · Opsroom SIPONGI', url: 'https://opsroom.sipongidata.my.id/api/gfs', format: 'JSON (GRIB2)' },
     ],
     pembaruan: 'Tiap 5 menit (cache proxy)',
+  },
+  {
+    id: 'bnpb',
+    nama: 'BNPB InaRISK (peta bahaya)',
+    icon: '🛰️',
+    kategori: 'Konteks peta',
+    deskripsi: 'Peta indeks bahaya InaRISK dari BNPB (Badan Nasional Penanggulangan Bencana): banjir, banjir bandang, gempa, tsunami, longsor, karhutla, gunung api, kekeringan, cuaca ekstrem, gelombang/abrasi, likuefaksi, multi bahaya, serta hillshade dan kepadatan penduduk. Tiap lapisan punya tombol aktif/nonaktif di Pengaturan Lapisan.',
+    manfaat: 'Membandingkan lokasi kejadian krisis kesehatan dengan zona bahaya resmi.',
+    proxy: '/api/v1/map-layers/bnpb',
+    itemKey: 'layers',
+    upstream: BNPB_LAYERS.map((l) => ({ nama: l.nama, penyedia: 'BNPB InaRISK', url: l.url, format: l.url.endsWith('ImageServer') ? 'ArcGIS ImageServer (PNG)' : 'ArcGIS MapServer (PNG)' })),
+    pembaruan: 'Mengikuti BNPB (data statis, dicek tiap 1 jam)',
   },
   {
     id: 'basemap',

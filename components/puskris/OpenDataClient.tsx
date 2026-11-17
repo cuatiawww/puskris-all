@@ -105,14 +105,13 @@ export default function OpenDataClient() {
   const loading = vals.some((c) => c.state === 'loading')
 
   const snapshots = raw ? [
-    { key: 'eoc', nama: 'Pantauan Bencana / EOC', url: raw.eoc?.sumber_api || raw.eoc?.sumber_resmi, at: raw.eoc?.nasional?.fetched_at_wib || raw.eoc?.fetched_at_wib, label: raw.eoc?.data_source === 'langsung' ? `Langsung dari API resmi (${raw.eoc?.label})` : raw.eoc?.label, isi: 'Kejadian terpantau & berdampak krisis, meninggal, hilang, luka berat/rawat inap, luka ringan/rawat jalan, pengungsi, penduduk terdampak, tren 5 tahun' },
-    { key: 'eoc', nama: 'Dasbor EOC (sebaran provinsi)', url: raw.eoc?.sumber_vercel, at: raw.eoc?.fetched_at_wib, label: raw.eoc?.vercel_kumulatif?.catatan, isi: 'Agregat kejadian & korban per provinsi, jenis kejadian, daftar kejadian krisis terbaru' },
-    { key: 'psc', nama: 'PSC 119', url: raw.psc?.sumber, at: raw.psc?.fetched_at_wib, label: raw.psc?.label, isi: 'Panggilan, PSC aktif, armada ambulans, waktu respons' },
+    { key: 'eoc', nama: 'Pantauan Bencana / EOC', url: raw.eoc?.sumber_api || raw.eoc?.sumber_resmi, at: raw.eoc?.nasional?.fetched_at_wib || raw.eoc?.fetched_at_wib, label: raw.eoc?.data_source === 'langsung' ? `Langsung dari API resmi (${raw.eoc?.label})` : (raw.eoc?.error || 'Data belum tersedia dari API'), isi: 'Kejadian terpantau & berdampak krisis, meninggal, hilang, luka berat/rawat inap, luka ringan/rawat jalan, pengungsi, penduduk terdampak, tren 5 tahun' },
+    { key: 'psc', nama: 'PSC 119', url: raw.psc?.sumber, at: raw.psc?.fetched_at_wib, label: raw.psc?.data_source === 'langsung' ? raw.psc?.label : (raw.psc?.error || 'Data belum tersedia dari API'), isi: 'Panggilan, PSC aktif, armada ambulans, waktu respons' },
     { key: 'ncc', nama: 'Panggilan 119 (NCC)', url: raw.ncc?.sumber || `${PUBLIC_BASE_PATH}/api/puskris/live/ncc`, at: raw.ncc?.fetched_at_wib, label: raw.ncc?.data_source === 'langsung' ? `Langsung dari API NCC (${raw.ncc.period?.label || ''})` : (raw.ncc?.error || 'Data belum tersedia dari API NCC'), isi: 'Panggilan masuk, terjawab, tak terjawab, tingkat keberhasilan layanan per hari' },
-    { key: 'tck', nama: 'Tenaga Cadangan Kesehatan', url: raw.tck?.sumber, at: raw.tck?.fetched_at_wib, label: raw.tck?.data_source === 'langsung' ? `Langsung dari API resmi (${raw.tck?.label})` : raw.tck?.label, isi: 'Individu, tim, Tim Medis Darurat (EMT) per provinsi' },
-    { key: 'logistik', nama: 'Logistik Kesehatan', url: raw.logistik?.sumber_api || raw.logistik?.sumber, at: raw.logistik?.fetched_at_wib, label: raw.logistik?.data_source === 'langsung' ? `Langsung dari API resmi (${raw.logistik?.label})` : raw.logistik?.label, isi: 'Stok obat, sarana prasarana, alat kesehatan, bahan medis habis pakai per regional' },
-    { key: 'asistensi', nama: 'Asistensi Risiko', url: raw.asistensi?.sumber_provinsi, at: raw.asistensi?.fetched_at_wib, label: raw.asistensi?.label, isi: 'Kelengkapan asesmen & status kapasitas provinsi dan kabupaten/kota' },
-  ].filter((s) => s.url) : []
+    { key: 'tck', nama: 'Tenaga Cadangan Kesehatan', url: raw.tck?.sumber, at: raw.tck?.fetched_at_wib, label: raw.tck?.data_source === 'langsung' ? `Langsung dari API resmi (${raw.tck?.label})` : (raw.tck?.error || 'Data belum tersedia dari API'), isi: 'Individu, tim, Tim Medis Darurat (EMT) per provinsi' },
+    { key: 'logistik', nama: 'Logistik Kesehatan', url: raw.logistik?.sumber_api || raw.logistik?.sumber, at: raw.logistik?.fetched_at_wib, label: raw.logistik?.data_source === 'langsung' ? `Langsung dari API resmi (${raw.logistik?.label})` : (raw.logistik?.error || 'Data belum tersedia dari API'), isi: 'Stok obat, sarana prasarana, alat kesehatan, bahan medis habis pakai per regional' },
+    { key: 'asistensi', nama: 'Asistensi Risiko', url: raw.asistensi?.sumber_provinsi, at: raw.asistensi?.fetched_at_wib, label: raw.asistensi?.data_source === 'langsung' ? raw.asistensi?.label : (raw.asistensi?.error || 'Data belum tersedia dari API'), isi: 'Kelengkapan asesmen & status kapasitas provinsi dan kabupaten/kota' },
+  ].map((s) => ({ ...s, url: s.url || `${PUBLIC_BASE_PATH}/api/puskris/live/${s.key}` })) : []
 
   return (
     <div className="w-full space-y-6 px-4 py-6 sm:px-6 lg:px-8" data-testid="open-data-root">
@@ -231,7 +230,7 @@ export default function OpenDataClient() {
                     <h3 className="text-sm font-black text-slate-900">{api.nama}</h3>
                   </div>
                   <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${!c ? 'bg-slate-100 text-slate-500' : c.state === 'loading' ? 'bg-sky-50 text-sky-700' : c.state === 'ok' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-800'}`}>
-                    {!c || c.state === 'loading' ? 'Memeriksa…' : c.state === 'ok' ? 'Langsung' : 'Snapshot'}
+                    {!c || c.state === 'loading' ? 'Memeriksa…' : c.state === 'ok' ? 'Langsung' : 'Belum tersedia'}
                   </span>
                 </div>
                 <p className="mt-1 text-xs text-slate-600">{api.deskripsi}</p>
@@ -276,7 +275,7 @@ export default function OpenDataClient() {
       </section>
 
       <section className="skdr-section">
-        <SectionHead eyebrow="Sumber dasbor" title="Data agregat Pusat Krisis Kesehatan (langsung &amp; snapshot)" desc="Angka di Ringkasan dan halaman pilar diambil dari dasbor resmi ini, disimpan sebagai agregat tanpa data individu." />
+        <SectionHead eyebrow="Sumber dasbor" title="Data agregat Pusat Krisis Kesehatan (langsung dari API)" desc="Angka di Ringkasan dan halaman pilar diambil langsung dari API resmi ini dan diringkas di server menjadi agregat tanpa data individu. Sumber yang gagal ditampilkan sebagai &quot;belum tersedia&quot;, tanpa angka cadangan." />
         <div className="skdr-card overflow-x-auto p-0">
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500">
@@ -294,7 +293,7 @@ export default function OpenDataClient() {
                   <td className="px-3 py-2 font-bold text-slate-800">{s.nama}</td>
                   <td className="px-3 py-2 text-slate-600">{s.isi}{s.label ? <div className="text-[10px] text-slate-400">{s.label}</div> : null}</td>
                   <td className="px-3 py-2 whitespace-nowrap text-slate-600">
-                    <span className={`mr-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${raw?.live_status?.[s.key]?.status === 'langsung' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-800'}`}>{raw?.live_status?.[s.key]?.status === 'langsung' ? 'langsung' : 'snapshot'}</span>
+                    <span className={`mr-1 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${raw?.live_status?.[s.key]?.status === 'langsung' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>{raw?.live_status?.[s.key]?.status === 'langsung' ? 'langsung' : 'belum tersedia'}</span>
                     {s.at || '—'}
                   </td>
                   <td className="px-3 py-2"><a href={s.url} target="_blank" rel="noreferrer" className="inline-flex max-w-[320px] items-center gap-1 truncate text-[11px] font-semibold text-primary hover:underline" title={s.url}>{s.url.replace(/^https?:\/\//, '')}<ExternalLink className="h-3 w-3 shrink-0" /></a></td>

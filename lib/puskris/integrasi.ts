@@ -3,14 +3,6 @@ import type { ProvinceRow } from './types'
 import type { Centroids } from './to-spasial'
 import type { PuskrisUiFilter } from './ui-filter'
 
-export const CONTOH_LABEL = 'data contoh'
-
-/** Provinsi IRBI tinggi yang belum mengisi Asistensi — data contoh untuk uji peringatan. */
-export const IRBI_CONTOH: { code: string; nama: string; status_irbi: string }[] = [
-  { code: '53', nama: 'Nusa Tenggara Timur', status_irbi: 'TINGGI' },
-  { code: '71', nama: 'Sulawesi Utara', status_irbi: 'TINGGI' },
-  { code: '91', nama: 'Papua', status_irbi: 'TINGGI' },
-]
 
 export function haversineKm(a: { lat: number; lon: number }, b: { lat: number; lon: number }) {
   const R = 6371
@@ -24,10 +16,9 @@ export function haversineKm(a: { lat: number; lon: number }, b: { lat: number; l
 
 export const RADIUS_KM = [50, 100, 200] as const
 
-/** Daftar wilayah Asistensi (langsung dari API bila ada, selain itu snapshot contoh). */
+/** Daftar wilayah Asistensi dari API (kosong bila API belum tersedia). */
 export function asistensiWilayah(raw: any): any[] {
-  const a = raw?.asistensi || {}
-  return (a.wilayah && a.wilayah.length ? a.wilayah : a.contoh_wilayah || []).filter((x: any) => x.level === 'provinsi')
+  return (raw?.asistensi?.wilayah || []).filter((x: any) => x.level === 'provinsi')
 }
 export const asistensiLangsung = (raw: any) => Boolean(raw?.asistensi?.wilayah?.length)
 
@@ -101,12 +92,9 @@ export function attachTimEstimate(counts: RadiusCounts[], timNasional: number | 
     const by = new Map(rows.map((r) => [r.nama, r]))
     return counts.map((c) => ({ ...c, tckTimPerkiraan: c.provinsi.reduce((a, n) => a + (by.get(n)?.tckTim || 0) + (by.get(n)?.tckEmt || 0), 0), timNyata: true }))
   }
-  const den = individuNasional || 1
-  const tim = timNasional || 0
-  return counts.map((c) => ({
-    ...c,
-    tckTimPerkiraan: Math.round((c.tckIndividu / den) * tim),
-  }))
+  // Tanpa tim per provinsi dari API: tidak diperkirakan (dibiarkan 0 dan ditandai bukan data nyata).
+  void timNasional; void individuNasional
+  return counts.map((c) => ({ ...c, tckTimPerkiraan: 0, timNyata: false }))
 }
 
 export type Peringatan = {
@@ -155,21 +143,6 @@ export function buildPeringatan(opts: {
       })
     }
   }
-  const filled = new Set((opts.raw?.asistensi?.contoh_wilayah || []).filter((x: any) => x.level === 'provinsi').map((x: any) => String(x.kode_wilayah).padStart(2, '0')))
-  for (const irbi of asistensiLangsung(opts.raw) ? [] : IRBI_CONTOH) {
-    if (!filled.has(irbi.code)) {
-      const row = opts.rows.find((r) => r.code === irbi.code)
-      out.push({
-        id: `irbi-${irbi.code}`,
-        tingkat: 'tinggi',
-        judul: `${irbi.nama} berisiko tinggi menurut Indeks Risiko Bencana Indonesia (${irbi.status_irbi}), belum mengisi Asistensi`,
-        detail: `Indeks kesenjangan ${row ? Math.round(row.indeksRespons) : 0} dari 100. Status Indeks Risiko Bencana Indonesia dan kekosongan isian ini memakai ${CONTOH_LABEL} (nilai indeks per provinsi belum lengkap di snapshot).`,
-        contoh: true,
-        code: irbi.code,
-      })
-    }
-  }
-
   const withStock = opts.rows.filter((r) => r.stok != null)
   if (withStock.length) {
     const stocks = withStock.map((r) => r.stok || 0).sort((a, b) => a - b)
@@ -182,7 +155,7 @@ export function buildPeringatan(opts: {
           id: `stok-${r.code}`,
           tingkat: 'sedang',
           judul: `Stok regional ${r.nama} menipis`,
-          detail: `Stok ${nf(r.stok)} berada di kuartil bawah 11 regional, sementara wilayah ini punya ${ev || r.krisis} jejak kejadian pada filter aktif.`,
+          detail: `Stok ${nf(r.stok)} berada di kuartil bawah stok regional (API Logistik), sementara wilayah ini punya ${ev || r.krisis} jejak kejadian pada filter aktif.`,
           code: r.code,
         })
       }
@@ -234,37 +207,24 @@ export type TimelinePoint = {
   pengungsi: number
 }
 
-/** Lini masa 14 hari. Panggilan 119 memakai NCC bila tanggalnya ada; sisanya data contoh. */
+/** Lini masa 15 hari. Panggilan 119 dari API NCC bila tanggalnya ada; selain itu kosong (null). */
 export function buildTimeline(opts: {
   kejadian: any[]
   nccDays: { date: string; cof: number; available?: boolean }[]
   selectedTanggal?: string | null
 }): { rows: TimelinePoint[]; catatan: string } {
   const events = [...(opts.kejadian || [])].sort((a, b) => String(a.tanggal).localeCompare(String(b.tanggal)))
-  const anchor = opts.selectedTanggal || events[events.length - 1]?.tanggal || (opts.nccDays.find((d) => d.available !== false)?.date) || '2026-11-10'
+  const anchor = opts.selectedTanggal || events[events.length - 1]?.tanggal || (opts.nccDays.filter((d) => d.available !== false).slice(-1)[0]?.date) || new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 10)
   const start = addDays(anchor, -7)
   const days: TimelinePoint[] = []
   const nccBy = Object.fromEntries((opts.nccDays || []).map((d) => [d.date, d]))
-  const avgNcc = (() => {
-    const xs = (opts.nccDays || []).filter((d) => d.available !== false && d.cof > 0).map((d) => d.cof)
-    return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 1200
-  })()
   for (let i = 0; i < 15; i++) {
     const tanggal = addDays(start, i)
     const evs = events.filter((e) => e.tanggal === tanggal)
     const ncc = nccBy[tanggal]
     const hasReal = ncc && ncc.available !== false
-    const dayOffset = i - 7
-    // puncak contoh sehari setelah kejadian, bila NCC tidak tersedia
-    const evHere = evs.length > 0
-    const evPrev = events.some((e) => e.tanggal === addDays(tanggal, -1))
-    let panggilan: number | null = hasReal ? ncc.cof : null
-    let panggilanContoh = false
-    if (panggilan == null) {
-      panggilanContoh = true
-      const base = Math.round(avgNcc * 0.35)
-      panggilan = evHere ? Math.round(base * 1.8) : evPrev ? Math.round(base * 2.2) : Math.round(base * (0.85 + 0.1 * Math.cos(dayOffset)))
-    }
+    const panggilan: number | null = hasReal ? ncc.cof : null
+    const panggilanContoh = false
     days.push({
       tanggal,
       label: tanggal.slice(5),
@@ -275,10 +235,8 @@ export function buildTimeline(opts: {
       pengungsi: evs.reduce((a, e) => a + Number(e.pengungsi || 0), 0),
     })
   }
-  const anyContoh = days.some((d) => d.panggilanContoh)
-  const catatan = anyContoh
-    ? `Panggilan 119 pada tanggal yang tidak ada di NCC memakai ${CONTOH_LABEL} (lonjakan mengikuti waktu kejadian). Korban dan pengungsi diambil dari kejadian terfilter.`
-    : 'Panggilan 119 memakai data NCC pada periode yang tersedia. Korban dan pengungsi diambil dari kejadian terfilter.'
+  const kosong = days.filter((d) => d.panggilan == null).length
+  const catatan = `Panggilan 119 dari API NCC${kosong ? ` (${kosong} hari tanpa data NCC dibiarkan kosong)` : ''}. Kejadian, korban, dan pengungsi dari API EOC sesuai filter.`
   return { rows: days, catatan }
 }
 
@@ -313,7 +271,6 @@ export function buildTerpadu(opts: {
   const ev = selectedEvent && selectedEvent.code === row.code ? selectedEvent : evs[0]
   const asis = asistensiWilayah(raw).find((x: any) => String(x.kode_wilayah).padStart(2, '0') === row.code)
   const asisLive = asistensiLangsung(raw)
-  const irbiContoh = asisLive ? undefined : IRBI_CONTOH.find((x) => x.code === row.code)
   const logName = row.stok != null ? row.nama : null
   return {
     judul: ev ? `${ev.jenis} · ${ev.kabupaten || row.nama}` : row.nama,
@@ -354,10 +311,10 @@ export function buildTerpadu(opts: {
       stok: row.stok,
       catatan: raw?.logistik?.data_source === 'langsung'
         ? (() => { const g = (raw.logistik.regional || []).find((r: any) => r.id === raw.logistik.provinsi_regional?.[row.code]); return g ? `Dilayani gudang regional ${g.nama} (API Logistik langsung, ${raw.logistik.fetched_at_wib || ''}); ${g.kedaluwarsa || 0} barang kedaluwarsa.` : 'Belum terpetakan ke gudang regional.' })()
-        : row.stok != null ? `Regional ${row.nama} termasuk 11 gudang yang dilaporkan.` : 'Provinsi ini tidak masuk 11 regional landing Logistik.',
+        : 'Data logistik belum tersedia dari API Logistik.',
     },
     asistensi: asis
-      ? { nama: asis.nama, poin: asis.poin_kapasitas_pct, status: asis.status_kapasitas, irbi: asis.status_risiko_irbi_2024, catatan: asisLive ? `Rekapitulasi Asistensi ${raw.asistensi?.tahun || ''}, diambil langsung ${raw.asistensi?.fetched_at_wib || ''}.` : 'Snapshot manual 16 November 2026, sumber butuh login.' }
-      : { nama: row.nama, poin: null, status: 'Belum terpetakan', irbi: irbiContoh ? `${irbiContoh.status_irbi} (${CONTOH_LABEL})` : 'Tidak tersedia', catatan: irbiContoh ? `Status Indeks Risiko Bencana Indonesia memakai ${CONTOH_LABEL}. Cakupan Asistensi per wilayah selain dua contoh tidak lengkap.` : 'Cakupan Asistensi per wilayah, selain dua contoh, tidak lengkap di snapshot.' },
+      ? { nama: asis.nama, poin: asis.poin_kapasitas_pct, status: asis.status_kapasitas, irbi: asis.status_risiko_irbi_2024, catatan: `Rekapitulasi Asistensi ${raw.asistensi?.tahun || ''}, diambil langsung ${raw.asistensi?.fetched_at_wib || ''}.` }
+      : { nama: row.nama, poin: null, status: asisLive ? 'Belum terpetakan' : 'Data belum tersedia', irbi: 'Tidak tersedia', catatan: asisLive ? 'Wilayah ini belum ada di rekapitulasi API Asistensi.' : 'Data Asistensi belum tersedia dari API.' },
   }
 }

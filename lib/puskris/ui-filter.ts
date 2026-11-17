@@ -10,7 +10,7 @@ export type PuskrisUiFilter = PuskrisFilter & {
 
 export const defaultUiFilter = (): PuskrisUiFilter => ({
   periode: 'tahun',
-  tahun: 2026,
+  tahun: Number(new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 4)),
   bulan: null,
   provinsi: null,
   kabupaten: null,

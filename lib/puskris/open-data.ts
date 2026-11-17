@@ -223,7 +223,7 @@ export const OFFICIAL_APIS: OfficialApi[] = [
       { nama: 'Data kejadian (data_krisis)', metode: 'GET (Basic Auth server)', url: 'https://pusatkrisis.kemkes.go.id/eoc/api/detail_bencana/data_krisis.php', parameter: 'tanggal1, tanggal2 (YYYY-MM-DD), prov (kode 2 digit), kab (kode 4 digit); diambil per bulan' },
       { nama: 'Master jenis bencana', metode: 'GET (Basic Auth server)', url: 'https://pusatkrisis.kemkes.go.id/eoc/api/detail_bencana/jenis_bencana.php', parameter: '–' },
     ],
-    belum: 'bencana_detail.php (deskripsi teks bebas, pos pengungsi, faskes terdampak) tidak dipakai. Tren 2022–2025 masih snapshot dashboard-new. Array "perkembangan" dibuang karena membengkak dan tidak konsisten.',
+    belum: 'bencana_detail.php (deskripsi teks bebas, pos pengungsi, faskes terdampak) tidak dipakai. Tren 5 tahun dihitung dari data_krisis per tahun (cache 6 jam). Array "perkembangan" dibuang karena membengkak dan tidak konsisten.',
   },
   {
     id: 'asistensi',
@@ -236,7 +236,7 @@ export const OFFICIAL_APIS: OfficialApi[] = [
       { nama: 'Rekapitulasi provinsi', metode: 'POST (kueri baca)', url: 'https://pusatkrisis.kemkes.go.id/asistensi/web_api/v1/rekapitulasi-asistensi-provinsi', parameter: 'tahun, kd_prop (kosong = semua), id_user_level' },
       { nama: 'Rekapitulasi kabupaten/kota', metode: 'POST (kueri baca)', url: 'https://pusatkrisis.kemkes.go.id/asistensi/web_api/v1/rekapitulasi-asistensi-kabupaten', parameter: 'tahun, kd_kab (kosong = semua), id_user_level' },
     ],
-    belum: 'Kelengkapan per modul (Profil Umum, Kerentanan, Ancaman, Kapasitas) belum ada di API, masih snapshot. Endpoint SSO (auth-prov, auth-kab) sengaja tidak dipanggil.',
+    belum: 'Kelengkapan per modul (Profil Umum, Kerentanan, Ancaman, Kapasitas) belum ada di API, jadi ditampilkan "Data belum tersedia dari API". Endpoint SSO (auth-prov, auth-kab) sengaja tidak dipanggil.',
   },
   {
     id: 'psc',

@@ -3,9 +3,9 @@ import { loadPuskrisData } from '@/lib/puskris/load-data'
 import { getLiveOverlay, mergeLive } from '@/lib/server/puskris-live'
 
 /**
- * Data dasbor: snapshot data/puskris-data.json yang ditimpa data langsung dari API resmi
- * (Asistensi, PSC 119) bila token server tersedia. Filter diterapkan di klien.
- * Bila API lambat/gagal, bagian itu tetap memakai snapshot dan ditandai di live_status.
+ * Data dasbor: seluruhnya dari API resmi (EOC, PSC 119, Asistensi, TCK, Logistik, NCC Apps Script).
+ * Filter diterapkan di klien. Bila API lambat/gagal, bagian itu kosong dan ditandai
+ * "tidak_tersedia" di live_status (tidak ada snapshot atau angka cadangan).
  */
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60

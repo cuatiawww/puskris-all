@@ -1,7 +1,7 @@
 # Kebutuhan Data & API Dasbor Pusat Krisis Kesehatan
 
 Disusun 17 November 2026, diperbarui 17 November 2026 siang setelah API resmi Pusat Krisis Kesehatan (Asistensi dan PSC 119) dihubungkan. Dokumen ini adalah daftar kebutuhan untuk backend ke depan.
-Dasar angka dasbor adalah berkas `data/puskris-data.json` (snapshot 16–17 Nov 2026), disajikan oleh `GET /api/puskris/ringkasan`. **Asistensi Risiko, PSC 119 (master PSC, ambulans, SDM, RS) dan hitungan Panggilan PSC 119 kini ditimpa data langsung** dari API resmi (lihat 3.3). Bila token belum diatur atau API gagal, dasbor otomatis memakai snapshot dan menampilkan tanda "snapshot" di strip Sumber Data.
+Semua angka dasbor diambil **langsung dari API resmi** (EOC, PSC 119, Panggilan PSC, Tenaga Cadangan, Logistik, Asistensi, NCC lewat Apps Script) dan diringkas di server menjadi agregat oleh `GET /api/puskris/ringkasan`. **Tidak ada snapshot, data contoh, atau angka cadangan.** Bila token belum diatur atau API gagal, bagian terkait menampilkan "Data belum tersedia dari API" (NCC tanpa `PUSKRIS_NCC_URL`: "belum terhubung") dan strip Sumber Data menandai sumber itu "belum terhubung". Satu-satunya berkas statis adalah `data/regions.json` (daftar 38 provinsi: kode + nama, referensi geografi, bukan metrik).
 Filter (provinsi, kab/kota, periode, jenis) dihitung **di browser**. Lapisan peta (`/api/v1/map-layers/*`, `/wind-data`) juga **langsung** (proxy GET ke API publik).
 
 Prinsip: hanya data **agregat** (tanpa data individu), semua endpoint **GET / baca-saja**.
@@ -124,7 +124,7 @@ Daftar API luar + cek status langsung. Butuh endpoint status ringkas: `GET /api/
 
 | Route | Isi | Sifat |
 |---|---|---|
-| `GET /api/puskris/ringkasan` | snapshot `data/puskris-data.json` + timpaan langsung Asistensi/PSC/Panggilan, plus `live_status` per sumber dan `pending` | campuran: langsung (cache 15 menit) + snapshot |
+| `GET /api/puskris/ringkasan` | agregat langsung semua sumber (kerangka kosong + `data/regions.json`), plus `live_status` per sumber dan `pending` | campuran: langsung (cache 15 menit) + snapshot |
 | `GET /api/puskris/live/{asistensi\|psc\|panggilan}` | ringkasan agregat satu sumber resmi (`ok, status, fetched_at, count, ringkas, data`) | langsung, cache 15 menit; 502 bila jatuh ke snapshot |
 | `GET /api/v1/map-layers/kejadian-terbaru` | kejadian terbaru Pusat Krisis (crisisIncidents + incidents) | langsung dari HTML dashboard-new, cache 30 menit, cadangan snapshot |
 | `GET /api/v1/map-layers/hazards` | gempa BMKG (terkini + dirasakan), GDACS Indonesia, cadangan USGS | langsung, cache 10–15 menit |

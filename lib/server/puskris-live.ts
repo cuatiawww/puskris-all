@@ -3,14 +3,14 @@
  * - Token hanya dibaca dari env server PUSKRIS_TTOKEN (tidak pernah dikirim ke klien / dicatat).
  * - Hanya endpoint baca/rekap; tidak memanggil SSO atau endpoint ubah data.
  * - Keluaran SELALU agregat: field pribadi (nama, telepon, alamat, keluhan, plat nomor) dibuang di sini.
- * - Cache memori 15 menit + stale-while-revalidate; bila gagal, pemanggil memakai snapshot.
+ * - Cache memori 15 menit + stale-while-revalidate; bila gagal, bagian itu kosong (status tidak_tersedia), tanpa angka cadangan.
  */
 
 import KAB_CENTROID from '../../data/kab-centroid.json'
 import { fetchTckInti, fetchTckRelawan, TCK_PROFESI } from './tck-live'
 import { fetchLogistik, LOG_KATEGORI } from './logistik-live'
 import { nccEnabled, fetchNcc, type NccRingkasan } from './ncc-live'
-import { eocEnabled, fetchEocTahun, rekapEoc, type EocEvent } from './eoc-live'
+import { eocEnabled, fetchEocTahun, fetchEocTren, rekapEoc, type EocEvent } from './eoc-live'
 
 const TTL_MS = 15 * 60_000
 const PSC_BASE = (process.env.PUSKRIS_PSC_BASE || 'https://psc.kemkes.go.id').replace(/\/$/, '')
@@ -71,9 +71,9 @@ const store: Map<string, Entry> = ((globalThis as any).__puskrisLive ||= new Map
 
 export type LiveResult<T> = { value?: T; at?: number; fresh: boolean; pending: boolean; error?: string; job?: Promise<any> }
 
-export async function swr<T>(key: string, fn: () => Promise<T>, budgetMs: number): Promise<LiveResult<T>> {
+export async function swr<T>(key: string, fn: () => Promise<T>, budgetMs: number, ttlMs = TTL_MS): Promise<LiveResult<T>> {
   const e = store.get(key) || { at: 0 }
-  if (e.value !== undefined && Date.now() - e.at < TTL_MS) return { value: e.value, at: e.at, fresh: true, pending: false }
+  if (e.value !== undefined && Date.now() - e.at < ttlMs) return { value: e.value, at: e.at, fresh: true, pending: false }
   if (!e.pending) {
     e.pending = fn()
       .then((v) => {
@@ -434,14 +434,14 @@ export async function fetchPanggilan(tahun: number, provCodes: string[], sampleP
   }
 }
 
-// ------------------------------------------------------------------ gabung ke snapshot
+// ------------------------------------------------------------------ gabung ke kerangka data
 /** Hanya data EOC (untuk rute peta kejadian terbaru & proksi EOC). */
 export async function getEocLive(budgetMs = 5000) {
   if (!eocEnabled()) return { fresh: false, pending: false, error: 'Akun API EOC (PUSKRIS_EOC_AUTH) belum diatur di server' } as LiveResult<Awaited<ReturnType<typeof fetchEocTahun>>>
   return swr('eoc:tahun', () => fetchEocTahun(), budgetMs)
 }
 
-export type LiveStatus = { status: 'langsung' | 'snapshot' | 'tidak_tersedia'; at?: string; error?: string; pending?: boolean }
+export type LiveStatus = { status: 'langsung' | 'tidak_tersedia'; at?: string; error?: string; pending?: boolean }
 
 export async function getLiveOverlay(provCodes: string[], budgetMs = 7000) {
   const nccOff = { fresh: false, pending: false, error: 'API NCC belum terhubung (PUSKRIS_NCC_URL belum diatur di server)' } as LiveResult<NccRingkasan>
@@ -449,15 +449,17 @@ export async function getLiveOverlay(provCodes: string[], budgetMs = 7000) {
   const tahun = Number(new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 4))
   const eocOff = { fresh: false, pending: false, error: 'Akun API EOC (PUSKRIS_EOC_AUTH) belum diatur di server' } as LiveResult<Awaited<ReturnType<typeof fetchEocTahun>>>
   const eocP = eocEnabled() ? swr('eoc:tahun', () => fetchEocTahun(), budgetMs) : Promise.resolve(eocOff)
+  // tren tahun-tahun sebelumnya: data historis jarang berubah, cache 6 jam
+  const trenP = eocEnabled() ? swr(`eoc:tren:${tahun}`, () => fetchEocTren(4), Math.min(budgetMs, 1500), 6 * 3600_000) : Promise.resolve(eocOff as LiveResult<any>)
   const st = (r: LiveResult<any>): LiveStatus =>
-    r.value !== undefined ? { status: 'langsung', at: r.at ? wibStamp(r.at) : undefined, pending: r.pending || undefined } : { status: 'snapshot', error: r.error || (r.pending ? 'Sedang mengambil data langsung' : undefined), pending: r.pending || undefined }
+    r.value !== undefined ? { status: 'langsung', at: r.at ? wibStamp(r.at) : undefined, pending: r.pending || undefined } : { status: 'tidak_tersedia', error: r.error || (r.pending ? 'Sedang mengambil data dari API' : 'Data belum tersedia dari API'), pending: r.pending || undefined }
   if (!liveEnabled()) {
-    const stOff: LiveStatus = { status: 'snapshot', error: 'Token API belum diatur di server' }
+    const stOff: LiveStatus = { status: 'tidak_tersedia', error: 'Token API (PUSKRIS_TTOKEN) belum diatur di server' }
     const e = { fresh: false, pending: false } as LiveResult<any>
-    const [eoc, ncc] = await Promise.all([eocP, nccP])
-    return { asistensi: e, psc: e, panggilan: e, tck: e, tckRelawan: e, logistik: e as LiveResult<Awaited<ReturnType<typeof fetchLogistik>>>, eoc, ncc, status: { asistensi: stOff, psc: stOff, panggilan: stOff, tck: stOff, tckRelawan: stOff, logistik: stOff, eoc: st(eoc), ncc: st(ncc) }, jobs: [eoc.job, ncc.job].filter(Boolean) as Promise<any>[] }
+    const [eoc, ncc, eocTren] = await Promise.all([eocP, nccP, trenP])
+    return { asistensi: e, psc: e, panggilan: e, tck: e, tckRelawan: e, logistik: e as LiveResult<Awaited<ReturnType<typeof fetchLogistik>>>, eoc, ncc, eocTren: eocTren as LiveResult<Awaited<ReturnType<typeof fetchEocTren>>>, status: { asistensi: stOff, psc: stOff, panggilan: stOff, tck: stOff, tckRelawan: stOff, logistik: stOff, eoc: st(eoc), ncc: st(ncc) }, jobs: [eoc.job, ncc.job, eocTren.job].filter(Boolean) as Promise<any>[] }
   }
-  const [asistensi, psc, panggilan, tck, tckRelawan, eoc, logistik, ncc] = await Promise.all([
+  const [asistensi, psc, panggilan, tck, tckRelawan, eoc, logistik, ncc, eocTren] = await Promise.all([
     swr(`asistensi:${tahun}`, () => fetchAsistensi(tahun), budgetMs),
     swr('psc:master', () => fetchPscMaster(), budgetMs),
     swr(`psc:panggilan:${tahun}`, () => fetchPanggilan(tahun, provCodes), budgetMs),
@@ -466,11 +468,12 @@ export async function getLiveOverlay(provCodes: string[], budgetMs = 7000) {
     eocP,
     swr('logistik:stok', () => fetchLogistik(), budgetMs),
     nccP,
+    trenP as Promise<LiveResult<Awaited<ReturnType<typeof fetchEocTren>>>>,
   ])
   return {
-    asistensi, psc, panggilan, tck, tckRelawan, eoc, logistik, ncc,
+    asistensi, psc, panggilan, tck, tckRelawan, eoc, logistik, ncc, eocTren,
     status: { asistensi: st(asistensi), psc: st(psc), panggilan: st(panggilan), tck: st(tck), tckRelawan: st(tckRelawan), eoc: st(eoc), logistik: st(logistik), ncc: st(ncc) },
-    jobs: [asistensi.job, psc.job, panggilan.job, tck.job, tckRelawan.job, eoc.job, logistik.job, ncc.job].filter(Boolean) as Promise<any>[],
+    jobs: [asistensi.job, psc.job, panggilan.job, tck.job, tckRelawan.job, eoc.job, logistik.job, ncc.job, eocTren.job].filter(Boolean) as Promise<any>[],
   }
 }
 
@@ -480,10 +483,10 @@ function countBy<T>(list: T[], key: (t: T) => string) {
   return o
 }
 
-/** Gabungkan hasil API langsung ke struktur snapshot data/puskris-data.json (bentuk tetap sama). */
-export function mergeLive(snapshot: any, ov: Awaited<ReturnType<typeof getLiveOverlay>>) {
-  const data = { ...snapshot }
-  const regions: { code: string; name: string }[] = snapshot.regions || []
+/** Isi kerangka data (lib/puskris/load-data.ts, tanpa angka) dengan hasil API langsung. */
+export function mergeLive(base: any, ov: Awaited<ReturnType<typeof getLiveOverlay>>) {
+  const data = { ...base }
+  const regions: { code: string; name: string }[] = base.regions || []
   const nameOf = (c: string) => regions.find((r) => r.code === c)?.name || c
 
   const asis = ov.asistensi.value
@@ -494,33 +497,32 @@ export function mergeLive(snapshot: any, ov: Awaited<ReturnType<typeof getLiveOv
     const isiP = asis.provinsi.filter((r: any) => r.status_kapasitas !== 'Belum Mengisi').length
     const isiK = asis.kabkota.filter((r: any) => r.status_kapasitas !== 'Belum Mengisi').length
     data.asistensi = {
-      ...snapshot.asistensi,
+      ...base.asistensi,
       data_source: 'langsung',
       fetched_at_wib: ov.status.asistensi.at,
       label: `langsung dari API Asistensi (rekapitulasi ${asis.tahun})`,
       tahun: asis.tahun,
       filterable_peta_provinsi: true,
-      catatan: 'Poin dan status kapasitas serta status Indeks Risiko Bencana Indonesia per provinsi dan kab/kota diambil langsung dari API rekapitulasi Asistensi. Kelengkapan per modul belum tersedia di API, jadi masih memakai snapshot.',
-      provinsi: { ...(snapshot.asistensi?.provinsi || {}), total: asis.provinsi.length, status_kapasitas: Object.fromEntries(capOrder.map((k) => [k, capP[k] || 0])), irbi: countBy(asis.provinsi, (r: any) => r.status_risiko_irbi) },
-      kabupaten_kota: { ...(snapshot.asistensi?.kabupaten_kota || {}), total: asis.kabkota.length, status_kapasitas: Object.fromEntries(capOrder.map((k) => [k, capK[k] || 0])), irbi: countBy(asis.kabkota, (r: any) => r.status_risiko_irbi) },
+      catatan: 'Poin dan status kapasitas serta status Indeks Risiko Bencana Indonesia per provinsi dan kab/kota diambil langsung dari API rekapitulasi Asistensi. Kelengkapan per modul belum tersedia di API.',
+      provinsi: { ...(base.asistensi?.provinsi || {}), total: asis.provinsi.length, status_kapasitas: Object.fromEntries(capOrder.map((k) => [k, capP[k] || 0])), irbi: countBy(asis.provinsi, (r: any) => r.status_risiko_irbi) },
+      kabupaten_kota: { ...(base.asistensi?.kabupaten_kota || {}), total: asis.kabkota.length, status_kapasitas: Object.fromEntries(capOrder.map((k) => [k, capK[k] || 0])), irbi: countBy(asis.kabkota, (r: any) => r.status_risiko_irbi) },
       cakupan: {
         provinsi_mengisi_kapasitas: isiP, provinsi_total: asis.provinsi.length, provinsi_pct: Math.round((isiP / (asis.provinsi.length || 1)) * 1000) / 10,
         kabkot_mengisi_kapasitas: isiK, kabkot_total: asis.kabkota.length, kabkot_pct: Math.round((isiK / (asis.kabkota.length || 1)) * 1000) / 10,
       },
       wilayah: asis.provinsi.map((r: any) => ({ ...r, nama: nameOf(r.kode_wilayah), status_risiko_irbi_2024: r.status_risiko_irbi })),
       wilayah_kabkota: asis.kabkota,
-      contoh_wilayah: [],
     }
   }
 
   const m = ov.psc.value
   const pg = ov.panggilan.value
   if (m || pg) {
-    const snapPsc = snapshot.psc || {}
+    const basePsc = base.psc || {}
     const byM = Object.fromEntries((m?.provinsi || []).map((p: any) => [p.code, p]))
     const byPg = Object.fromEntries((pg?.provinsi || []).map((p: any) => [p.code, p]))
     const provinsi = regions.map((r) => {
-      const s = (snapPsc.provinsi || []).find((x: any) => x.code === r.code) || { code: r.code, nama: r.name }
+      const s = (basePsc.provinsi || []).find((x: any) => x.code === r.code) || { code: r.code, nama: r.name }
       const x = byM[r.code]
       const y = byPg[r.code]
       return {
@@ -536,13 +538,13 @@ export function mergeLive(snapshot: any, ov: Awaited<ReturnType<typeof getLiveOv
       }
     })
     data.psc = {
-      ...snapPsc,
+      ...basePsc,
       data_source: 'langsung',
       fetched_at_wib: ov.status.psc.at || ov.status.panggilan.at,
       label: [m ? 'master PSC, ambulans, SDM, RS langsung dari API PSC 119' : null, pg ? `hitungan panggilan ${pg.tahun} langsung dari API PSC 119` : null].filter(Boolean).join('; '),
       provinsi,
       summary: {
-        ...(snapPsc.summary || {}),
+        ...(basePsc.summary || {}),
         ...(m ? m.summary : {}),
         ...(pg ? (() => {
           const gd = pg.sampel.harian.reduce((a: number, d: any) => a + d.gawat_darurat, 0)
@@ -563,31 +565,38 @@ export function mergeLive(snapshot: any, ov: Awaited<ReturnType<typeof getLiveOv
       ...(m ? { peta: m.peta } : {}),
     }
   }
-  mergeTck(data, snapshot, ov)
-  mergeEoc(data, snapshot, ov)
-  mergeLogistik(data, snapshot, ov)
+  mergeTck(data, base, ov)
+  mergeEoc(data, base, ov)
+  mergeLogistik(data, base, ov)
   mergeNcc(data, ov)
-  const { tckRelawan: _rel, eoc: stEoc, logistik: stLog, ncc: stNcc, ...stRest } = ov.status
+  for (const k of ['asistensi', 'psc', 'tck', 'eoc', 'logistik'] as const) {
+    if (data[k]?.data_source !== 'langsung') {
+      const st: LiveStatus | undefined = (ov.status as any)[k]
+      data[k] = { data_source: 'tidak_tersedia', error: st?.error || 'Data belum tersedia dari API', pending: st?.pending || undefined }
+    }
+  }
+  data.generated_at_wib = wibStamp()
+  const { tckRelawan: _rel, eoc: stEoc, logistik: stLog, ncc: stNcc, ...stRest } = ov.status as typeof ov.status & { eocTren?: LiveStatus }
   data.live_status = {
     ...stRest,
     tck: ov.tck.value || ov.tckRelawan.value
-      ? { status: 'langsung', at: ov.status.tck.at || ov.status.tckRelawan.at, pending: ov.status.tck.pending || ov.status.tckRelawan.pending || undefined, error: !ov.tckRelawan.value ? 'Sebaran relawan per provinsi masih dimuat / snapshot' : !ov.tck.value ? 'Tim & EMT masih snapshot' : undefined }
-      : { ...ov.status.tck, at: ov.status.tck.at || snapshot.tck?.fetched_at_wib },
-    logistik: ov.logistik.value ? stLog : { ...stLog, at: snapshot.logistik?.fetched_at_wib },
-    eoc: ov.eoc.value ? stEoc : { ...stEoc, at: snapshot.eoc?.fetched_at_wib },
+      ? { status: 'langsung', at: ov.status.tck.at || ov.status.tckRelawan.at, pending: ov.status.tck.pending || ov.status.tckRelawan.pending || undefined, error: !ov.tckRelawan.value ? 'Sebaran relawan per provinsi belum tersedia dari API' : !ov.tck.value ? 'Tim & EMT belum tersedia dari API' : undefined }
+      : ov.status.tck,
+    logistik: stLog,
+    eoc: stEoc,
     ncc: ov.ncc.value ? stNcc : { status: 'tidak_tersedia', error: stNcc.error || ov.ncc.error, pending: stNcc.pending },
   }
   return data
 }
 
 
-/** Timpa data.tck snapshot dengan agregat langsung API Tenaga Cadangan (bentuk lama tetap ada). */
-function mergeTck(data: any, snapshot: any, ov: Awaited<ReturnType<typeof getLiveOverlay>>) {
+/** Timpa data.tck base dengan agregat langsung API Tenaga Cadangan (bentuk lama tetap ada). */
+function mergeTck(data: any, base: any, ov: Awaited<ReturnType<typeof getLiveOverlay>>) {
   const inti = ov.tck.value
   const rel = ov.tckRelawan.value
   if (!inti && !rel) return
-  const snap = snapshot.tck || {}
-  const regions: { code: string; name: string }[] = snapshot.regions || []
+  const snap = base.tck || {}
+  const regions: { code: string; name: string }[] = base.regions || []
   const relBy: Record<string, any> = Object.fromEntries((rel?.provinsi || []).map((p: any) => [p.code, p]))
   const timBy: Record<string, any> = Object.fromEntries((inti?.tim.provinsi || []).map((p: any) => [p.code, p]))
   const emtBy: Record<string, any> = Object.fromEntries((inti?.emt.provinsi || []).map((p: any) => [p.code, p]))
@@ -599,7 +608,7 @@ function mergeTck(data: any, snapshot: any, ov: Awaited<ReturnType<typeof getLiv
     const e = emtBy[r.code]
     return {
       ...s0,
-      ...(rp ? { individu: rp.individu, nakes: rp.nakes, non_nakes: rp.non_nakes, perempuan: rp.perempuan, laki: rp.laki, usia: rp.usia, terhubung_tim: rp.terhubung_tim, profesi: rp.profesi, kab: rp.kab, sumber_individu: 'langsung' } : { sumber_individu: 'snapshot' }),
+      ...(rp ? { individu: rp.individu, nakes: rp.nakes, non_nakes: rp.non_nakes, perempuan: rp.perempuan, laki: rp.laki, usia: rp.usia, terhubung_tim: rp.terhubung_tim, profesi: rp.profesi, kab: rp.kab, sumber_individu: 'langsung' } : { individu: null, nakes: null, non_nakes: null, sumber_individu: 'tidak_tersedia' }),
       ...(inti ? {
         tim: t?.jumlah || 0, tim_individu: t?.individu || 0, tim_per_tahun: t?.per_tahun || {},
         emt: e?.jumlah || 0, emt_standar: e?.standar || 0, emt_sk: e?.sk || 0, emt_individu: e?.individu || 0, emt_respon_24: e?.respon_24 || 0, emt_per_tahun: e?.per_tahun || {},
@@ -632,7 +641,7 @@ function mergeTck(data: any, snapshot: any, ov: Awaited<ReturnType<typeof getLiv
     data_source: 'langsung',
     fetched_at_wib: ov.status.tck.at || ov.status.tckRelawan.at,
     label: [d ? 'total, pendaftaran, tim & Tim Medis Darurat langsung dari API Tenaga Cadangan' : null, rel ? 'sebaran relawan per provinsi langsung dari API relawan-tck' : null].filter(Boolean).join('; '),
-    sumber_status: { inti: inti ? 'langsung' : 'snapshot', relawan: rel ? 'langsung' : 'snapshot', relawan_gagal: rel?.gagal || [] },
+    sumber_status: { inti: inti ? 'langsung' : 'tidak_tersedia', relawan: rel ? 'langsung' : 'tidak_tersedia', relawan_gagal: rel?.gagal || [] },
     summary,
     provinsi,
     ...(d ? { tren_pendaftaran: d.tren } : {}),
@@ -652,17 +661,17 @@ function packEvent(e: EocEvent) {
   return o
 }
 
-/** Timpa data.eoc snapshot dengan agregat langsung API EOC (data_krisis.php); bentuk lama tetap ada. */
-function mergeEoc(data: any, snapshot: any, ov: Awaited<ReturnType<typeof getLiveOverlay>>) {
+/** Timpa data.eoc base dengan agregat langsung API EOC (data_krisis.php); bentuk lama tetap ada. */
+function mergeEoc(data: any, base: any, ov: Awaited<ReturnType<typeof getLiveOverlay>>) {
   const v = ov.eoc.value
   if (!v) return
-  const snap = snapshot.eoc || {}
+  const snap = base.eoc || {}
   const y = v.tahun
   const ev = v.events.filter((e) => e.t.startsWith(String(y)))
   const kpi = rekapEoc(ev)
   const kr = ev.filter((e) => e.s)
   const kk = rekapEoc(kr)
-  const regions: { code: string; name: string }[] = snapshot.regions || []
+  const regions: { code: string; name: string }[] = base.regions || []
   const byP = new Map<string, EocEvent[]>()
   for (const e of ev) { const a = byP.get(e.p) || []; a.push(e); byP.set(e.p, a) }
   const provinsi = regions.map((r) => {
@@ -681,10 +690,11 @@ function mergeEoc(data: any, snapshot: any, ov: Awaited<ReturnType<typeof getLiv
     const b = (bulan[e.t.slice(0, 7)] ||= { bulan: e.t.slice(0, 7), kejadian: 0, krisis: 0, meninggal: 0, hilang: 0, luka_berat: 0, luka_ringan: 0, pengungsi: 0, terdampak: 0 })
     b.kejadian++; b.krisis += e.s; b.meninggal += e.m; b.hilang += e.h; b.luka_berat += e.lb; b.luka_ringan += e.lr; b.pengungsi += e.pg; b.terdampak += e.td
   }
-  const tren = (list: any[] | undefined, val: number, krisisVal?: number) =>
-    (list || []).some((x) => Number(x.tahun) === y)
-      ? (list || []).map((x) => (Number(x.tahun) === y ? { ...x, jumlah: val, ...(krisisVal != null && 'krisis' in x ? { krisis: krisisVal } : {}) } : x))
-      : list
+  // Tren 5 tahun: tahun sebelumnya dari API EOC (fetchEocTren, cache 6 jam) + tahun berjalan.
+  const hist = ov.eocTren.value || []
+  const thn = [...hist.map((h) => ({ tahun: h.tahun, a: h.semua, k: h.krisis })), { tahun: y, a: kpi, k: kk }]
+  const tren = (key: keyof typeof kpi, withKrisis = false, krisisOnly = false) =>
+    hist.length ? thn.map((t) => ({ tahun: t.tahun, jumlah: (krisisOnly ? t.k : t.a)[key], ...(withKrisis ? { krisis: t.k[key] } : {}) })) : []
   const nas = snap.nasional || {}
   const detailUrl = (u: string) => `https://pusatkrisis.kemkes.go.id/detail-bencana/${encodeURIComponent(u)}`
   data.eoc = {
@@ -700,15 +710,15 @@ function mergeEoc(data: any, snapshot: any, ov: Awaited<ReturnType<typeof getLiv
       fetched_at_wib: ov.status.eoc.at,
       kejadian_tahun: { ...kpi },
       krisis_tahun: { kejadian: kk.terpantau, korban_total: kk.korban_total, meninggal: kk.meninggal, hilang: kk.hilang, luka_berat: kk.luka_berat, luka_ringan: kk.luka_ringan, pengungsi: kk.pengungsi, terdampak: kk.terdampak, alam: kk.alam, non_alam: kk.non_alam, sosial: kk.sosial },
-      dashboard_new_kejadian_tahun: nas.kejadian_tahun,
-      tren_5_tahun_terpantau: tren(nas.tren_5_tahun_terpantau, kpi.terpantau),
-      tren_5_tahun_krisis: tren(nas.tren_5_tahun_krisis, kpi.berdampak_krisis),
-      tren_5_tahun_meninggal: tren(nas.tren_5_tahun_meninggal, kpi.meninggal),
-      tren_5_tahun_meninggal_krisis: tren(nas.tren_5_tahun_meninggal_krisis, kk.meninggal),
-      tren_5_tahun_luka_berat: tren(nas.tren_5_tahun_luka_berat, kpi.luka_berat, kk.luka_berat),
-      tren_5_tahun_luka_ringan: tren(nas.tren_5_tahun_luka_ringan, kpi.luka_ringan, kk.luka_ringan),
-      tren_5_tahun_pengungsi: tren(nas.tren_5_tahun_pengungsi, kpi.pengungsi, kk.pengungsi),
-      tren_5_tahun_terdampak: tren(nas.tren_5_tahun_terdampak, kpi.terdampak, kk.terdampak),
+      tren_5_tahun_terpantau: tren('terpantau'),
+      tren_5_tahun_krisis: tren('berdampak_krisis'),
+      tren_5_tahun_meninggal: tren('meninggal'),
+      tren_5_tahun_meninggal_krisis: tren('meninggal', false, true),
+      tren_5_tahun_luka_berat: tren('luka_berat', true),
+      tren_5_tahun_luka_ringan: tren('luka_ringan', true),
+      tren_5_tahun_pengungsi: tren('pengungsi', true),
+      tren_5_tahun_terdampak: tren('terdampak', true),
+      tren_status: hist.length ? 'langsung' : ov.eocTren.pending ? 'memuat' : 'tidak_tersedia',
     },
     provinsi,
     jenis_2026: Object.entries(jenis).map(([nama, jumlah]) => ({ nama, jumlah })).sort((a, b) => b.jumlah - a.jumlah),
@@ -725,12 +735,12 @@ function mergeEoc(data: any, snapshot: any, ov: Awaited<ReturnType<typeof getLiv
 }
 
 
-/** Timpa data.logistik snapshot dengan agregat langsung API Logistik (bentuk lama tetap ada). */
-function mergeLogistik(data: any, snapshot: any, ov: Awaited<ReturnType<typeof getLiveOverlay>>) {
+/** Timpa data.logistik base dengan agregat langsung API Logistik (bentuk lama tetap ada). */
+function mergeLogistik(data: any, base: any, ov: Awaited<ReturnType<typeof getLiveOverlay>>) {
   const v = ov.logistik.value
   if (!v) return
-  const snap = snapshot.logistik || {}
-  const regions: { code: string; name: string }[] = snapshot.regions || []
+  const snap = base.logistik || {}
+  const regions: { code: string; name: string }[] = base.regions || []
   const norm = (x: string) => x.toLowerCase().replace(/[^a-z]/g, '')
   const homeCode = (r: any) => {
     if (/^pusat$/i.test(r.nama)) return '31'

@@ -144,3 +144,14 @@ export function rekapEoc(list: EocEvent[]) {
   }
   return s
 }
+
+/** Rekap per tahun untuk tren 5 tahun (tahun-tahun sebelumnya; tahun berjalan dari fetchEocTahun). */
+export async function fetchEocTren(nTahun = 4) {
+  const y = Number(todayWib().slice(0, 4))
+  const out: { tahun: number; semua: ReturnType<typeof rekapEoc>; krisis: ReturnType<typeof rekapEoc>; gagal: string[] }[] = []
+  for (let t = y - nTahun; t < y; t++) {
+    const r = await fetchEocRange({ tanggal1: `${t}-01-01`, tanggal2: `${t}-12-31` })
+    out.push({ tahun: t, semua: rekapEoc(r.events), krisis: rekapEoc(r.events.filter((e) => e.s)), gagal: r.gagal })
+  }
+  return out
+}

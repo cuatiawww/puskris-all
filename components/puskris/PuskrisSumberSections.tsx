@@ -97,7 +97,7 @@ function DampakPenduduk({ raw, rows, filtered }: { raw: any; rows: any[]; filter
               </ResponsiveContainer>
             ) : <p className="py-12 text-center text-xs text-slate-500">Deret 5 tahun belum tersedia.</p>}
           </div>
-          <p className="mt-1 text-[10px] text-slate-500">2026 masih berjalan (data sampai pertengahan November).</p>
+          <p className="mt-1 text-[10px] text-slate-500">{`Tahun ${String(raw?.eoc?.fetched_at_wib || '').slice(0, 4) || 'berjalan'} masih berjalan (data API EOC sampai ${String(raw?.eoc?.fetched_at_wib || '').slice(0, 10) || 'hari ini'}).`}</p>
           <div className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
             {indikator.map((x) => <Stat key={x.label} label={x.label} value={x.value == null ? '—' : `${x.value.toLocaleString('id-ID')}${x.unit || ''}`} hint={x.hint} />)}
           </div>
@@ -139,8 +139,7 @@ export default function PuskrisSumberSections({
   const psc = raw.psc?.summary || {}
   const resmi = raw.eoc?.nasional || {}
   const tahun = resmi.kejadian_tahun || {}
-  const okt = resmi.kejadian_oktober || {}
-  const krisisY = resmi.krisis_tahun || {}
+  const pscLive = raw.psc?.data_source === 'langsung'
   const nccDays = view.ncc?.days || []
   const tck = view.sdm
   const tckS = raw.tck?.summary || {}
@@ -154,7 +153,7 @@ export default function PuskrisSumberSections({
     ? [...(bagian === 'kabupaten-kota' ? asis.wilayah_kabkota || [] : asis.wilayah || [])]
         .filter((r: any) => !view.selected || String(r.kd_prop || r.kode_wilayah).slice(0, 2) === view.selected.code)
         .sort((a: any, b: any) => b.poin_kapasitas_pct - a.poin_kapasitas_pct || String(a.nama).localeCompare(String(b.nama)))
-    : asis.contoh_wilayah || []
+    : []
 
   const eocLive = raw.eoc?.data_source === 'langsung' && Array.isArray(view.kejadianSemua)
   const evSemua: any[] = eocLive ? view.kejadianSemua : []
@@ -163,11 +162,7 @@ export default function PuskrisSumberSections({
     { nama: 'Alam', tahun: byKel(evSemua, 'Alam'), krisis: byKel(evSemua.filter((k) => k.krisis), 'Alam') },
     { nama: 'Non alam', tahun: byKel(evSemua, 'Non Alam'), krisis: byKel(evSemua.filter((k) => k.krisis), 'Non Alam') },
     { nama: 'Sosial', tahun: byKel(evSemua, 'Sosial'), krisis: byKel(evSemua.filter((k) => k.krisis), 'Sosial') },
-  ] : [
-    { nama: 'Alam', tahun: tahun.alam || 0, oktober: okt.alam || 0, krisis: krisisY.alam || 0 },
-    { nama: 'Non alam', tahun: tahun.non_alam || 0, oktober: okt.non_alam || 0, krisis: krisisY.non_alam || 0 },
-    { nama: 'Sosial', tahun: tahun.sosial || 0, oktober: okt.sosial || 0, krisis: krisisY.sosial || 0 },
-  ]
+  ] : [] as any[]
   const pscSplit = [
     { nama: 'Darurat', jumlah: psc.total_emergency || 0 },
     { nama: 'Non-darurat', jumlah: psc.total_non_emergency || 0 },
@@ -182,7 +177,7 @@ export default function PuskrisSumberSections({
         b.kejadian++; b.krisis += k.krisis ? 1 : 0; b.meninggal += k.meninggal
         return a
       }, {})).sort((x: any, y: any) => x.bulan.localeCompare(y.bulan)).map((b: any) => ({ ...b, label: monthLabel(b.bulan) }))
-    : (raw.eoc?.bulanan_2026 || []).map((b: any) => ({ ...b, label: monthLabel(b.bulan) }))
+    : []
   const eocSumber = eocLive ? `Sumber: API EOC Pusat Krisis (langsung, ${raw.eoc?.fetched_at_wib || '-'}), ${view.situasi?.sumber?.replace(/^API EOC Pusat Krisis \(langsung\), /, '') || ''}.` : ''
   const kelengkapanRows = ['Profil Umum', 'Kerentanan', 'Ancaman', 'Kapasitas'].map((k) => ({
     nama: k,
@@ -208,11 +203,12 @@ export default function PuskrisSumberSections({
 
   return (
     <div className="space-y-6">
-      {show.krisis && (
+      {show.krisis && !eocLive ? <Card eyebrow="Pantauan bencana" title="Situasi krisis"><ApiKosong pesan="Data kejadian belum tersedia dari API EOC" detail={raw.eoc?.error} pending={Boolean(raw.eoc?.pending)} /></Card> : null}
+      {show.krisis && eocLive && (
         <>
           {tab === 'krisis' ? <DampakPenduduk raw={raw} rows={view.rows || []} filtered={filteredWilayah} /> : null}
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <Card eyebrow="Pantauan bencana" title="Jenis kejadian: Alam, Non alam, Sosial" desc={eocLive ? `Kejadian terpantau dan yang berdampak krisis menurut kelompok, mengikuti filter. ${eocSumber}` : 'Pembagian resmi tahun 2026, dibanding Oktober, dan yang berdampak krisis.'}>
+            <Card eyebrow="Pantauan bencana" title="Jenis kejadian: Alam, Non alam, Sosial" desc={eocLive ? `Kejadian terpantau dan yang berdampak krisis menurut kelompok, mengikuti filter. ${eocSumber}` : ''}>
               <div className="h-56">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={alam}>
@@ -222,13 +218,12 @@ export default function PuskrisSumberSections({
                     <Tooltip />
                     <Legend />
                     <Bar dataKey="tahun" name={eocLive ? 'Terpantau' : 'Tahun 2026'} fill={TEAL} />
-                    {eocLive ? null : <Bar dataKey="oktober" name="Oktober" fill={AMBER} />}
-                    <Bar dataKey="krisis" name="Berdampak krisis" fill={ROSE} />
+                                        <Bar dataKey="krisis" name="Berdampak krisis" fill={ROSE} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             </Card>
-            <Card eyebrow="Pantauan bencana" title="Tren bulanan 2026" desc={eocLive ? `Kejadian terpantau, berdampak krisis, dan meninggal per bulan, mengikuti filter. ${eocSumber}` : 'Kejadian terpantau, berdampak krisis, dan meninggal per bulan (sumber resmi; Sep–Okt belum muncul di snapshot).'}>
+            <Card eyebrow="Pantauan bencana" title="Tren bulanan" desc={`Kejadian terpantau, berdampak krisis, dan meninggal per bulan, mengikuti filter. ${eocSumber}`}>
               <div className="h-56">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={bulanan}>
@@ -246,8 +241,9 @@ export default function PuskrisSumberSections({
             </Card>
           </div>
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <Card eyebrow="Pantauan bencana" title="Tren 5 tahun" desc={eocLive ? 'Kejadian terpantau, berdampak krisis, dan meninggal nasional. Tahun 2022–2025 dari snapshot dashboard EOC; tahun berjalan dari API EOC (langsung).' : 'Kejadian terpantau, berdampak krisis, dan meninggal menurut dashboard EOC.'}>
+            <Card eyebrow="Pantauan bencana" title="Tren 5 tahun" desc={`Kejadian terpantau, berdampak krisis, dan meninggal nasional per tahun, dihitung dari API EOC (data_krisis per tahun, langsung).${resmi.tren_status === 'sebagian' ? ' Sebagian tahun lalu belum termuat.' : ''}`}>
               <div className="h-56">
+                {!(resmi.tren_5_tahun_terpantau || []).length ? <ApiKosong pesan="Tren tahunan belum tersedia dari API EOC" detail={resmi.tren_status === 'memuat' ? 'Sedang mengambil data_krisis per tahun (cache 6 jam).' : null} pending={resmi.tren_status === 'memuat'} /> : (
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={(resmi.tren_5_tahun_terpantau || []).map((t: any, i: number) => ({
                     tahun: t.tahun,
@@ -264,10 +260,10 @@ export default function PuskrisSumberSections({
                     <Line type="monotone" dataKey="krisis" name="Krisis" stroke={AMBER} strokeWidth={2} />
                     <Line type="monotone" dataKey="meninggal" name="Meninggal" stroke={ROSE} strokeWidth={2} />
                   </LineChart>
-                </ResponsiveContainer>
+                </ResponsiveContainer>)}
               </div>
             </Card>
-            <Card eyebrow="Pantauan bencana" title="Lima provinsi teratas" desc={eocLive ? `Berdasarkan kejadian berdampak krisis pada periode terpilih. ${eocSumber}` : 'Berdasarkan kejadian berdampak krisis 2026. Oktober resmi: terpantau dan krisis terpisah di sumber.'}>
+            <Card eyebrow="Pantauan bencana" title="Lima provinsi teratas" desc={`Berdasarkan kejadian berdampak krisis pada periode terpilih. ${eocSumber}`}>
               <ol className="space-y-2 text-xs">
                 {topEoc.map((r: any, i: number) => (
                   <li key={r.code} className="flex items-center justify-between gap-2">
@@ -276,30 +272,27 @@ export default function PuskrisSumberSections({
                   </li>
                 ))}
               </ol>
-              {!eocLive && resmi.top_provinsi_oktober_krisis?.length ? (
-                <p className="mt-3 text-[11px] text-slate-500">Oktober (resmi): {resmi.top_provinsi_oktober_krisis.map((x: any) => `${x.nama} (${nf(x.jumlah)})`).join(', ')}.</p>
-              ) : null}
             </Card>
           </div>
         </>
       )}
 
       <>
-          {show.psc && (
-          <Card eyebrow="Layanan 119" title="PSC 119" desc="Kumulatif dari dasbor PSC. Tidak mengikuti filter periode. Waktu respons rata-rata dan jumlah PSC ikut snapshot yang sama.">
+          {show.psc && !pscLive ? <Card eyebrow="Layanan 119" title="PSC 119"><ApiKosong pesan="Data PSC 119 belum tersedia dari API" detail={raw.psc?.error} pending={Boolean(raw.psc?.pending)} /></Card> : null}
+          {show.psc && pscLive && (
+          <Card eyebrow="Layanan 119" title="PSC 119" desc={`Langsung dari API PSC 119 (${raw.psc?.fetched_at_wib || '-'}): ${raw.psc?.label || ''}. Panggilan = hitungan tahun berjalan; darurat/non-darurat ≈ proporsi sampel panggilan terbaru × total.`}>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
               <Stat label="Total panggilan" value={nf(psc.total_panggilan)} />
-              <Stat label="Darurat" value={nf(psc.total_emergency)} />
-              <Stat label="Non-darurat" value={nf(psc.total_non_emergency)} />
-              <Stat label="Non-kategori" value={nf(psc.total_non_category)} />
-              <Stat label="Waktu respons" value={`${psc.waktu_respons_rata_rata ?? '—'} mnt`} />
+              <Stat label="≈ Darurat" value={nf(psc.total_emergency)} hint="Perkiraan: proporsi panggilan gawat darurat pada sampel panggilan terbaru dari API PSC 119 dikali total panggilan tahun ini." />
+              <Stat label="≈ Non-darurat" value={nf(psc.total_non_emergency)} hint="Perkiraan dari sampel panggilan terbaru (API PSC 119)." />
+              <Stat label="Waktu respons" value={psc.waktu_respons_rata_rata != null ? `${psc.waktu_respons_rata_rata} mnt` : '—'} />
               <Stat label="PSC" value={`${nf(psc.psc_aktif)} / ${nf(psc.total_psc)}`} sub="aktif / total" />
             </div>
             <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
               <div className="h-56">
-                <p className="mb-1 text-[10px] font-black uppercase tracking-wider text-slate-400">Panggilan per jenis</p>
+                <p className="mb-1 text-[10px] font-black uppercase tracking-wider text-slate-400">≈ Sampel panggilan per kategori</p>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={(raw.psc?.jenis_panggilan || []).slice(0, 10)} layout="vertical" margin={{ left: 90 }}>
+                  <BarChart data={(raw.psc?.panggilan_sampel?.kategori || []).slice(0, 10)} layout="vertical" margin={{ left: 90 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                     <XAxis type="number" tick={{ fontSize: 10 }} />
                     <YAxis type="category" dataKey="nama" tick={{ fontSize: 9 }} width={90} />
@@ -309,9 +302,9 @@ export default function PuskrisSumberSections({
                 </ResponsiveContainer>
               </div>
               <div className="h-56">
-                <p className="mb-1 text-[10px] font-black uppercase tracking-wider text-slate-400">Panggilan per spesifikasi</p>
+                <p className="mb-1 text-[10px] font-black uppercase tracking-wider text-slate-400">≈ Sampel panggilan per sumber</p>
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={(raw.psc?.spesifikasi || []).slice(0, 10)} layout="vertical" margin={{ left: 90 }}>
+                  <BarChart data={(raw.psc?.panggilan_sampel?.sumber || []).slice(0, 10)} layout="vertical" margin={{ left: 90 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                     <XAxis type="number" tick={{ fontSize: 10 }} />
                     <YAxis type="category" dataKey="nama" tick={{ fontSize: 9 }} width={90} />
@@ -335,7 +328,8 @@ export default function PuskrisSumberSections({
           </Card>
 
           )}
-          {show.ambulans && (
+          {show.ambulans && !pscLive ? <Card eyebrow="Layanan 119" title="Ambulans"><ApiKosong pesan="Data ambulans belum tersedia dari API PSC 119" detail={raw.psc?.error} pending={Boolean(raw.psc?.pending)} /></Card> : null}
+          {show.ambulans && pscLive && (
           <Card eyebrow="Layanan 119" title="Ambulans" desc="Armada dari dasbor Ambulans / PSC: jenis gawat darurat vs transport, kondisi, dan yang ber-GPS.">
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
               <Stat label="Total armada" value={nf(psc.total_ambulan)} />
@@ -438,6 +432,7 @@ export default function PuskrisSumberSections({
       <>
           {show.tck && (() => {
           const tLive = raw.tck?.data_source === 'langsung'
+          if (!tLive) return <Card eyebrow="Kesiapsiagaan SDM" title="Tenaga cadangan kesehatan"><ApiKosong pesan="Data Tenaga Cadangan belum tersedia dari API" detail={raw.tck?.error} pending={Boolean(raw.tck?.pending)} /></Card>
           const selP: any = view.selected ? (raw.tck?.provinsi || []).find((p: any) => String(p.code) === view.selected!.code) : null
           const profesiList: { nama: string; jumlah: number }[] = selP?.profesi
             ? Object.entries(selP.profesi).map(([nama, jumlah]) => ({ nama, jumlah: Number(jumlah) }))
@@ -452,7 +447,7 @@ export default function PuskrisSumberSections({
           <Card eyebrow="Kesiapsiagaan SDM" title="Tenaga cadangan kesehatan"
             desc={tLive
               ? `Data langsung API Tenaga Cadangan Kesehatan (TCK), diambil ${raw.tck?.fetched_at_wib || '-'}: relawan per provinsi, profesi, tim, dan ${EMT_LABEL}${view.selected ? ` untuk ${view.selected.nama}` : ''}. Hanya angka agregat, tanpa data pribadi.`
-              : `Kartu KPI publik TCK (snapshot): individu, tim, dan ${EMT_LABEL}, plus tenaga kesehatan vs non-kesehatan dari sebaran geojson.`}>
+              : ''}>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-8">
               <Stat label="Individu" value={nf(tck.individu)} sub={!view.selected && tckS.individu_bulan_ini ? `+${nf(tckS.individu_bulan_ini)} bulan ini` : undefined} />
               <Stat label={view.selected ? 'Tim (provinsi)' : 'Tim'} value={tck.tim == null ? '—' : nf(tck.tim)} sub={!view.selected && tckS.tim_bulan_ini ? `+${nf(tckS.tim_bulan_ini)} bulan ini` : undefined} />
@@ -499,7 +494,6 @@ export default function PuskrisSumberSections({
                 {view.selected && selP ? ` Di ${view.selected.nama}: ${nf(selP.emt_respon_24 || 0)} EMT sanggup < 24 jam.` : ''}
               </p>
             ) : null}
-            {!tLive ? <p className="mt-2 text-[10px] text-slate-400">Sumber: snapshot. Data pengalaman dan pelatihan tidak ada di snapshot ini.</p> : null}
           </Card>
           )
           })()}
@@ -507,7 +501,7 @@ export default function PuskrisSumberSections({
           const L = raw.logistik || {}
           const lLive = L.data_source === 'langsung'
           const selReg: any = lLive && view.selected ? (L.regional || []).find((r: any) => r.id === L.provinsi_regional?.[view.selected!.code]) : null
-          const regRows: any[] = lLive ? (selReg ? [selReg] : L.regional || []) : view.logistik.rows || []
+          const regRows: any[] = lLive ? (selReg ? [selReg] : L.regional || []) : []
           const S = selReg || L.summary || {}
           const perg = L.pergerakan || {}
           const bul: any[] = (selReg ? perg.per_regional_bulanan?.[selReg.id] : perg.bulanan) || []
@@ -516,35 +510,7 @@ export default function PuskrisSumberSections({
           const katRows: any[] = selReg
             ? [['Obat-Obatan', 'obat'], ['BMHP', 'bmhp'], ['Alkes', 'alkes'], ['Sarpras', 'sarpras'], ['Lainnya', 'lainnya']].map(([nama, k]) => ({ nama, stok: selReg[k] || 0 }))
             : (L.kategori_rekap || []).map((k: any) => ({ nama: k.nama.replace(/ \(.*\)$/, ''), stok: k.stok }))
-          if (!lLive) return (
-          <Card eyebrow="Logistik dan stok" title="Logistik" desc="Stok, penerimaan, dan pengeluaran dari landing SIMLOGKES (snapshot), plus matriks 11 regional × Obat / Sarpras / Alkes / BMHP. Bukan 38 provinsi.">
-            <div className="grid grid-cols-3 gap-2">
-              <Stat label="Total stok" value={nf(view.logistik.totalStok)} />
-              <Stat label="Penerimaan" value={view.logistik.penerimaan == null ? '—' : nf(view.logistik.penerimaan)} />
-              <Stat label="Pengeluaran" value={view.logistik.pengeluaran == null ? '—' : nf(view.logistik.pengeluaran)} />
-            </div>
-            <div className="mt-4 overflow-x-auto">
-              <table className="min-w-full text-xs">
-                <thead className="text-left text-[10px] font-black uppercase text-slate-500">
-                  <tr>{['Regional', 'Obat', 'Sarpras', 'Alkes', 'BMHP', 'Total'].map((h) => <th key={h} className="pb-2 pr-3">{h}</th>)}</tr>
-                </thead>
-                <tbody>
-                  {regRows.map((r: any) => (
-                    <tr key={r.code} className="border-t border-slate-100">
-                      <td className="py-1.5 pr-3 font-semibold">{r.nama}</td>
-                      <td className="py-1.5 pr-3 tabular-nums">{nf(r.obat)}</td>
-                      <td className="py-1.5 pr-3 tabular-nums">{nf(r.sarpras)}</td>
-                      <td className="py-1.5 pr-3 tabular-nums">{nf(r.alkes)}</td>
-                      <td className="py-1.5 pr-3 tabular-nums">{nf(r.bmhp)}</td>
-                      <td className="py-1.5 pr-3 tabular-nums font-bold">{nf(r.total)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <p className="mt-2 text-[10px] text-slate-400">Sumber: snapshot.</p>
-          </Card>
-          )
+          if (!lLive) return <Card eyebrow="Logistik dan stok" title="Logistik kesehatan"><ApiKosong pesan="Data Logistik belum tersedia dari API" detail={raw.logistik?.error} pending={Boolean(raw.logistik?.pending)} /></Card>
           return (
           <Card eyebrow="Logistik dan stok" title="Logistik kesehatan"
             desc={`Data langsung API Logistik Kesehatan (SIMLOGKES), diambil ${L.fetched_at_wib || '-'}: stok akhir per regional dan kategori, barang kedaluwarsa, dan pergerakan stok.${selReg ? ` ${view.selected!.nama} dilayani gudang regional ${selReg.nama}.` : ''} Angka dalam satuan masing-masing barang (tablet, box, unit, dan lainnya) yang dijumlahkan.`}>
@@ -623,13 +589,14 @@ export default function PuskrisSumberSections({
           })()}
       </>
 
-      {show.asis && (
-        <Card eyebrow="Asesmen risiko" title="Asistensi risiko" desc={asisLive ? `Rekapitulasi Asistensi ${asis.tahun}, diambil langsung ${asis.fetched_at_wib || ''}. Poin dan status kapasitas serta status Indeks Risiko Bencana Indonesia per wilayah dari API resmi; kelengkapan per modul masih snapshot 16 November 2026.` : 'Sumber: snapshot manual 16 November 2026 (API langsung belum terhubung). Yang diutamakan: cakupan pengisian status kapasitas dan kelengkapan modul, di provinsi dan kab/kota.'}>
+      {show.asis && !asisLive ? <Card eyebrow="Asesmen risiko" title="Asistensi risiko"><ApiKosong pesan="Data Asistensi Risiko belum tersedia dari API" detail={raw.asistensi?.error} pending={Boolean(raw.asistensi?.pending)} /></Card> : null}
+      {show.asis && asisLive && (
+        <Card eyebrow="Asesmen risiko" title="Asistensi risiko" desc={asisLive ? `Rekapitulasi Asistensi ${asis.tahun}, diambil langsung ${asis.fetched_at_wib || ''}. Poin dan status kapasitas serta status Indeks Risiko Bencana Indonesia per wilayah dari API resmi; kelengkapan per modul belum tersedia di API.` : ''}>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <Stat label="Provinsi mengisi" value={`${asis.cakupan?.provinsi_mengisi_kapasitas ?? 5} / ${asis.cakupan?.provinsi_total ?? 38}`} sub={`${asis.cakupan?.provinsi_pct ?? 13.2}%`} />
-            <Stat label="Kab/kota mengisi" value={`${asis.cakupan?.kabkot_mengisi_kapasitas ?? 77} / ${asis.cakupan?.kabkot_total ?? 514}`} sub={`${asis.cakupan?.kabkot_pct ?? 15}%`} />
-            {asisLive ? <Stat label="Provinsi risiko tinggi" value={`${asis.provinsi?.irbi?.Tinggi ?? 0} / ${asis.provinsi?.total ?? 38}`} sub="Indeks Risiko Bencana Indonesia" hint={IRBI_HINT} /> : null}
-            {asisLive ? <Stat label="Kab/kota risiko tinggi" value={`${asis.kabupaten_kota?.irbi?.Tinggi ?? 0} / ${asis.kabupaten_kota?.total ?? 514}`} sub="Indeks Risiko Bencana Indonesia" hint={IRBI_HINT} /> : null}
+            <Stat label="Provinsi mengisi" value={`${nf(asis.cakupan?.provinsi_mengisi_kapasitas)} / ${nf(asis.cakupan?.provinsi_total)}`} sub={pf(asis.cakupan?.provinsi_pct)} />
+            <Stat label="Kab/kota mengisi" value={`${nf(asis.cakupan?.kabkot_mengisi_kapasitas)} / ${nf(asis.cakupan?.kabkot_total)}`} sub={pf(asis.cakupan?.kabkot_pct)} />
+            {asisLive ? <Stat label="Provinsi risiko tinggi" value={`${asis.provinsi?.irbi?.Tinggi ?? 0} / ${nf(asis.provinsi?.total)}`} sub="Indeks Risiko Bencana Indonesia" hint={IRBI_HINT} /> : null}
+            {asisLive ? <Stat label="Kab/kota risiko tinggi" value={`${asis.kabupaten_kota?.irbi?.Tinggi ?? 0} / ${nf(asis.kabupaten_kota?.total)}`} sub="Indeks Risiko Bencana Indonesia" hint={IRBI_HINT} /> : null}
           </div>
           <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
             <div className="h-52">
@@ -648,6 +615,7 @@ export default function PuskrisSumberSections({
             </div>
             <div className="h-52">
               <p className="mb-1 text-[10px] font-black uppercase tracking-wider text-slate-400">Kelengkapan modul (yang lengkap)</p>
+              {Object.keys(kelP).length || Object.keys(kelK).length ? (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={kelengkapanRows}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -659,6 +627,7 @@ export default function PuskrisSumberSections({
                   <Bar dataKey="kabkot" name="Kab/Kota" fill={BLUE} />
                 </BarChart>
               </ResponsiveContainer>
+              ) : <ApiKosong pesan="Kelengkapan per modul belum tersedia dari API Asistensi" />}
             </div>
           </div>
           <div className="mt-3 max-h-80 overflow-auto">

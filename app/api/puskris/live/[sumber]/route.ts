@@ -68,7 +68,7 @@ async function eocResponse(req: Request) {
   const prov = (sp.get('prov') || '').replace(/\D/g, '').slice(0, 2) || null
   const kab = (sp.get('kab') || '').replace(/\D/g, '').slice(0, 4) || null
   if ((t1 && !D.test(t1)) || (t2 && !D.test(t2)) || (t1 && t2 && t1 > t2)) return NextResponse.json({ ok: false, error: 'Format tanggal1/tanggal2 harus YYYY-MM-DD' }, { status: 400 })
-  if (!eocEnabled()) return NextResponse.json({ ok: false, sumber: 'eoc', status: 'snapshot', error: 'Akun API EOC (PUSKRIS_EOC_AUTH) belum diatur di server', data: null }, { status: 502 })
+  if (!eocEnabled()) return NextResponse.json({ ok: false, sumber: 'eoc', status: 'tidak_tersedia', error: 'Akun API EOC (PUSKRIS_EOC_AUTH) belum diatur di server', data: null }, { status: 502 })
   const base = await getEocLive(45000)
   if (base.job) after(() => base.job)
   let events: EocEvent[] | null = null
@@ -87,7 +87,7 @@ async function eocResponse(req: Request) {
     at = r.at
     error = r.error || (r.pending ? 'Sedang mengambil data langsung' : undefined)
   }
-  if (!events) return NextResponse.json({ ok: false, sumber: 'eoc', status: 'snapshot', error: error || 'Data belum tersedia', data: null }, { status: 502, headers: { 'Cache-Control': 'no-store' } })
+  if (!events) return NextResponse.json({ ok: false, sumber: 'eoc', status: 'tidak_tersedia', error: error || 'Data belum tersedia', data: null }, { status: 502, headers: { 'Cache-Control': 'no-store' } })
   const jenis: Record<string, number> = {}
   const provinsi: Record<string, any> = {}
   for (const e of events) {

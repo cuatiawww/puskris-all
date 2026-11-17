@@ -54,39 +54,6 @@ export function lookupWilayah(nama: string | null, lat?: number | null, lon?: nu
 }
 
 /** Normalisasi blok `crisisIncidents` + `incidents` dari HTML dashboard-new. */
-export function fromDashboardNew(src: { crisisIncidents?: any[]; incidents?: any[] }): KejadianTerbaru[] {
-  const out: KejadianTerbaru[] = []
-  const incById = new Map<string, any>()
-  for (const m of src.incidents || []) incById.set(String(m.id).split('-')[0], m)
-  const seen = new Set<string>()
-  for (const c of src.crisisIncidents || []) {
-    const m = incById.get(String(c.id))
-    const w = lookupWilayah(c.location, m?.latitude, m?.longitude)
-    seen.add(String(c.id))
-    out.push({
-      id: `pk-${c.id}`, sumber: 'Pusat Krisis', kategori: 'krisis', jenis: String(c.type || 'Kejadian').trim(),
-      lokasi: titleCase(c.location), provinsi: w?.pn || null, provCode: w?.p || null,
-      tanggal: c.date, jam: m?.time ? String(m.time).slice(0, 5) : null, zonaWib: false,
-      lat: m?.latitude ?? w?.lat ?? null, lon: m?.longitude ?? w?.lon ?? null,
-      terdampak: Number(c.threatened ?? 0), korban: Number(c.victims ?? 0), url: c.detailUrl || null,
-    })
-  }
-  for (const m of src.incidents || []) {
-    const key = String(m.id).split('-')[0]
-    if (seen.has(key)) continue
-    seen.add(key)
-    const w = lookupWilayah(m.wilayah, m.latitude, m.longitude)
-    out.push({
-      id: `pk-${m.id}`, sumber: 'Pusat Krisis', kategori: 'terpantau', jenis: String(m.type || 'Kejadian').trim(),
-      lokasi: titleCase(m.wilayah), provinsi: w?.pn || null, provCode: w?.p || null,
-      tanggal: m.date, jam: m.time ? String(m.time).slice(0, 5) : null, zonaWib: false,
-      lat: m.latitude ?? null, lon: m.longitude ?? null, korban: Number(m.korban ?? 0), url: m.detailUrl || null,
-    })
-  }
-  return out
-}
-
-/** Kejadian ringkas API EOC (lib/server/eoc-live) → kejadian terbaru. */
 export function fromEocApi(list: any[]): KejadianTerbaru[] {
   return (list || []).map((e) => {
     const w = e.la == null ? lookupWilayah(e.bn) : null
@@ -141,8 +108,8 @@ export function fromHazards(events: any[]): KejadianTerbaru[] {
   })
 }
 
-/** Kejadian krisis dari snapshot EOC lama (punya rincian meninggal & pengungsi). */
-export function fromEocSnapshot(list: any[]): KejadianTerbaru[] {
+/** Kejadian krisis dari API EOC (eoc.kejadian_krisis_terbaru; punya rincian meninggal & pengungsi). */
+export function fromEocKrisis(list: any[]): KejadianTerbaru[] {
   const seen = new Set<string>()
   const out: KejadianTerbaru[] = []
   for (const k of list || []) {

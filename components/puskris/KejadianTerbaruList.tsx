@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Info, MapPin, RefreshCw } from 'lucide-react'
 import { PUBLIC_BASE_PATH } from '@/lib/public-path'
-import { fromEocSnapshot, fromHazards, titleCase, type KejadianTerbaru } from '@/lib/puskris/kejadian-terbaru'
+import { fromEocKrisis, fromHazards, titleCase, type KejadianTerbaru } from '@/lib/puskris/kejadian-terbaru'
 
 type Filter = { provinsi?: string | null; kabupaten?: string | null; jenis?: string | null; periode?: string; tahun?: number; bulan?: number | null }
 type Chip = 'semua' | 'krisis' | 'terpantau' | 'gempa' | 'gdacs'
@@ -43,14 +43,14 @@ function inPeriode(k: KejadianTerbaru, f: Filter) {
   const today = todayWib()
   if (f.periode === '7hari') return k.tanggal >= minusDays(today, 7)
   if (f.periode === '30hari') return k.tanggal >= minusDays(today, 30)
-  const y = String(f.tahun || 2026)
+  const y = String(f.tahun || new Date(Date.now() + 7 * 3600_000).getUTCFullYear())
   if (f.periode === 'bulan') return k.tanggal.startsWith(`${y}-${String(f.bulan || 10).padStart(2, '0')}`)
   return k.tanggal.startsWith(y)
 }
 
-export default function KejadianTerbaruList({ f, eocSnapshot, onPick, onCount }: {
+export default function KejadianTerbaruList({ f, eocKrisis, onPick, onCount }: {
   f: Filter
-  eocSnapshot?: any[]
+  eocKrisis?: any[]
   onPick: (k: KejadianTerbaru) => void
   onCount?: (n: number) => void
 }) {
@@ -74,17 +74,17 @@ export default function KejadianTerbaruList({ f, eocSnapshot, onPick, onCount }:
 
   const all = useMemo(() => {
     const list: KejadianTerbaru[] = [...(pk?.events || [])]
-    // Lengkapi kejadian krisis dengan rincian meninggal/pengungsi dari snapshot EOC bila tanggal + kab/kota cocok
+    // Lengkapi kejadian krisis dengan rincian meninggal/pengungsi dari API EOC bila tanggal + kab/kota cocok
     const key = (k: KejadianTerbaru) => `${k.tanggal}|${String(k.lokasi || '').toUpperCase()}`
     const byKey = new Map(list.filter((k) => k.kategori === 'krisis').map((k) => [key(k), k]))
-    for (const e of fromEocSnapshot(eocSnapshot || [])) {
+    for (const e of fromEocKrisis(eocKrisis || [])) {
       const hit = byKey.get(key(e))
       if (hit) { hit.meninggal ??= e.meninggal; hit.pengungsi ??= e.pengungsi; if (!hit.provinsi) { hit.provinsi = e.provinsi; hit.provCode = e.provCode } }
       else list.push(e)
     }
     list.push(...(hz?.events || []))
     return list.sort((a, b) => `${b.tanggal} ${b.jam || ''}`.localeCompare(`${a.tanggal} ${a.jam || ''}`))
-  }, [pk, hz, eocSnapshot])
+  }, [pk, hz, eocKrisis])
 
   const filtered = useMemo(() => all.filter((k) => {
     if (chip === 'krisis' && k.kategori !== 'krisis') return false
@@ -123,7 +123,7 @@ export default function KejadianTerbaruList({ f, eocSnapshot, onPick, onCount }:
         </div>
         <p className="mt-1.5 text-[10px] leading-snug text-slate-500">
           {loading ? 'Memuat…' : `${nf(filtered.length)} kejadian · terbaru di atas`}
-          {pk?.mode ? <> · Pusat Krisis {pk.mode === 'langsung' ? 'langsung' : 'snapshot'}{pk.at ? ` ${pk.at}` : ''}</> : null}
+          {pk?.mode ? <> · Pusat Krisis {pk.mode === 'langsung' ? 'langsung' : 'belum tersedia dari API'}{pk.at ? ` ${pk.at}` : ''}</> : null}
         </p>
         {liveFiltered ? (
           <p className="mt-1 flex items-start gap-1 text-[10px] font-medium leading-snug text-amber-800">

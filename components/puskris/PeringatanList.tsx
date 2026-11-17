@@ -1,7 +1,6 @@
 'use client'
 
 import type { Peringatan } from '@/lib/puskris/integrasi'
-import { CONTOH_LABEL } from '@/lib/puskris/integrasi'
 
 export default function PeringatanList({
   items, onPick,
@@ -25,7 +24,6 @@ export default function PeringatanList({
               <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-black uppercase ${p.tingkat === 'tinggi' ? 'bg-rose-600 text-white' : 'bg-amber-500 text-white'}`}>
                 {p.tingkat}
               </span>
-              {p.contoh && <span className="rounded-full bg-white px-1.5 py-0.5 text-[9px] font-bold uppercase text-slate-500">{CONTOH_LABEL}</span>}
             </div>
             <p className="mt-1 text-[11px] font-black text-slate-900">{p.judul}</p>
             <p className="mt-0.5 text-[10px] leading-relaxed text-slate-600">{p.detail}</p>

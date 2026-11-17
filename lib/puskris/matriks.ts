@@ -1,5 +1,5 @@
 // Definisi matriks generik untuk halaman Analisis & Matriks (agregat saja).
-import { fromDashboardNew, type KejadianTerbaru } from '@/lib/puskris/kejadian-terbaru'
+import { type KejadianTerbaru } from '@/lib/puskris/kejadian-terbaru'
 
 export type MatriksFmt = 'int' | 'pct' | 'dec1' | 'text'
 export type MatriksCol = {
@@ -74,9 +74,13 @@ const tckLive = (raw: any) => raw?.tck?.data_source === 'langsung'
 const periodeTahun = (p: PeriodeMatriks) => (p === 'semua' ? null : todayWib().slice(0, 4))
 const sumberTck = (raw: any) => tckLive(raw)
   ? `Sumber: API Tenaga Cadangan Kesehatan (langsung), diambil ${raw?.tck?.fetched_at_wib || '-'}.`
-  : `Sumber: snapshot Dasbor Tenaga Cadangan Kesehatan, diambil ${raw?.tck?.fetched_at_wib || '-'}.`
+  : 'Sumber: API Tenaga Cadangan Kesehatan, belum tersedia.'
 
 export function matriksTck(raw: any, view: TckView = 'komposisi', periode: PeriodeMatriks = 'semua'): MatriksDef {
+  const d = matriksTckInner(raw, view, periode)
+  return tckLive(raw) ? d : { ...d, rows: [], kosong: `Data belum tersedia dari API Tenaga Cadangan${raw?.live_status?.tck?.error ? ` (${raw.live_status.tck.error})` : ''}.` }
+}
+function matriksTckInner(raw: any, view: TckView, periode: PeriodeMatriks): MatriksDef {
   const names = provNames(raw)
   const live = tckLive(raw)
   const list: any[] = raw?.tck?.provinsi || []
@@ -203,7 +207,7 @@ export function matriksTck(raw: any, view: TckView = 'komposisi', periode: Perio
     notes: [
       `Nasional: ${nfm(s.individu)} individu, ${nfm(s.tim)} tim, dan ${nfm(s.emt)} Tim Medis Darurat (Emergency Medical Team/EMT).${hasTim ? '' : ' Jumlah tim dan EMT baru tersedia di tingkat nasional, belum per provinsi.'}`,
       live && s.individu_provinsi_total && s.individu_provinsi_total !== s.individu ? `Jumlah per provinsi (${nfm(s.individu_provinsi_total)}) berselisih ${nfm(Math.abs(s.individu_provinsi_total - s.individu))} dengan total dasbor (${nfm(s.individu)}) karena sumbernya dua endpoint berbeda.` : '',
-      hasProfesi ? 'Rincian per profesi ada di tampilan "Provinsi × Profesi".' : 'Rincian per profesi belum tersedia di snapshot, jadi kolom profesi diringkas menjadi tenaga kesehatan dan non-kesehatan.',
+      hasProfesi ? 'Rincian per profesi ada di tampilan "Provinsi × Profesi".' : 'Rincian per profesi belum tersedia dari API, jadi kolom profesi diringkas menjadi tenaga kesehatan dan non-kesehatan.',
       `${sumberTck(raw)} Angka kumulatif pendaftaran, tidak terpengaruh rentang waktu.`,
     ].filter(Boolean),
   }
@@ -289,7 +293,8 @@ export function matriksPsc(raw: any): MatriksDef {
     rows,
     notes: live
       ? [`Sumber: API PSC 119 (langsung, ${raw?.psc?.fetched_at_wib || '-'}). Panggilan = jumlah laporan tahun ${tahun || 'berjalan'}; armada, personel, dan rumah sakit = master data saat ini.`, 'Ambulans dihitung dari armada yang tertaut ke PSC; jumlah ini bisa sedikit berbeda dengan total terdaftar di sistem PSC.']
-      : ['Angka PSC bersifat kumulatif sejak sistem berjalan, belum bisa disaring per periode.', `Sumber: snapshot Dasbor PSC 119, diambil ${raw?.psc?.fetched_at_wib || '-'}.`],
+      : ['Sumber: API PSC 119, belum tersedia.'],
+    kosong: live ? null : `Data belum tersedia dari API PSC 119${raw?.live_status?.psc?.error ? ` (${raw.live_status.psc.error})` : ''}.`,
   }
 }
 
@@ -394,34 +399,33 @@ export function matriksAsistensi(raw: any, level: 'provinsi' | 'kabkota'): Matri
 }
 
 export function matriksKategoriPanggilan(raw: any): MatriksDef {
-  const jenis = raw?.psc?.jenis_panggilan || []
-  const spes = raw?.psc?.spesifikasi || []
+  const sp = raw?.psc?.panggilan_sampel
+  const jenis = sp?.kategori || []
+  const spes = sp?.sumber || []
   const tJ = jenis.reduce((a: number, c: any) => a + Number(c.jumlah || 0), 0)
   const tS = spes.reduce((a: number, c: any) => a + Number(c.jumlah || 0), 0)
   const rows: MatriksRow[] = [
     ...jenis.map((c: any, i: number) => ({ id: `jp-${i}`, label: c.nama, sub: 'Jenis panggilan', jumlah: Number(c.jumlah || 0), porsi: pct(Number(c.jumlah || 0), tJ), kelompok: 'Jenis panggilan' })),
-    ...spes.map((c: any, i: number) => ({ id: `sp-${i}`, label: c.nama, sub: 'Spesifikasi kasus', jumlah: Number(c.jumlah || 0), porsi: pct(Number(c.jumlah || 0), tS), kelompok: 'Spesifikasi kasus' })),
+    ...spes.map((c: any, i: number) => ({ id: `sp-${i}`, label: c.nama, sub: 'Sumber panggilan', jumlah: Number(c.jumlah || 0), porsi: pct(Number(c.jumlah || 0), tS), kelompok: 'Sumber panggilan' })),
   ]
   return {
     id: 'kategori',
     title: 'Matriks Kategori Panggilan PSC 119 (Nasional)',
-    desc: 'Sebaran panggilan PSC 119 menurut jenis panggilan dan spesifikasi kasus.',
+    desc: 'Sebaran panggilan PSC 119 menurut kategori layanan dan sumber panggilan, dari sampel laporan terbaru API PSC 119.',
     rowLabel: 'Kategori',
     cols: [
       { key: 'kelompok', label: 'Kelompok', fmt: 'text', total: () => null },
-      { key: 'jumlah', label: 'Jumlah Panggilan', hint: 'Jumlah panggilan pada kategori ini (kumulatif nasional).', fmt: 'int', heat: true, total: () => null },
-      { key: 'porsi', label: '% dalam Kelompok', hint: 'Porsi kategori terhadap total kelompoknya (jenis panggilan atau spesifikasi kasus).', fmt: 'pct', heat: true, total: () => null },
+      { key: 'jumlah', label: 'Jumlah Panggilan', hint: 'Jumlah panggilan pada kategori ini dalam sampel laporan terbaru API PSC 119.', fmt: 'int', heat: true, total: () => null },
+      { key: 'porsi', label: '% dalam Kelompok', hint: 'Porsi kategori terhadap total kelompoknya (kategori layanan atau sumber panggilan).', fmt: 'pct', heat: true, total: () => null },
     ],
     rows,
-    notes: ['Kategori panggilan baru tersedia di tingkat nasional; rincian provinsi × kategori belum ada di sumber publik.'],
+    notes: [sp ? `Sumber: API PSC 119 (langsung), sampel ${Number(sp.jumlah || 0).toLocaleString('id-ID')} laporan ${sp.dari} s.d. ${sp.sampai}.` : 'Sumber: API PSC 119.'],
+    kosong: sp ? null : 'Data belum tersedia dari API PSC 119.',
   }
 }
 
 // ---------------------------------------------------------------- 3. Kejadian Bencana provinsi × jenis
-export function snapshotEvents(raw: any): KejadianTerbaru[] {
-  const s = raw?.eoc?.dashboard_new_terbaru
-  return s ? fromDashboardNew(s) : []
-}
+
 
 export function normJenis(j: string): string {
   const t = String(j || 'Lainnya').trim().toLowerCase()
@@ -434,70 +438,16 @@ export function matriksBencana(
   opt: { periode: PeriodeMatriks; jenis: string[]; maxJenis?: number; sumberLive: boolean },
 ): MatriksDef {
   if (raw?.eoc?.data_source === 'langsung' && Array.isArray(raw?.eoc?.events)) return matriksBencanaLive(raw, opt)
-  const names = provNames(raw)
-  const sel = new Set(opt.jenis.map((j) => normJenis(j)))
-  const ev = events.filter((e) => e.provCode && inPeriode(e.tanggal, opt.periode) && (!sel.size || sel.has(normJenis(e.jenis))))
-  const byJenis = new Map<string, number>()
-  for (const e of ev) byJenis.set(normJenis(e.jenis), (byJenis.get(normJenis(e.jenis)) || 0) + 1)
-  const ranked = [...byJenis.entries()].sort((a, b) => b[1] - a[1])
-  const max = opt.maxJenis ?? 9
-  const top = ranked.slice(0, max).map(([j]) => j)
-  const hasLain = ranked.length > max
-  const slug = (j: string) => `j_${j.replace(/[^a-z0-9]+/gi, '_').toLowerCase()}`
-  const eocBy = new Map<string, any>()
-  for (const p of raw?.eoc?.provinsi || []) eocBy.set(String(p.code), p)
-  const codes = (raw?.regions || []).map((r: any) => String(r.code))
-  const rows: MatriksRow[] = codes.map((code: string) => {
-    const r: MatriksRow = { id: `bnc-${code}`, code, label: names.get(code) || code, sub: `Kode ${code}` }
-    let tot = 0
-    for (const j of top) r[slug(j)] = 0
-    if (hasLain) r.j_lainnya = 0
-    for (const e of ev) {
-      if (e.provCode !== code) continue
-      const j = normJenis(e.jenis)
-      if (top.includes(j)) r[slug(j)]++
-      else r.j_lainnya++
-      tot++
-    }
-    r.peta_total = tot
-    const p = eocBy.get(code) || {}
-    r.kejadian_2026 = Number(p.kejadian_2026 || 0)
-    r.krisis_2026 = Number(p.krisis_2026 || 0)
-    r.meninggal_2026 = Number(p.meninggal_2026 || 0)
-    r.pengungsi_2026 = Number(p.pengungsi_2026 || 0)
-    r.terdampak_2026 = Number(p.terdampak_2026 || 0)
-    r.hilang = Number(p.hilang || 0)
-    r.luka_berat = Number(p.luka_berat || 0)
-    r.luka_ringan = Number(p.luka_ringan || 0)
-    return r
-  })
-  const G1 = 'Jumlah kejadian per jenis (titik peta)'
-  const G2 = 'Dampak resmi 2026'
-  const G3 = 'Korban kumulatif semua tahun'
-  const cols: MatriksCol[] = [
-    ...top.map((j) => ({ key: slug(j), label: j, fmt: 'int' as const, heat: true, group: G1, hint: `Jumlah kejadian berjenis ${j} di provinsi ini (dari titik peta Pusat Krisis Kesehatan).` })),
-    ...(hasLain ? [{ key: 'j_lainnya', label: 'Lainnya', fmt: 'int' as const, heat: true, group: G1, hint: `Gabungan ${ranked.length - max} jenis kejadian lain yang lebih jarang.` }] : []),
-    { key: 'peta_total', label: 'Total Titik', fmt: 'int', heat: true, group: G1, hint: 'Jumlah seluruh titik kejadian provinsi ini yang cocok dengan filter jenis dan waktu.' },
-    { key: 'kejadian_2026', label: 'Kejadian Terpantau', fmt: 'int', heat: true, group: G2, hint: 'Jumlah kejadian terpantau 2026 menurut rekap resmi Pusat Krisis Kesehatan (semua jenis).' },
-    { key: 'krisis_2026', label: 'Berdampak Krisis', fmt: 'int', heat: true, group: G2, hint: 'Kejadian 2026 yang menimbulkan krisis kesehatan (ada korban atau pengungsi).' },
-    { key: 'meninggal_2026', label: 'Meninggal', fmt: 'int', heat: true, group: G2, hint: 'Korban meninggal dunia 2026.' },
-    { key: 'pengungsi_2026', label: 'Pengungsi', fmt: 'int', heat: true, group: G2, hint: 'Penduduk yang mengungsi 2026.' },
-    { key: 'terdampak_2026', label: 'Penduduk Terdampak', fmt: 'int', heat: true, group: G2, hint: 'Penduduk yang terdampak kejadian 2026.' },
-    { key: 'hilang', label: 'Hilang', fmt: 'int', heat: true, group: G3, hint: 'Korban hilang, kumulatif semua tahun (data 2026 per provinsi belum tersedia).' },
-    { key: 'luka_berat', label: 'Luka Berat / Rawat Inap', fmt: 'int', heat: true, group: G3, hint: 'Luka Berat/Rawat Inap (LB/RI) — korban yang perlu dirawat inap. Kumulatif semua tahun.' },
-    { key: 'luka_ringan', label: 'Luka Ringan / Rawat Jalan', fmt: 'int', heat: true, group: G3, hint: 'Luka Ringan/Rawat Jalan (LR/RJ) — korban cukup dirawat jalan. Kumulatif semua tahun.' },
-  ]
+  void events
   return {
-    id: 'bencana', provinsiRows: true,
-    title: 'Matriks Kejadian Bencana per Provinsi × Jenis Kejadian',
-    desc: 'Jumlah kejadian per jenis di tiap provinsi, berdampingan dengan dampak resmi 2026 (meninggal, pengungsi, terdampak) dan korban kumulatif.',
+    id: 'bencana',
+    title: 'Matriks Kejadian Bencana per Provinsi × Jenis',
+    desc: 'Jumlah kejadian per jenis dan dampaknya di tiap provinsi, dari API EOC Pusat Krisis.',
     rowLabel: 'Provinsi',
-    cols,
-    rows,
-    notes: [
-      `Kolom jenis dihitung dari ${ev.length.toLocaleString('id-ID')} titik kejadian di peta Pusat Krisis Kesehatan (${opt.sumberLive ? 'diambil langsung dari dashboard-new' : 'snapshot tersimpan'}), bukan total resmi; sebagian titik tidak punya tanggal/lokasi lengkap.`,
-      'Kolom dampak resmi 2026 tidak dipilah per jenis dan tidak mengikuti rentang waktu; hilang, luka berat, dan luka ringan per provinsi untuk 2026 belum tersedia sehingga ditampilkan kumulatif.',
-    ],
+    cols: [],
+    rows: [],
+    notes: ['Sumber: API EOC Pusat Krisis (data_krisis).'],
+    kosong: `Data belum tersedia dari API EOC${raw?.live_status?.eoc?.error ? ` (${raw.live_status.eoc.error})` : ''}.`,
   }
 }
 

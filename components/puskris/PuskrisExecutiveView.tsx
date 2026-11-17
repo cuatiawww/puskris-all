@@ -16,7 +16,7 @@ import {
 import { toDeriveFilter, type PuskrisUiFilter } from '@/lib/puskris/ui-filter'
 import { NASIONAL_NOTE, withQuery } from '@/lib/puskris/pages'
 import { EMT_LABEL, NCC_LABEL } from '@/lib/puskris/labels'
-import { asistensiWilayah, attachTimEstimate, titikFasilitas, buildPeringatan, buildTerpadu, countRadius, CONTOH_LABEL } from '@/lib/puskris/integrasi'
+import { asistensiWilayah, attachTimEstimate, titikFasilitas, buildPeringatan, buildTerpadu, countRadius } from '@/lib/puskris/integrasi'
 
 const SpasialMap = dynamic(() => import('@/components/spasial/SpasialMap'), {
   ssr: false,
@@ -315,7 +315,7 @@ export default function PuskrisExecutiveView({
                           <AlertTriangle className={`mt-0.5 h-3 w-3 shrink-0 ${p.tingkat === 'tinggi' ? 'text-red-600' : 'text-amber-500'}`} />
                           <span className="line-clamp-2 leading-snug">{p.judul}</span>
                         </p>
-                        {p.contoh ? <span className="ml-4 text-[9px] font-bold uppercase text-amber-700">{CONTOH_LABEL}</span> : null}
+                        
                       </button>
                     </li>
                   )) : (
@@ -373,7 +373,7 @@ export default function PuskrisExecutiveView({
                           <span className="leading-snug">{p.judul}</span>
                         </p>
                         <p className="mt-0.5 line-clamp-2 pl-4 text-[10px] leading-snug text-slate-500">{p.detail}</p>
-                        {p.contoh ? <span className="ml-4 text-[9px] font-bold uppercase text-amber-700">{CONTOH_LABEL}</span> : null}
+                        
                       </button>
                     </li>
                   )) : (

@@ -19,7 +19,8 @@ import { EMT_LABEL, NCC_LABEL } from '@/lib/puskris/labels'
 import { NASIONAL_NOTE, withQuery } from '@/lib/puskris/pages'
 import { jenisTrendSeries } from '@/lib/puskris/analisis-charts'
 import { Area, AreaChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { buildTimeline, CONTOH_LABEL } from '@/lib/puskris/integrasi'
+import { buildTimeline } from '@/lib/puskris/integrasi'
+import ApiKosong from '@/components/puskris/ApiKosong'
 
 function JenisBars({ items, selected, onSelect }: {
   items: { nama: string; kejadian: number }[]
@@ -35,6 +36,7 @@ function JenisBars({ items, selected, onSelect }: {
           <button type="button" onClick={() => onSelect(null)} className="text-[10px] font-bold text-primary hover:underline">Hapus filter</button>
         ) : null}
       </div>
+      {!items.length ? <ApiKosong pesan="Tidak ada data jenis kejadian dari API EOC untuk filter ini" compact /> : null}
       <ul className="min-h-0 flex-1 space-y-1 overflow-auto">
         {items.slice(0, 8).map((c) => {
           const on = selected === c.nama
@@ -59,13 +61,14 @@ function JenisBars({ items, selected, onSelect }: {
   )
 }
 
-function TrenJenisCard({ raw, f }: { raw: any; f: PuskrisUiFilter }) {
-  const trend = jenisTrendSeries(raw, f)
+const lLiveTop = (raw: any) => raw?.logistik?.data_source === 'langsung'
+
+function TrenJenisCard({ kejadian, f }: { kejadian: any[] | null; f: PuskrisUiFilter }) {
+  const trend = jenisTrendSeries(kejadian, f)
   return (
     <div className="skdr-card flex h-full flex-col p-3" data-testid="tren-jenis-card">
       <h3 className="text-[11px] font-black uppercase tracking-wider text-slate-700">Tren kejadian per jenis</h3>
       <div className="mb-1 flex flex-wrap items-center gap-1.5">
-        {trend.contoh ? <span className="rounded-full bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-amber-800">{CONTOH_LABEL}</span> : null}
         <p className="line-clamp-2 text-[10px] text-slate-500">{trend.catatan}</p>
       </div>
       {trend.nasionalOnly ? <p className="mb-1 text-[10px] font-semibold text-amber-800">{NASIONAL_NOTE} Deret bulanan tidak terpecah per provinsi.</p> : null}
@@ -84,7 +87,7 @@ function TrenJenisCard({ raw, f }: { raw: any; f: PuskrisUiFilter }) {
             </AreaChart>
           </ResponsiveContainer>
         ) : (
-          <p className="py-10 text-center text-xs text-slate-500">Tidak ada deret bulanan untuk filter ini.</p>
+          kejadian ? <p className="py-10 text-center text-xs text-slate-500">Tidak ada kejadian untuk filter ini.</p> : <ApiKosong pesan="Data kejadian belum tersedia dari API EOC" />
         )}
       </div>
     </div>
@@ -163,7 +166,7 @@ function DynamicKpiCards({
           />
           <KpiCardItem
             label="Korban Jiwa"
-            value={nf((situasi.meninggal || 0) + (situasi.hilang || 0))}
+            value={situasi.meninggal == null ? '—' : nf((situasi.meninggal || 0) + (situasi.hilang || 0))}
             unit="jiwa"
             sub={`${nf(situasi.meninggal)} meninggal · ${nf(situasi.hilang)} hilang`}
             icon={Users}
@@ -171,7 +174,7 @@ function DynamicKpiCards({
           />
           <KpiCardItem
             label="Korban Luka"
-            value={nf((situasi.luka_berat || 0) + (situasi.luka_ringan || 0))}
+            value={situasi.luka_berat == null ? '—' : nf((situasi.luka_berat || 0) + (situasi.luka_ringan || 0))}
             unit="orang"
             sub={`${nf(situasi.luka_berat)} rawat inap · ${nf(situasi.luka_ringan)} rawat jalan`}
             icon={HeartPulse}
@@ -179,7 +182,7 @@ function DynamicKpiCards({
           />
           <KpiCardItem
             label="Penduduk Terdampak"
-            value={nf((situasi.pengungsi || 0) + (situasi.terdampak || 0))}
+            value={situasi.pengungsi == null ? '—' : nf((situasi.pengungsi || 0) + (situasi.terdampak || 0))}
             unit="jiwa"
             sub={`${nf(situasi.pengungsi)} mengungsi · ${nf(situasi.terdampak)} terdampak`}
             icon={Users}
@@ -201,7 +204,7 @@ function DynamicKpiCards({
               label="Total Panggilan 119"
               value={nf(layanan.panggilan)}
               unit="panggilan"
-              sub={layanan.panggilanTahun ? `Tahun ${layanan.panggilanTahun}, langsung dari API PSC 119` : 'Snapshot kumulatif nasional'}
+              sub={layanan.panggilanTahun ? `Tahun ${layanan.panggilanTahun}, langsung dari API PSC 119` : 'Data belum tersedia dari API PSC 119'}
               icon={PhoneCall}
               tone="amber"
               note={isWilayah ? NASIONAL_NOTE : null}
@@ -324,8 +327,8 @@ function DynamicKpiCards({
 
   if (tab === 'kesiapsiagaan') {
     if (bagian === 'logistik') {
-      const stokTotal = derived.logistik?.totalStok ?? raw.logistik?.summary?.total_stok ?? 0
-      const gudangCount = raw.logistik?.regional?.length || derived.logistik?.rows?.length || 10
+      const stokTotal = lLiveTop(raw) ? (derived.logistik?.totalStok ?? raw.logistik?.summary?.total_stok ?? null) : null
+      const gudangCount = raw.logistik?.regional?.length ?? null
       const lS = raw.logistik?.summary || {}
       const lLive = raw.logistik?.data_source === 'langsung'
       const selReg: any = lLive && derived.selected ? (raw.logistik.regional || []).find((r: any) => r.id === raw.logistik.provinsi_regional?.[derived.selected!.code]) : null
@@ -428,8 +431,8 @@ function DynamicKpiCards({
           <KpiCardItem
             label="Provinsi Mengisi Kapasitas"
             value={`${cak.provinsi_mengisi_kapasitas ?? '—'}`}
-            unit={`dari ${cak.provinsi_total ?? 38}`}
-            sub={`${cak.provinsi_pct ?? 0}% provinsi sudah menilai kapasitas`}
+            unit={cak.provinsi_total != null ? `dari ${cak.provinsi_total}` : undefined}
+            sub={cak.provinsi_pct != null ? `${cak.provinsi_pct}% provinsi sudah menilai kapasitas` : 'Data belum tersedia dari API Asistensi'}
             icon={ShieldCheck}
             tone="teal"
             href={withQuery('/dashboard/asistensi-risiko/provinsi', f)}
@@ -437,23 +440,23 @@ function DynamicKpiCards({
           <KpiCardItem
             label="Kab/Kota Mengisi Kapasitas"
             value={`${cak.kabkot_mengisi_kapasitas ?? '—'}`}
-            unit={`dari ${cak.kabkot_total ?? 514}`}
-            sub={`${cak.kabkot_pct ?? 0}% kab/kota sudah menilai kapasitas`}
+            unit={cak.kabkot_total != null ? `dari ${cak.kabkot_total}` : undefined}
+            sub={cak.kabkot_pct != null ? `${cak.kabkot_pct}% kab/kota sudah menilai kapasitas` : 'Data belum tersedia dari API Asistensi'}
             icon={Building2}
             tone="emerald"
             href={withQuery('/dashboard/asistensi-risiko/kabupaten-kota', f)}
           />
           <KpiCardItem
             label="Risiko Bencana Tinggi"
-            value={live ? `${irbiP.Tinggi ?? 0} prov · ${irbiK.Tinggi ?? 0} kab/kota` : 'Sedang / Tinggi'}
+            value={live ? `${irbiP.Tinggi ?? 0} prov · ${irbiK.Tinggi ?? 0} kab/kota` : '—'}
             sub="Status Indeks Risiko Bencana Indonesia (IRBI)"
             icon={AlertTriangle}
             tone="amber"
           />
           <KpiCardItem
             label="Sumber Data"
-            value={live ? 'Langsung' : 'Snapshot'}
-            sub={live ? `API rekapitulasi Asistensi ${asis.tahun} · ${asis.fetched_at_wib || ''}` : `Snapshot ${asis.fetched_at_wib || ''}`}
+            value={live ? 'Langsung' : 'Belum terhubung'}
+            sub={live ? `API rekapitulasi Asistensi ${asis.tahun} · ${asis.fetched_at_wib || ''}` : 'Data belum tersedia dari API Asistensi'}
             icon={CheckCircle}
             tone="blue"
           />
@@ -574,9 +577,8 @@ export default function PuskrisRingkasanView({
     raw.ncc?.data_source === 'langsung' ? `Data NCC 119 langsung dari API NCC (${raw.ncc.period?.label || ''}), tingkat nasional.` : 'Data NCC 119 belum tersedia dari API NCC.',
     raw.asistensi?.data_source === 'langsung'
       ? `Asistensi Risiko diambil langsung dari API rekapitulasi Asistensi ${raw.asistensi.tahun || ''}.`
-      : 'Asistensi Risiko adalah snapshot manual 16 November 2026; peta arsiran hanya memuat dua contoh wilayah.',
-    'Titik kejadian diletakkan di pusat provinsi karena sumber belum punya koordinat tepat.',
-    'Slider waktu mengikuti tren bulanan nasional; sebaran arsiran per provinsi tetap angka tahunan karena sumber tidak merilis deret bulanan per wilayah.',
+      : 'Data Asistensi Risiko belum tersedia dari API.',
+    'Titik kejadian memakai koordinat dari API EOC; kejadian tanpa koordinat diletakkan di pusat kab/kota atau provinsi.',
   ].filter(Boolean).join(' ')
 
 
@@ -602,7 +604,7 @@ export default function PuskrisRingkasanView({
         <>
           <section className="grid gap-3 lg:grid-cols-3" aria-label="Rekap ringkas">
             <JenisBars items={jenisCards} selected={f.jenis} onSelect={(nama) => onApply({ ...f, jenis: nama })} />
-            <TrenJenisCard raw={raw} f={f} />
+            <TrenJenisCard kejadian={derived.kejadianSemua} f={f} />
             <LiniMasaRespons rows={timeline.rows} catatan={timeline.catatan} compact />
           </section>
           <p className="text-[11px] text-slate-500">

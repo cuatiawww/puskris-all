@@ -22,7 +22,7 @@ import GeoJSON from 'ol/format/GeoJSON'
 import Feature from 'ol/Feature'
 import Point from 'ol/geom/Point'
 import LineString from 'ol/geom/LineString'
-import { Circle as CircleStyle, Fill, Stroke, Style, Text } from 'ol/style'
+import { Circle as CircleStyle, Fill, Icon, Stroke, Style, Text } from 'ol/style'
 import { fromLonLat } from 'ol/proj'
 import { circular } from 'ol/geom/Polygon'
 import { boundingExtent, createEmpty, extend, isEmpty } from 'ol/extent'
@@ -33,7 +33,7 @@ import { PUBLIC_BASE_PATH } from '@/lib/public-path'
 import { nf } from '@/lib/analisa-api'
 import { areaVal, classesFor, classOf, fmtPct, METRICS, STATUS, statusFor, titikVal, type Area, type MapClass, type Metric, type SpasialResp, type Titik } from '@/lib/spasial-api'
 import type { ChoroConfig } from '@/lib/choropleth-classes'
-import type { ExtraPointLayer } from '@/lib/puskris/internal-layers'
+import { glyphSvg, type ExtraPointLayer } from '@/lib/puskris/internal-layers'
 
 export type BaseMap = 'light' | 'osm' | 'satellite' | 'terrain' | 'none'
 export type PointMode = 'kluster' | 'titik' | 'off'
@@ -594,7 +594,9 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
   }, [intelLayers?.vectors]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── lapisan titik tambahan (API Internal) ──
-  const extraRefs = useRef<Map<string, { src: VectorSource; layer: VectorLayer<any>; cluster: boolean }>>(new Map())
+  // Catatan: ref menyimpan instance peta. Pada mode dev (React StrictMode) peta dibuat ulang setelah cleanup,
+  // jadi lapisan lama yang menempel di peta yang sudah dibuang harus dibuat ulang (penyebab titik PSC/ambulans tidak tampil).
+  const extraRefs = useRef<Map<string, { src: VectorSource; layer: VectorLayer<any>; cluster: boolean; map: OlMap; icon?: string }>>(new Map())
   useEffect(() => {
     const m = map.current
     if (!m) return
@@ -602,18 +604,31 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
     for (const def of extraLayers || []) {
       seen.add(def.id)
       let ref = extraRefs.current.get(def.id)
-      if (!ref || ref.cluster !== def.cluster) {
-        if (ref) m.removeLayer(ref.layer)
+      if (!ref || ref.cluster !== def.cluster || ref.map !== m || ref.icon !== def.icon) {
+        if (ref) ref.map.removeLayer(ref.layer)
         const src = new VectorSource()
+        const iconCache: Record<string, Style> = {}
         const ptStyle = (f: FeatureLike) => {
           const c = f.get('pColor') as string
+          const dashed = Boolean(f.get('dashed'))
+          const rad = f.get('pRadius') || 5
+          const label = f.get('pLabel') as string | undefined
+          if (def.icon) {
+            // Ikon bulat berwarna dengan glyph putih (ambulans / telepon / PSC); diameter mengikuti radius titik.
+            const size = Math.round(Math.max(18, rad * 2 + 8))
+            const key = `${c}|${dashed}|${size}|${label || ''}`
+            return (iconCache[key] ||= new Style({
+              image: new Icon({ src: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(glyphSvg(def.icon, c, dashed, size))}`, width: size, height: size }),
+              text: label ? new Text({ text: label, offsetY: size / 2 + 7, font: 'bold 9px Inter, sans-serif', fill: new Fill({ color: '#1e293b' }), stroke: new Stroke({ color: '#ffffff', width: 3 }) }) : undefined,
+            }))
+          }
           return new Style({
             image: new CircleStyle({
-              radius: f.get('pRadius') || 5,
-              fill: new Fill({ color: f.get('dashed') ? `${c}99` : c }),
-              stroke: new Stroke({ color: f.get('dashed') ? '#334155' : '#ffffff', width: f.get('dashed') ? 1.4 : 1.8, lineDash: f.get('dashed') ? [3, 2] : undefined }),
+              radius: rad,
+              fill: new Fill({ color: dashed ? `${c}99` : c }),
+              stroke: new Stroke({ color: dashed ? '#334155' : '#ffffff', width: dashed ? 1.4 : 1.8, lineDash: dashed ? [3, 2] : undefined }),
             }),
-            text: f.get('pLabel') ? new Text({ text: f.get('pLabel'), font: 'bold 9px Inter, sans-serif', fill: new Fill({ color: '#ffffff' }) }) : undefined,
+            text: label ? new Text({ text: label, font: 'bold 9px Inter, sans-serif', fill: new Fill({ color: '#ffffff' }) }) : undefined,
           })
         }
         const cache: Record<string, Style> = {}
@@ -627,15 +642,22 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
                 const n = fs2.length
                 const col = fs2[0].get('layerColor') || '#0f766e'
                 const key = `${col}-${n}`
-                return (cache[key] ||= new Style({
-                  image: new CircleStyle({ radius: Math.min(22, 9 + Math.sqrt(n) * 1.6), fill: new Fill({ color: `${col}e6` }), stroke: new Stroke({ color: '#ffffff', width: 2 }) }),
+                const rad = Math.min(22, 9 + Math.sqrt(n) * 1.6)
+                const base = (cache[key] ||= new Style({
+                  image: new CircleStyle({ radius: rad, fill: new Fill({ color: `${col}e6` }), stroke: new Stroke({ color: '#ffffff', width: 2 }) }),
                   text: new Text({ text: nf(n), font: 'bold 10px Inter, sans-serif', fill: new Fill({ color: '#ffffff' }) }),
                 }))
+                if (!def.icon) return base
+                // lencana ikon kecil di tepi klaster supaya jenis titiknya tetap terbaca saat padat
+                const badge = (cache[`${key}-ic`] ||= new Style({
+                  image: new Icon({ src: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(glyphSvg(def.icon, col, false, 16))}`, width: 16, height: 16, displacement: [rad * 0.75, rad * 0.75] }),
+                }))
+                return [base, badge]
               },
             })
           : new VectorLayer({ source: src, zIndex: def.zIndex + 3, style: ptStyle })
         m.addLayer(layer)
-        ref = { src, layer, cluster: def.cluster }
+        ref = { src, layer, cluster: def.cluster, map: m, icon: def.icon }
         extraRefs.current.set(def.id, ref)
       }
       ref.src.clear()
@@ -651,7 +673,7 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
       }
       ref.layer.setVisible(def.visible)
     }
-    for (const [id, ref] of extraRefs.current) if (!seen.has(id)) { m.removeLayer(ref.layer); extraRefs.current.delete(id) }
+    for (const [id, ref] of extraRefs.current) if (!seen.has(id)) { ref.map.removeLayer(ref.layer); extraRefs.current.delete(id) }
   }, [extraLayers])
 
   // ── lapisan BNPB InaRISK (ArcGIS REST ImageServer / MapServer, viewport overlay seperti ABVC/kemkes-web) ──
@@ -1041,7 +1063,7 @@ function Legend({ metric, label, cls, lvLabel, sumber, weekly, points, heat, onC
               <ul className="mt-1 space-y-0.5">
                 {extra.flatMap((l) => l.legend.filter((g) => !g.dashed).map((g, i) => (
                   <li key={`${l.id}-${i}`} className="flex items-center gap-1.5">
-                    <span className="h-2.5 w-2.5 shrink-0 rounded-full border-2 border-white shadow" style={{ background: g.color }} />{g.label}
+                    {l.icon ? <img alt="" aria-hidden className="h-4 w-4 shrink-0" src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(glyphSvg(l.icon, g.color, false, 16))}`} /> : <span className="h-2.5 w-2.5 shrink-0 rounded-full border-2 border-white shadow" style={{ background: g.color }} />}{g.label}
                   </li>
                 )))}
                 <li className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 shrink-0 rounded-full border border-dashed border-slate-700 bg-slate-300" />Garis putus-putus: lokasi perkiraan (pusat kab/kota / PSC induk)</li>

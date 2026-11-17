@@ -13,7 +13,7 @@ const LABEL: Record<string, string> = {
 }
 const ORDER = ['psc', 'panggilan', 'asistensi', 'eoc', 'ncc', 'tck', 'logistik']
 
-/** Penanda sumber tiap blok data: "langsung" (API resmi) atau "snapshot" (berkas tersimpan). */
+/** Penanda sumber tiap blok data: "langsung" (API resmi) atau belum tersedia dari API. */
 export default function SumberDataStrip({ status, pending, compact = false }: { status?: Record<string, any> | null; pending?: boolean; compact?: boolean }) {
   if (!status) return null
   return (
@@ -23,7 +23,7 @@ export default function SumberDataStrip({ status, pending, compact = false }: { 
         const s = status[k]
         const live = s.status === 'langsung'
         const kosong = s.status === 'tidak_tersedia'
-        const tip = [live ? 'Diambil langsung dari API resmi' : kosong ? 'Data belum tersedia dari API' : 'Memakai snapshot tersimpan', s.at ? `per ${s.at}` : null, s.error ? `(${s.error})` : null].filter(Boolean).join(' ')
+        const tip = [live ? 'Diambil langsung dari API resmi' : 'Data belum tersedia dari API', s.at ? `per ${s.at}` : null, s.error ? `(${s.error})` : null].filter(Boolean).join(' ')
         return (
           <span
             key={k}
@@ -31,7 +31,7 @@ export default function SumberDataStrip({ status, pending, compact = false }: { 
             className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-semibold ${live ? 'border-emerald-200 bg-emerald-50 text-emerald-800' : kosong ? 'border-slate-200 bg-slate-50 text-slate-500' : 'border-amber-200 bg-amber-50 text-amber-800'}`}
           >
             <span className={`h-1.5 w-1.5 rounded-full ${live ? 'bg-emerald-500' : kosong ? 'bg-slate-400' : 'bg-amber-500'}`} />
-            {LABEL[k] || k}: {live ? 'langsung' : kosong ? (s.pending ? 'memuat' : 'belum terhubung') : 'snapshot'}
+            {LABEL[k] || k}: {live ? 'langsung' : s.pending ? 'memuat' : 'belum terhubung'}
             {s.pending ? <RefreshCw className="h-3 w-3 animate-spin" aria-label="sedang memuat" /> : null}
           </span>
         )

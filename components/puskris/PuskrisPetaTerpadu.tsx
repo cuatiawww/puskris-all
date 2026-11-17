@@ -6,7 +6,7 @@ import { logistikPerProvinsi } from '@/lib/puskris/derive'
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
-import { ChevronLeft, ChevronRight, Crosshair, Layers, ListTree, MapPin, Maximize2, Minimize2, Settings, Shapes, Wind, X } from 'lucide-react'
+import { Ambulance, Hospital, PhoneCall, ChevronLeft, ChevronRight, Crosshair, Layers, ListTree, MapPin, Maximize2, Minimize2, Settings, Shapes, Wind, X } from 'lucide-react'
 import SpasialPanel from '@/components/spasial/SpasialPanel'
 import { DEFAULT_LAYERS, type Focus, type Layers as MapLayers, type IntelLayerStatus } from '@/components/spasial/SpasialMap'
 import { defaultFilter, type AFilter } from '@/lib/analisa-api'
@@ -22,7 +22,7 @@ import { BNPB_LAYERS, INTEL_LAYER_APIS, type BnpbLayerId, type BnpbStatus, type 
 import { KORBAN_LABEL } from '@/lib/puskris/labels'
 import { buildInternalLayers, DEFAULT_INTERNAL, type InternalLayerToggles } from '@/lib/puskris/internal-layers'
 import { RISIKO_LAYERS } from '@/lib/puskris/risiko-layers'
-import { asistensiWilayah, attachTimEstimate, titikFasilitas, buildTerpadu, countRadius, CONTOH_LABEL } from '@/lib/puskris/integrasi'
+import { asistensiWilayah, attachTimEstimate, titikFasilitas, buildTerpadu, countRadius } from '@/lib/puskris/integrasi'
 
 const SpasialMap = dynamic(() => import('@/components/spasial/SpasialMap'), {
   ssr: false,
@@ -238,7 +238,7 @@ export default function PuskrisPetaTerpadu({
                   />
                 )}
                 <div className={dockTab === 'terbaru' ? 'h-full' : 'hidden'}>
-                  <KejadianTerbaruList f={f as any} eocSnapshot={(raw as any).eoc?.kejadian_krisis_terbaru} onCount={setTerbaruCount}
+                  <KejadianTerbaruList f={f as any} eocKrisis={(raw as any).eoc?.kejadian_krisis_terbaru} onCount={setTerbaruCount}
                     onPick={(k) => {
                       if (k.lat != null && k.lon != null) setFocus({ lat: k.lat, lon: k.lon, zoom: 9, nonce: Date.now() })
                       else if (k.provCode && centroids[k.provCode]) setFocus({ lat: centroids[k.provCode].lat, lon: centroids[k.provCode].lon, zoom: 6.5, nonce: Date.now() })
@@ -312,7 +312,7 @@ export default function PuskrisPetaTerpadu({
                             aria-label="Radius dukungan"
                           />
                         </div>
-                        <p className="mt-0.5 text-[10px] text-slate-500">Lingkaran di sekitar titik/provinsi terpilih. {titikFasilitas(raw) ? 'PSC, ambulans, dan rumah sakit dihitung dari koordinat API PSC 119 (PSC tanpa koordinat valid memakai pusat kab/kota); tenaga cadangan dan gudang masih memakai pusat provinsi.' : `Jarak memakai pusat provinsi (${CONTOH_LABEL} koordinat fasilitas).`}</p>
+                        <p className="mt-0.5 text-[10px] text-slate-500">Lingkaran di sekitar titik/provinsi terpilih. {titikFasilitas(raw) ? 'PSC, ambulans, dan rumah sakit dihitung dari koordinat API PSC 119 (PSC tanpa koordinat valid memakai pusat kab/kota); tenaga cadangan dan gudang masih memakai pusat provinsi.' : 'Koordinat fasilitas belum tersedia dari API PSC 119; jarak memakai pusat provinsi.'}</p>
                       </label>
                       <label className={`block cursor-pointer rounded-xl border p-2.5 transition select-none ${layers.choro ? 'border-teal-200 bg-white shadow-2xs' : 'border-slate-100 bg-slate-50'}`}>
                         <div className="flex items-center justify-between gap-2">
@@ -354,7 +354,7 @@ export default function PuskrisPetaTerpadu({
                       <div className="space-y-1.5">
                         <label className={`block cursor-pointer rounded-xl border p-2.5 transition select-none ${internal.psc ? 'border-teal-300 bg-teal-50/50' : 'border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50/60'}`} data-testid="internal-psc">
                           <div className="flex items-center justify-between gap-2">
-                            <span className="flex min-w-0 items-center gap-1.5 text-xs font-bold text-slate-800"><span className="h-2.5 w-2.5 rounded-full bg-teal-600" />Titik PSC 119</span>
+                            <span className="flex min-w-0 items-center gap-1.5 text-xs font-bold text-slate-800"><span className="flex h-4 w-4 items-center justify-center rounded-full bg-teal-600 text-white"><Hospital className="h-2.5 w-2.5" /></span>Titik PSC 119</span>
                             <span className="flex items-center gap-2">
                               <span className="text-xs font-black tabular-nums text-slate-800">{nfi(internal.psc ? iInfo.psc.tampil : iInfo.psc.dgnKoordinat)}</span>
                               <input type="checkbox" checked={internal.psc} onChange={(e) => setInternal((p) => ({ ...p, psc: e.target.checked }))} className="h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 text-teal-700 focus:ring-teal-500" aria-label="Titik PSC 119" />
@@ -370,7 +370,7 @@ export default function PuskrisPetaTerpadu({
                         </label>
                         <label className={`block cursor-pointer rounded-xl border p-2.5 transition select-none ${internal.ambulans ? 'border-teal-300 bg-teal-50/50' : 'border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50/60'}`} data-testid="internal-ambulans">
                           <div className="flex items-center justify-between gap-2">
-                            <span className="flex min-w-0 items-center gap-1.5 text-xs font-bold text-slate-800"><span className="h-2.5 w-2.5 rounded-full bg-green-600" />Titik Ambulans</span>
+                            <span className="flex min-w-0 items-center gap-1.5 text-xs font-bold text-slate-800"><span className="flex h-4 w-4 items-center justify-center rounded-full bg-green-600 text-white"><Ambulance className="h-2.5 w-2.5" /></span>Titik Ambulans</span>
                             <span className="flex items-center gap-2">
                               <span className="text-xs font-black tabular-nums text-slate-800">{nfi(internal.ambulans ? iInfo.ambulans.tampil : iInfo.ambulans.koordinatSendiri + iInfo.ambulans.diLokasiPsc)}</span>
                               <input type="checkbox" checked={internal.ambulans} onChange={(e) => setInternal((p) => ({ ...p, ambulans: e.target.checked }))} className="h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 text-teal-700 focus:ring-teal-500" aria-label="Titik Ambulans" />
@@ -386,7 +386,7 @@ export default function PuskrisPetaTerpadu({
                         </label>
                         <label className={`block cursor-pointer rounded-xl border p-2.5 transition select-none ${internal.panggilan ? 'border-teal-300 bg-teal-50/50' : 'border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50/60'}`} data-testid="internal-panggilan">
                           <div className="flex items-center justify-between gap-2">
-                            <span className="flex min-w-0 items-center gap-1.5 text-xs font-bold text-slate-800"><span className="h-2.5 w-2.5 rounded-full bg-violet-600" />Titik Panggilan 119</span>
+                            <span className="flex min-w-0 items-center gap-1.5 text-xs font-bold text-slate-800"><span className="flex h-4 w-4 items-center justify-center rounded-full bg-violet-600 text-white"><PhoneCall className="h-2.5 w-2.5" /></span>Titik Panggilan 119</span>
                             <span className="flex items-center gap-2">
                               <span className="text-xs font-black tabular-nums text-slate-800">{nfi(iInfo.panggilan.tampil)}</span>
                               <input type="checkbox" checked={internal.panggilan} onChange={(e) => setInternal((p) => ({ ...p, panggilan: e.target.checked }))} className="h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 text-teal-700 focus:ring-teal-500" aria-label="Titik Panggilan 119" />

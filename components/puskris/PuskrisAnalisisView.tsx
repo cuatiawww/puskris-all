@@ -41,7 +41,6 @@ import {
   matriksPscProvJenis,
   matriksTck,
   type TckView,
-  snapshotEvents,
   type MatriksDef,
 } from '@/lib/puskris/matriks'
 import type { KejadianTerbaru } from '@/lib/puskris/kejadian-terbaru'
@@ -318,7 +317,7 @@ export default function PuskrisAnalisisView({
       alive = false
     }
   }, [])
-  const eventsBencana = useMemo(() => liveEvents?.events || snapshotEvents(raw), [liveEvents, raw])
+  const eventsBencana = useMemo(() => liveEvents?.events || [], [liveEvents, raw])
   const genericDef: MatriksDef | null = useMemo(() => {
     if (activeTab === 'tck') return matriksTck(raw, tckView, periodeFilter)
     if (activeTab === 'panggilan') {

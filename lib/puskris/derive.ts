@@ -1,23 +1,23 @@
 import type { Freshness, ProvinceRow, PuskrisFilter } from './types'
 
+/** Tanggal hari ini (WIB) sebagai YYYY-MM-DD. */
+export const todayWibStr = () => new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 10)
+export const tahunWib = () => Number(todayWibStr().slice(0, 4))
+
 export const DEFAULT_FILTER: PuskrisFilter = {
   periode: 'tahun',
-  tahun: 2026,
+  tahun: tahunWib(),
   bulan: null,
   provinsi: null,
   kabupaten: null,
 }
 
-export const nf = (v: number | null | undefined) => new Intl.NumberFormat('id-ID').format(v ?? 0)
+export const nf = (v: number | null | undefined) => (v === null || v === undefined || Number.isNaN(v) ? '—' : new Intl.NumberFormat('id-ID').format(v))
 export const pf = (v: number | null | undefined, d = 1) =>
   v === null || v === undefined || Number.isNaN(v) ? '—' : `${v.toFixed(d)}%`
 
-const REF = new Date('2026-11-16T00:00:00+07:00')
-
 function daysAgo(n: number) {
-  const d = new Date(REF)
-  d.setDate(d.getDate() - n)
-  return d.toISOString().slice(0, 10)
+  return new Date(Date.now() + 7 * 3600_000 - n * 86400_000).toISOString().slice(0, 10)
 }
 
 function minMaxNorm(values: number[]) {
@@ -86,8 +86,8 @@ export function applyDerive(data: any, filter: PuskrisFilter) {
   const logRegById = Object.fromEntries((data.logistik?.regional || []).map((r: any) => [r.id, r]))
   const logBy = logLive
     ? Object.fromEntries(Object.entries(data.logistik.provinsi_regional as Record<string, number>).map(([c, id]) => [c, Number(logRegById[id]?.total || 0)]))
-    : Object.fromEntries((data.logistik?.regional || []).map((r) => [r.code, Number(r.total || 0)]))
-  const asisBy = Object.fromEntries((data.asistensi?.wilayah?.length ? data.asistensi.wilayah : data.asistensi?.contoh_wilayah || [])
+    : {} as Record<string, number>
+  const asisBy = Object.fromEntries((data.asistensi?.wilayah || [])
     .filter((x) => x.level === 'provinsi')
     .map((x) => [String(x.kode_wilayah).padStart(2, '0'), Number(x.poin_kapasitas_pct)]))
   rows = rows.map((r) => ({ ...r, stok: logBy[r.code] ?? null, asistensiPct: asisBy[r.code] ?? null }))
@@ -95,7 +95,7 @@ export function applyDerive(data: any, filter: PuskrisFilter) {
   // Indeks Kesenjangan Respons 0–100.
   // Beban = rata-rata min-max (kejadian, meninggal, pengungsi).
   // Kapasitas = rata-rata min-max indikator yang tersedia: PSC aktif, ambulans baik, TCK individu,
-  // stok regional (hanya 11 regional), dan poin Asistensi (hanya wilayah yang ada di snapshot).
+  // stok regional penanggung provinsi, dan poin Asistensi (bila API mengisi wilayah itu).
   // Indeks = ((beban - kapasitas + 1) / 2) × 100. Semakin tinggi (mendekati 100, merah) semakin besar kesenjangannya.
   const nBeban = [
     minMaxNorm(rows.map((r) => r.kejadian)),
@@ -124,12 +124,6 @@ export function applyDerive(data: any, filter: PuskrisFilter) {
   const sum = (fn: (r: ProvinceRow) => number) => scoped.reduce((a, r) => a + fn(r), 0)
 
   const resmi = data.eoc?.nasional || {}
-  const tahunKpi = resmi.kejadian_tahun || {}
-  const bulanKpi = resmi.kejadian_oktober || {}
-  const krisisTahun = resmi.krisis_tahun || {}
-  const useBulan = filter.periode === 'bulan'
-  const situasiNasional = useBulan ? bulanKpi : tahunKpi
-  const situasiDariProvinsi = Boolean(selected)
   const kabU = filter.kabupaten ? filter.kabupaten.toUpperCase() : null
   const kejadianSemua: any[] | null = evLive
     ? evPeriode.filter((k) => (!filter.provinsi || k.code === filter.provinsi) && (!kabU || String(k.kabupaten).toUpperCase() === kabU))
@@ -140,34 +134,22 @@ export function applyDerive(data: any, filter: PuskrisFilter) {
         sumber: `API EOC Pusat Krisis (langsung), ${range.label}${selected ? ` · ${selected.nama}` : ''}${filter.kabupaten ? ` · ${filter.kabupaten}` : ''}`,
         catatanPeriode: null as string | null,
       }
-    : situasiDariProvinsi
-    ? {
-        terpantau: sum((r) => r.kejadian),
-        berdampak_krisis: sum((r) => r.krisis),
-        meninggal: sum((r) => r.meninggal),
+    : {
+        terpantau: null as number | null,
+        berdampak_krisis: null as number | null,
+        meninggal: null as number | null,
         luka: null as number | null,
         luka_berat: null as number | null,
         luka_ringan: null as number | null,
         hilang: null as number | null,
         korban_total: null as number | null,
-        pengungsi: sum((r) => r.pengungsi),
-        terdampak: sum((r) => r.terdampak),
-        sumber: 'agregat marker 2026 per provinsi (bukan KPI resmi nasional)',
-        catatanPeriode: 'Angka provinsi memakai agregat marker 2026, bukan filter 7/30 hari.',
-      }
-    : {
-        terpantau: situasiNasional.terpantau,
-        berdampak_krisis: useBulan ? situasiNasional.berdampak_krisis : krisisTahun.kejadian ?? situasiNasional.berdampak_krisis,
-        meninggal: useBulan ? situasiNasional.meninggal : tahunKpi.meninggal,
-        luka: (situasiNasional.luka_berat || 0) + (situasiNasional.luka_ringan || 0),
-        luka_berat: (situasiNasional.luka_berat ?? null) as number | null,
-        luka_ringan: (situasiNasional.luka_ringan ?? null) as number | null,
-        hilang: (situasiNasional.hilang ?? null) as number | null,
-        korban_total: (situasiNasional.korban_total ?? null) as number | null,
-        pengungsi: situasiNasional.pengungsi,
-        terdampak: situasiNasional.terdampak,
-        sumber: useBulan ? 'Dashboard EOC resmi, Oktober 2026' : 'Dashboard EOC resmi, tahun 2026',
-        catatanPeriode: (filter.periode === '7hari' || filter.periode === '30hari') ? 'Filter 7/30 hari hanya memengaruhi tabel kejadian dan tren NCC. KPI EOC resmi tetap memakai angka tahun 2026.' : null,
+        pengungsi: null as number | null,
+        terdampak: null as number | null,
+        faskes_rusak: null as number | null,
+        alam: null as number | null, non_alam: null as number | null, sosial: null as number | null,
+        sumber: `Data belum tersedia dari API EOC${data.eoc?.error ? ` (${data.eoc.error})` : ''}`,
+        catatanPeriode: null as string | null,
+        kosong: true,
       }
 
   const pscS = data.psc?.summary || {}
@@ -270,12 +252,12 @@ export function applyDerive(data: any, filter: PuskrisFilter) {
   }))
 
   const freshness: Record<string, Freshness> = {
-    eoc: { sumber: 'Krisis Kesehatan / Pantauan Bencana', status: evLive ? 'langsung' : 'snapshot', at: data.eoc?.fetched_at_wib, label: data.eoc?.label, url: data.eoc?.sumber_resmi, filterable: { periode: !selected, provinsi: true, kabupaten: true } },
-    psc: { sumber: 'PSC 119 & Ambulans', status: data.psc?.data_source === 'langsung' ? 'langsung' : 'snapshot', at: data.psc?.fetched_at_wib, label: data.psc?.data_source === 'langsung' ? data.psc.label : 'Snapshot kumulatif; filter periode sumber belum tersedia', url: data.psc?.sumber, filterable: { periode: false, provinsi: true, kabupaten: false } },
+    eoc: { sumber: 'Krisis Kesehatan / Pantauan Bencana', status: evLive ? 'langsung' : 'tidak_tersedia', at: data.eoc?.fetched_at_wib, label: data.eoc?.label, url: data.eoc?.sumber_resmi, filterable: { periode: !selected, provinsi: true, kabupaten: true } },
+    psc: { sumber: 'PSC 119 & Ambulans', status: data.psc?.data_source === 'langsung' ? 'langsung' : 'tidak_tersedia', at: data.psc?.fetched_at_wib, label: data.psc?.data_source === 'langsung' ? data.psc.label : (data.psc?.error || 'Data belum tersedia dari API PSC 119'), url: data.psc?.sumber, filterable: { periode: false, provinsi: true, kabupaten: false } },
     ncc: { sumber: 'NCC Panggilan', status: data.ncc?.data_source === 'langsung' ? 'langsung' : 'tidak_tersedia', at: data.ncc?.fetched_at_wib, label: data.ncc?.data_source === 'langsung' ? data.ncc.label : (data.ncc?.error || 'Data belum tersedia dari API NCC'), url: data.ncc?.sumber, filterable: { periode: true, provinsi: false, kabupaten: false } },
-    tck: { sumber: 'Tenaga Cadangan Kesehatan', status: data.tck?.data_source === 'langsung' ? 'langsung' : 'snapshot', at: data.tck?.fetched_at_wib, label: data.tck?.label, url: data.tck?.sumber, filterable: { periode: false, provinsi: true, kabupaten: false } },
-    logistik: { sumber: 'Logistik', status: logLive ? 'langsung' : 'snapshot', at: data.logistik?.fetched_at_wib, label: data.logistik?.label, url: data.logistik?.sumber, filterable: { periode: false, provinsi: Boolean(logLive), kabupaten: false } },
-    asistensi: { sumber: 'Asistensi Risiko', status: data.asistensi?.data_source === 'langsung' ? 'langsung' : 'snapshot', at: data.asistensi?.fetched_at_wib, label: data.asistensi?.label, url: data.asistensi?.sumber_provinsi, filterable: { periode: false, provinsi: false, kabupaten: false } },
+    tck: { sumber: 'Tenaga Cadangan Kesehatan', status: data.tck?.data_source === 'langsung' ? 'langsung' : 'tidak_tersedia', at: data.tck?.fetched_at_wib, label: data.tck?.label, url: data.tck?.sumber, filterable: { periode: false, provinsi: true, kabupaten: false } },
+    logistik: { sumber: 'Logistik', status: logLive ? 'langsung' : 'tidak_tersedia', at: data.logistik?.fetched_at_wib, label: data.logistik?.label, url: data.logistik?.sumber, filterable: { periode: false, provinsi: Boolean(logLive), kabupaten: false } },
+    asistensi: { sumber: 'Asistensi Risiko', status: data.asistensi?.data_source === 'langsung' ? 'langsung' : 'tidak_tersedia', at: data.asistensi?.fetched_at_wib, label: data.asistensi?.label, url: data.asistensi?.sumber_provinsi, filterable: { periode: false, provinsi: false, kabupaten: false } },
   }
 
   const narrative = buildNarrative({ rows, selected, situasi, layanan, sdm, asisCakupan, asis, filter, resmi, nccTot, nccScr })
@@ -317,23 +299,19 @@ function buildNarrative(ctx: any): string[] {
     bullets.push(`Indeks kesenjangan ${selected.nama} berada di peringkat ${pos} dari 38 provinsi (nilai ${selected.kesenjangan.toFixed(2)}; semakin tinggi berarti beban relatif lebih besar daripada kapasitas).`)
   } else {
     const topK = [...rows].sort((a, b) => b.krisis - a.krisis).slice(0, 3)
-    bullets.push(`Pada tahun 2026 tercatat ${nf(situasi.terpantau)} kejadian terpantau dan ${nf(situasi.berdampak_krisis)} yang berdampak krisis, dengan ${nf(situasi.meninggal)} meninggal dan ${nf(situasi.pengungsi)} pengungsi.`)
-    bullets.push(`Tiga provinsi dengan kejadian berdampak krisis terbanyak pada 2026: ${topK.map((r: ProvinceRow) => `${r.nama} (${nf(r.krisis)})`).join(', ')}.`)
-    const okt = resmi.kejadian_oktober
-    if (okt && filter.periode !== 'bulan') {
-      bullets.push(`Pada Oktober 2026 ada ${nf(okt.terpantau)} kejadian terpantau dan ${nf(okt.berdampak_krisis)} berdampak krisis — lebih rendah dari total tahunan, tetapi tetap perlu dipantau di Jawa Tengah, Sulawesi Utara, dan Nusa Tenggara Timur.`)
-    }
+    if (situasi.terpantau != null) bullets.push(`Pada ${periodeRange(filter).label} tercatat ${nf(situasi.terpantau)} kejadian terpantau dan ${nf(situasi.berdampak_krisis)} yang berdampak krisis, dengan ${nf(situasi.meninggal)} meninggal dan ${nf(situasi.pengungsi)} pengungsi.`)
+    if (situasi.terpantau != null) bullets.push(`Tiga provinsi dengan kejadian berdampak krisis terbanyak pada 2026: ${topK.map((r: ProvinceRow) => `${r.nama} (${nf(r.krisis)})`).join(', ')}.`)
     const gap = [...rows].sort((a, b) => b.kesenjangan - a.kesenjangan).slice(0, 3)
-    bullets.push(`Kesenjangan terbesar (beban tinggi, kapasitas relatif rendah) terlihat di ${gap.map((r: ProvinceRow) => r.nama).join(', ')}.`)
+    if (situasi.terpantau != null && rows.some((r: ProvinceRow) => r.pscAktif || r.tck)) bullets.push(`Kesenjangan terbesar (beban tinggi, kapasitas relatif rendah) terlihat di ${gap.map((r: ProvinceRow) => r.nama).join(', ')}.`)
   }
   if (nccScr !== null && !selected) {
-    bullets.push(`Layanan 119 pada periode terpilih menjawab ${pf(nccScr)} dari ${nf(nccTot.cof)} panggilan masuk (tingkat keberhasilan layanan), dengan waktu respons rata-rata ${layanan.waktuRespons ?? 0} menit pada snapshot PSC.`)
+    bullets.push(`Layanan 119 pada periode terpilih menjawab ${pf(nccScr)} dari ${nf(nccTot.cof)} panggilan masuk (tingkat keberhasilan layanan), ${layanan.waktuRespons != null ? `, dengan waktu respons rata-rata ${layanan.waktuRespons} menit (API PSC 119)` : ''}.`)
   }
   if (!selected && sdm.deltaIndividu) {
     bullets.push(`Tenaga cadangan individu ${nf(sdm.individu)} orang, bertambah ${nf(sdm.deltaIndividu)} pada bulan berjalan, didukung ${nf(sdm.tim)} tim dan ${nf(sdm.emt)} Tim Medis Darurat (EMT).`)
   }
-  if (!selected && asisCakupan.provinsi_pct !== undefined) {
-    bullets.push(`Asistensi Risiko masih menipis pada sisi pelaporan: baru ${asisCakupan.provinsi_pct}% provinsi dan ${asisCakupan.kabkot_pct}% kabupaten/kota yang mengisi status kapasitas (${asis.data_source === 'langsung' ? `rekapitulasi ${asis.tahun || ''} langsung dari API Asistensi` : 'snapshot manual 16 November 2026'}).`)
+  if (!selected && asisCakupan.provinsi_pct !== undefined && asis.data_source === 'langsung') {
+    bullets.push(`Asistensi Risiko masih menipis pada sisi pelaporan: baru ${asisCakupan.provinsi_pct}% provinsi dan ${asisCakupan.kabkot_pct}% kabupaten/kota yang mengisi status kapasitas (rekapitulasi ${asis.tahun || ''} langsung dari API Asistensi).`)
   }
   return bullets.slice(0, 5)
 }
@@ -405,7 +383,7 @@ export function periodeRange(filter: PuskrisFilter): { from: string; to: string;
   if (filter.periode === '7hari') return { from: daysAgo(7), to: '9999-12-31', label: '7 hari terakhir' }
   if (filter.periode === '30hari') return { from: daysAgo(30), to: '9999-12-31', label: '30 hari terakhir' }
   if (filter.periode === 'bulan') {
-    const b = String(filter.bulan || 10).padStart(2, '0')
+    const b = String(filter.bulan || Number(todayWibStr().slice(5, 7))).padStart(2, '0')
     return { from: `${filter.tahun}-${b}-01`, to: `${filter.tahun}-${b}-31`, label: `bulan ${filter.tahun}-${b}` }
   }
   return { from: `${filter.tahun}-01-01`, to: `${filter.tahun}-12-31`, label: `tahun ${filter.tahun}` }

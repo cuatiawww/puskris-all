@@ -1,4 +1,3 @@
-import { CONTOH_LABEL } from '@/lib/puskris/integrasi'
 import type { ProvinceRow } from '@/lib/puskris/types'
 import type { PuskrisUiFilter } from '@/lib/puskris/ui-filter'
 
@@ -9,23 +8,11 @@ const MONTH_LABEL: Record<string, string> = {
 
 const PALETTE = ['#16B3AC', '#3899FE', '#F59E0B', '#DC2626', '#7C3AED', '#0F766E', '#64748B']
 
-/** Puncak musiman contoh untuk membagi total bulanan resmi ke jenis tahunan resmi. */
-function seasonWeight(nama: string, month: string): number {
-  const n = nama.toLowerCase()
-  const m = Number(month)
-  if (n.includes('hutan') || n.includes('karhutla') || n.includes('asap')) {
-    return [1, 1, 1, 2, 3, 4, 6, 6, 4, 2, 1, 1][m - 1] || 1
-  }
-  if (n.includes('banjir') || n.includes('longsor') || n.includes('puting') || n.includes('angin')) {
-    return [5, 4, 3, 2, 2, 1, 1, 2, 3, 3, 4, 5][m - 1] || 1
-  }
-  if (n.includes('kekeringan')) {
-    return [1, 1, 1, 2, 3, 5, 6, 5, 3, 2, 1, 1][m - 1] || 1
-  }
-  return 1
-}
-
-export function jenisTrendSeries(raw: any, filter: PuskrisUiFilter): {
+/**
+ * Tren kejadian per jenis per bulan, dihitung langsung dari daftar kejadian API EOC
+ * (sudah tersaring periode, provinsi, kab/kota). Tanpa API -> kosong.
+ */
+export function jenisTrendSeries(kejadian: any[] | null | undefined, filter: PuskrisUiFilter): {
   rows: Record<string, string | number>[]
   keys: string[]
   colors: Record<string, string>
@@ -33,49 +20,31 @@ export function jenisTrendSeries(raw: any, filter: PuskrisUiFilter): {
   contoh: boolean
   nasionalOnly: boolean
 } {
-  const official = (raw?.eoc?.jenis_2026 || []) as { nama: string; jumlah: number }[]
-  const bulanan = (raw?.eoc?.bulanan_2026 || []) as { bulan: string; kejadian: number }[]
-  const annualTotal = official.reduce((a, j) => a + Number(j.jumlah || 0), 0) || 1
-  let jenis = official.map((j) => ({ nama: j.nama, share: Number(j.jumlah || 0) / annualTotal }))
-  if (filter.jenis) {
-    const hit = jenis.find((j) => j.nama === filter.jenis)
-    jenis = hit ? [hit, { nama: 'Jenis lain', share: Math.max(0, 1 - hit.share) }] : jenis
-  } else {
-    const top = jenis.slice(0, 6)
-    const rest = jenis.slice(6).reduce((a, j) => a + j.share, 0)
-    if (rest > 0) top.push({ nama: 'Lainnya', share: rest })
-    jenis = top
-  }
-  const keys = jenis.map((j) => j.nama)
+  if (!kejadian) return { rows: [], keys: [], colors: {}, contoh: false, nasionalOnly: false, catatan: 'Data belum tersedia dari API EOC.' }
+  const list = filter.jenis ? kejadian.filter((k) => k.jenis === filter.jenis) : kejadian
+  const tot: Record<string, number> = {}
+  for (const k of list) tot[k.jenis] = (tot[k.jenis] || 0) + 1
+  const ranked = Object.entries(tot).sort((a, b) => b[1] - a[1]).map(([n]) => n)
+  const top = ranked.slice(0, 6)
+  const hasLain = ranked.length > 6
+  const keys = hasLain ? [...top, 'Lainnya'] : top
   const colors: Record<string, string> = {}
   keys.forEach((k, i) => { colors[k] = PALETTE[i % PALETTE.length] })
-
-  const rows = bulanan.map((b) => {
-    const ym = String(b.bulan || '')
-    const month = ym.slice(5, 7)
-    const total = Number(b.kejadian || 0)
-    const rawW = jenis.map((j) => j.share * seasonWeight(j.nama, month))
-    const sumW = rawW.reduce((a, n) => a + n, 0) || 1
-    const out: Record<string, string | number> = {
-      bulan: ym,
-      label: MONTH_LABEL[month] ? `${MONTH_LABEL[month]} ${ym.slice(0, 4)}` : ym,
-    }
-    let used = 0
-    keys.forEach((k, i) => {
-      const v = i === keys.length - 1 ? Math.max(0, total - used) : Math.round((total * rawW[i]) / sumW)
-      out[k] = v
-      used += i === keys.length - 1 ? 0 : v
-    })
+  const byMonth: Record<string, Record<string, number>> = {}
+  for (const k of list) {
+    const ym = String(k.tanggal).slice(0, 7)
+    const m = (byMonth[ym] ||= {})
+    const key = top.includes(k.jenis) ? k.jenis : 'Lainnya'
+    m[key] = (m[key] || 0) + 1
+  }
+  const rows = Object.keys(byMonth).sort().map((ym) => {
+    const out: Record<string, string | number> = { bulan: ym, label: MONTH_LABEL[ym.slice(5, 7)] ? `${MONTH_LABEL[ym.slice(5, 7)]} ${ym.slice(0, 4)}` : ym }
+    for (const k of keys) out[k] = byMonth[ym][k] || 0
     return out
   })
-
   return {
-    rows,
-    keys,
-    colors,
-    contoh: true,
-    nasionalOnly: Boolean(filter.provinsi || filter.kabupaten),
-    catatan: `Sebaran per jenis per bulan memakai ${CONTOH_LABEL}, disusun dari total bulanan resmi dan porsi tahunan per jenis. Rincian resmi per jenis per bulan belum tersedia.`,
+    rows, keys, colors, contoh: false, nasionalOnly: false,
+    catatan: `Jumlah kejadian per jenis per bulan dari ${list.length.toLocaleString('id-ID')} kejadian API EOC (data_krisis), mengikuti filter periode, wilayah, dan jenis.`,
   }
 }
 

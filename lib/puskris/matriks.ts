@@ -428,6 +428,7 @@ export function matriksBencana(
   events: KejadianTerbaru[],
   opt: { periode: PeriodeMatriks; jenis: string[]; maxJenis?: number; sumberLive: boolean },
 ): MatriksDef {
+  if (raw?.eoc?.data_source === 'langsung' && Array.isArray(raw?.eoc?.events)) return matriksBencanaLive(raw, opt)
   const names = provNames(raw)
   const sel = new Set(opt.jenis.map((j) => normJenis(j)))
   const ev = events.filter((e) => e.provCode && inPeriode(e.tanggal, opt.periode) && (!sel.size || sel.has(normJenis(e.jenis))))
@@ -491,6 +492,67 @@ export function matriksBencana(
     notes: [
       `Kolom jenis dihitung dari ${ev.length.toLocaleString('id-ID')} titik kejadian di peta Pusat Krisis Kesehatan (${opt.sumberLive ? 'diambil langsung dari dashboard-new' : 'snapshot tersimpan'}), bukan total resmi; sebagian titik tidak punya tanggal/lokasi lengkap.`,
       'Kolom dampak resmi 2026 tidak dipilah per jenis dan tidak mengikuti rentang waktu; hilang, luka berat, dan luka ringan per provinsi untuk 2026 belum tersedia sehingga ditampilkan kumulatif.',
+    ],
+  }
+}
+
+
+/** Matriks Kejadian Bencana dari API EOC langsung: semua kolom mengikuti filter jenis & rentang waktu. */
+function matriksBencanaLive(raw: any, opt: { periode: PeriodeMatriks; jenis: string[]; maxJenis?: number }): MatriksDef {
+  const names = provNames(raw)
+  const sel = new Set(opt.jenis.map((j) => normJenis(j)))
+  const ev = (raw.eoc.events as any[]).filter((e) => inPeriode(e.t, opt.periode) && (!sel.size || sel.has(normJenis(e.n))))
+  const byJenis = new Map<string, number>()
+  for (const e of ev) byJenis.set(normJenis(e.n), (byJenis.get(normJenis(e.n)) || 0) + 1)
+  const ranked = [...byJenis.entries()].sort((a, b) => b[1] - a[1])
+  const max = opt.maxJenis ?? 9
+  const top = ranked.slice(0, max).map(([j]) => j)
+  const hasLain = ranked.length > max
+  const slug = (j: string) => `j_${j.replace(/[^a-z0-9]+/gi, '_').toLowerCase()}`
+  const codes = (raw?.regions || []).map((r: any) => String(r.code))
+  const F = ['s', 'm', 'h', 'lb', 'lr', 'pg', 'td', 'kr', 'fr'] as const
+  const rows: MatriksRow[] = codes.map((code: string) => {
+    const r: MatriksRow = { id: `bnc-${code}`, code, label: names.get(code) || code, sub: `Kode ${code}`, peta_total: 0 }
+    for (const j of top) r[slug(j)] = 0
+    if (hasLain) r.j_lainnya = 0
+    for (const f of F) r[f] = 0
+    for (const e of ev) {
+      if (e.p !== code) continue
+      const j = normJenis(e.n)
+      if (top.includes(j)) r[slug(j)]++
+      else r.j_lainnya++
+      r.peta_total++
+      for (const f of F) r[f] += Number(e[f] || 0)
+    }
+    return r
+  })
+  const G1 = 'Jumlah kejadian per jenis'
+  const G2 = 'Dampak (mengikuti filter)'
+  const cols: MatriksCol[] = [
+    ...top.map((j) => ({ key: slug(j), label: j, fmt: 'int' as const, heat: true, group: G1, hint: `Jumlah kejadian berjenis ${j} di provinsi ini.` })),
+    ...(hasLain ? [{ key: 'j_lainnya', label: 'Lainnya', fmt: 'int' as const, heat: true, group: G1, hint: `Gabungan ${ranked.length - max} jenis kejadian lain yang lebih jarang.` }] : []),
+    { key: 'peta_total', label: 'Total Kejadian', fmt: 'int', heat: true, group: G1, hint: 'Jumlah kejadian terpantau provinsi ini yang cocok dengan filter jenis dan waktu.' },
+    { key: 's', label: 'Berdampak Krisis', fmt: 'int', heat: true, group: G2, hint: 'Kejadian berstatus krisis kesehatan di sumber (status_krisis).' },
+    { key: 'm', label: 'Meninggal', fmt: 'int', heat: true, group: G2, hint: 'Korban meninggal dunia.' },
+    { key: 'h', label: 'Hilang', fmt: 'int', heat: true, group: G2, hint: 'Korban yang belum ditemukan.' },
+    { key: 'lb', label: 'Luka Berat / Rawat Inap', fmt: 'int', heat: true, group: G2, hint: 'Luka Berat/Rawat Inap (LB/RI): korban yang perlu dirawat inap.' },
+    { key: 'lr', label: 'Luka Ringan / Rawat Jalan', fmt: 'int', heat: true, group: G2, hint: 'Luka Ringan/Rawat Jalan (LR/RJ): korban yang cukup dirawat jalan.' },
+    { key: 'pg', label: 'Pengungsi', fmt: 'int', heat: true, group: G2, hint: 'Penduduk yang mengungsi.' },
+    { key: 'kr', label: 'Korban Total', fmt: 'int', heat: true, group: G2, hint: 'Jumlah korban di sumber (jml_korban) = meninggal + hilang + LB/RI + LR/RJ + pengungsi.' },
+    { key: 'td', label: 'Penduduk Terdampak', fmt: 'int', heat: true, group: G2, hint: 'Penduduk di wilayah kejadian yang terkena dampak.' },
+    { key: 'fr', label: 'Faskes Rusak', fmt: 'int', heat: true, group: G2, hint: 'Jumlah fasilitas pelayanan kesehatan (faskes) yang rusak akibat kejadian.' },
+  ]
+  return {
+    id: 'bencana', provinsiRows: true,
+    title: 'Matriks Kejadian Bencana per Provinsi × Jenis Kejadian',
+    desc: 'Jumlah kejadian per jenis dan dampaknya (korban, pengungsi, terdampak, faskes rusak) di tiap provinsi, langsung dari API EOC Pusat Krisis Kesehatan.',
+    rowLabel: 'Provinsi',
+    cols,
+    rows,
+    notes: [
+      `${ev.length.toLocaleString('id-ID')} kejadian dari API EOC (data_krisis), diambil ${raw.eoc.fetched_at_wib || '-'}. Semua kolom mengikuti filter jenis dan rentang waktu.`,
+      `Data langsung mencakup ${raw.eoc.events_dari || '-'} s.d. ${raw.eoc.events_sampai || '-'}; pilihan "Semua Waktu" sama dengan rentang itu.`,
+      'Angka dampak diambil dari isian terakhir tiap kejadian; bisa berbeda dengan KPI dashboard-new (lihat catatan di Open Data).',
     ],
   }
 }

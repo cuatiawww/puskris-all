@@ -554,11 +554,11 @@ export default function PuskrisRingkasanView({
   const jenisScoped = Boolean(f.jenis)
   const useOfficialJenis = !f.provinsi && !f.kabupaten && f.periode === 'tahun' && !f.jenis
   const jenisCards = useMemo(
-    () => buildJenisCards(useOfficialJenis ? raw : { ...raw, eoc: { ...raw.eoc, jenis_2026: [] } }, derived.kejadian || []),
-    [raw, derived.kejadian, useOfficialJenis],
+    () => buildJenisCards(useOfficialJenis ? raw : { ...raw, eoc: { ...raw.eoc, jenis_2026: [] } }, derived.kejadianSemua || derived.kejadian || []),
+    [raw, derived.kejadian, derived.kejadianSemua, useOfficialJenis],
   )
 
-  const situasi = useMemo(() => situasiTerfilter(derived.situasi, kejadian, jenisScoped), [derived.situasi, jenisScoped, kejadian])
+  const situasi = useMemo(() => situasiTerfilter(derived.situasi, derived.kejadianSemua ? derived.kejadianSemua.filter((k: any) => k.jenis === f.jenis) : kejadian, jenisScoped), [derived.situasi, derived.kejadianSemua, f.jenis, jenisScoped, kejadian])
 
   const layanan = derived.layanan
   const sdm = derived.sdm

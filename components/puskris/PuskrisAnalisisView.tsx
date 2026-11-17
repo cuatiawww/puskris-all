@@ -46,7 +46,7 @@ import {
 } from '@/lib/puskris/matriks'
 import type { KejadianTerbaru } from '@/lib/puskris/kejadian-terbaru'
 import { PUBLIC_BASE_PATH } from '@/lib/public-path'
-import { applyDerive, nf, pf } from '@/lib/puskris/derive'
+import { applyDerive, eocKejadian, nf, pf } from '@/lib/puskris/derive'
 import { toDeriveFilter, type PuskrisUiFilter } from '@/lib/puskris/ui-filter'
 import type { ProvinceRow } from '@/lib/puskris/types'
 
@@ -184,14 +184,16 @@ export default function PuskrisAnalisisView({
 
   // 2. Data Source: Matriks Kejadian Bencana
   const kejadianRows = useMemo(() => {
-    const list = raw?.eoc?.kejadian_krisis_terbaru || []
+    const live = raw?.eoc?.data_source === 'langsung' && Array.isArray(raw?.eoc?.events)
+    const regionName = Object.fromEntries((raw?.regions || []).map((r: any) => [String(r.code), r.name]))
+    const list = live ? (raw.eoc.events as any[]).map((e) => eocKejadian(e, regionName)) : raw?.eoc?.kejadian_krisis_terbaru || []
     return list.map((item: any, idx: number) => {
       const meninggal = Number(item.meninggal || 0)
       const lb = Number(item.luka_berat || 0)
       const lr = Number(item.luka_ringan || 0)
       const pengungsi = Number(item.pengungsi || 0)
       const terdampak = Number(item.terdampak || 0)
-      const isKrisis = meninggal > 0 || pengungsi > 50 || lb > 0
+      const isKrisis = typeof item.krisis === 'boolean' ? item.krisis : meninggal > 0 || pengungsi > 50 || lb > 0
 
       let statusText = isKrisis ? 'Darurat Krisis' : 'Pantauan Normal'
       let statusTone = isKrisis ? 'bg-red-50 text-red-700 border-red-200' : 'bg-slate-100 text-slate-700 border-slate-200'
@@ -228,7 +230,9 @@ export default function PuskrisAnalisisView({
       const proporsi = (frekuensi / totalNasional) * 100
 
       // Hitung agregat korban dari data kejadian yang cocok jenisnya
-      const matched = (raw?.eoc?.kejadian_krisis_terbaru || []).filter(
+      const regionName0: Record<string, string> = {}
+      const pool0 = raw?.eoc?.data_source === 'langsung' && Array.isArray(raw?.eoc?.events) ? (raw.eoc.events as any[]).map((e) => eocKejadian(e, regionName0)) : raw?.eoc?.kejadian_krisis_terbaru || []
+      const matched = pool0.filter(
         (k: any) => (k.jenis || '').toLowerCase().trim() === nama.toLowerCase().trim()
       )
       const meninggal = matched.reduce((a: number, c: any) => a + Number(c.meninggal || 0), 0)
@@ -479,8 +483,9 @@ export default function PuskrisAnalisisView({
   const summaryMetrics = useMemo(() => {
     const totalKejadian = derived.situasi?.terpantau || 0
     const meninggal = derived.situasi?.meninggal || 0
-    const lukaBerat = (raw?.eoc?.kejadian_krisis_terbaru || []).reduce((a: number, c: any) => a + Number(c.luka_berat || 0), 0)
-    const lukaRingan = (raw?.eoc?.kejadian_krisis_terbaru || []).reduce((a: number, c: any) => a + Number(c.luka_ringan || 0), 0)
+    const eocLive = derived.eocLive
+    const lukaBerat = eocLive ? Number(derived.situasi?.luka_berat || 0) : (raw?.eoc?.kejadian_krisis_terbaru || []).reduce((a: number, c: any) => a + Number(c.luka_berat || 0), 0)
+    const lukaRingan = eocLive ? Number(derived.situasi?.luka_ringan || 0) : (raw?.eoc?.kejadian_krisis_terbaru || []).reduce((a: number, c: any) => a + Number(c.luka_ringan || 0), 0)
     const totalLuka = lukaBerat + lukaRingan
     const totalAmbulans = derived.layanan?.ambulans || raw?.psc?.summary?.total_ambulan || 0
     const ambulansBaik = derived.layanan?.ambulansBaik || raw?.psc?.summary?.ambulans_baik || 0

@@ -69,7 +69,7 @@ export default function SpatialModeClient() {
     const list = derived?.kejadian || []
     return f.jenis ? list.filter((k: any) => k.jenis === f.jenis) : list
   }, [derived, f.jenis])
-  const situasi = useMemo(() => (derived ? situasiTerfilter(derived.situasi, kejadian, Boolean(f.jenis)) : null), [derived, kejadian, f.jenis])
+  const situasi = useMemo(() => (derived ? situasiTerfilter(derived.situasi, derived.kejadianSemua ? derived.kejadianSemua.filter((k: any) => k.jenis === f.jenis) : kejadian, Boolean(f.jenis)) : null), [derived, kejadian, f.jenis])
   const provinces = useMemo(() => (raw?.regions || []).map((r: any) => ({ code: r.code, nama: r.name || r.nama })), [raw])
   const jenisList = useMemo(() => (raw ? jenisOptions(raw) : []), [raw])
   const count = activeFilterCount({ ...f, pilar: 'semua' })

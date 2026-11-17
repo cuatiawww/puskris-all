@@ -33,9 +33,20 @@ export function applyDerive(data: any, filter: PuskrisFilter) {
   const eocBy = Object.fromEntries((data.eoc?.provinsi || []).map((p: any) => [p.code, p]))
   const tckBy = Object.fromEntries((data.tck?.provinsi || []).map((p: any) => [p.code, p]))
 
+  // Data langsung API EOC: kejadian per kejadian → semua filter (periode, provinsi, kab/kota) dihitung di sini.
+  const evLive = data.eoc?.data_source === 'langsung' && Array.isArray(data.eoc?.events)
+  const range = periodeRange(filter)
+  const regionName = Object.fromEntries(regions.map((r) => [r.code, r.name]))
+  const evPeriode: any[] = evLive ? data.eoc.events.filter((e: any) => e.t >= range.from && e.t <= range.to).map((e: any) => eocKejadian(e, regionName)) : []
+  const evByProv: Record<string, any> = {}
+  for (const k of evPeriode) {
+    const a = (evByProv[k.code] ||= { kejadian_2026: 0, krisis_2026: 0, meninggal_2026: 0, pengungsi_2026: 0, terdampak_2026: 0 })
+    a.kejadian_2026++; a.krisis_2026 += k.krisis ? 1 : 0; a.meninggal_2026 += k.meninggal; a.pengungsi_2026 += k.pengungsi; a.terdampak_2026 += k.terdampak
+  }
+
   let rows: ProvinceRow[] = regions.map((r) => {
     const p = pscBy[r.code] || {}
-    const e = eocBy[r.code] || {}
+    const e = evLive ? { ...(eocBy[r.code] || {}), kejadian_2026: 0, krisis_2026: 0, meninggal_2026: 0, pengungsi_2026: 0, terdampak_2026: 0, ...(evByProv[r.code] || {}) } : eocBy[r.code] || {}
     const t = tckBy[r.code] || {}
     return {
       code: r.code,
@@ -115,7 +126,17 @@ export function applyDerive(data: any, filter: PuskrisFilter) {
   const useBulan = filter.periode === 'bulan'
   const situasiNasional = useBulan ? bulanKpi : tahunKpi
   const situasiDariProvinsi = Boolean(selected)
-  const situasi = situasiDariProvinsi
+  const kabU = filter.kabupaten ? filter.kabupaten.toUpperCase() : null
+  const kejadianSemua: any[] | null = evLive
+    ? evPeriode.filter((k) => (!filter.provinsi || k.code === filter.provinsi) && (!kabU || String(k.kabupaten).toUpperCase() === kabU))
+    : null
+  const situasi = kejadianSemua
+    ? {
+        ...rekapKejadian(kejadianSemua),
+        sumber: `API EOC Pusat Krisis (langsung), ${range.label}${selected ? ` · ${selected.nama}` : ''}${filter.kabupaten ? ` · ${filter.kabupaten}` : ''}`,
+        catatanPeriode: null as string | null,
+      }
+    : situasiDariProvinsi
     ? {
         terpantau: sum((r) => r.kejadian),
         berdampak_krisis: sum((r) => r.krisis),
@@ -212,19 +233,27 @@ export function applyDerive(data: any, filter: PuskrisFilter) {
 
   const from = filter.periode === '7hari' ? daysAgo(7) : filter.periode === '30hari' ? daysAgo(30) : filter.periode === 'bulan' ? `${filter.tahun}-${String(filter.bulan || 10).padStart(2, '0')}-01` : `${filter.tahun}-01-01`
   const to = filter.periode === 'bulan' ? `${filter.tahun}-${String(filter.bulan || 10).padStart(2, '0')}-31` : '9999-12-31'
-  let kejadian = (data.eoc?.kejadian_krisis_terbaru || []).filter((k: any) => k.tanggal >= from && k.tanggal <= to)
-  if (filter.provinsi) kejadian = kejadian.filter((k: any) => k.code === filter.provinsi)
-  if (filter.kabupaten) {
+  let kejadian = kejadianSemua ? kejadianSemua.filter((k) => k.krisis) : (data.eoc?.kejadian_krisis_terbaru || []).filter((k: any) => k.tanggal >= from && k.tanggal <= to)
+  if (!kejadianSemua && filter.provinsi) kejadian = kejadian.filter((k: any) => k.code === filter.provinsi)
+  if (!kejadianSemua && filter.kabupaten) {
     const q = filter.kabupaten.toLowerCase()
     kejadian = kejadian.filter((k: any) => String(k.kabupaten || '').toLowerCase().includes(q))
   }
 
-  const kabOptions = Array.from(new Set((data.eoc?.kejadian_krisis_terbaru || [])
+  const kabOptions = evLive
+    ? Array.from(new Set((data.eoc.events as any[]).filter((e) => e.t.startsWith(String(filter.tahun)) && (!filter.provinsi || e.p === filter.provinsi)).map((e) => e.bn).filter(Boolean))).sort()
+    : Array.from(new Set((data.eoc?.kejadian_krisis_terbaru || [])
     .filter((k: any) => !filter.provinsi || k.code === filter.provinsi)
     .map((k: any) => k.kabupaten)
     .filter(Boolean))).sort()
 
-  const chartBulanan = (data.eoc?.bulanan_2026 || []).map((b: any) => ({
+  const chartBulanan = kejadianSemua
+    ? Object.values(kejadianSemua.reduce((a: Record<string, any>, k: any) => {
+        const b = (a[k.tanggal.slice(0, 7)] ||= { bulan: k.tanggal.slice(0, 7), label: k.tanggal.slice(0, 7), kejadian: 0, krisis: 0 })
+        b.kejadian++; b.krisis += k.krisis ? 1 : 0
+        return a
+      }, {})).sort((x: any, y: any) => x.bulan.localeCompare(y.bulan))
+    : (data.eoc?.bulanan_2026 || []).map((b: any) => ({
     bulan: b.bulan,
     label: b.bulan,
     kejadian: b.kejadian,
@@ -232,7 +261,7 @@ export function applyDerive(data: any, filter: PuskrisFilter) {
   }))
 
   const freshness: Record<string, Freshness> = {
-    eoc: { sumber: 'Krisis Kesehatan / Pantauan Bencana', status: 'snapshot', at: data.eoc?.fetched_at_wib, label: data.eoc?.label, url: data.eoc?.sumber_resmi, filterable: { periode: !selected, provinsi: true, kabupaten: true } },
+    eoc: { sumber: 'Krisis Kesehatan / Pantauan Bencana', status: evLive ? 'langsung' : 'snapshot', at: data.eoc?.fetched_at_wib, label: data.eoc?.label, url: data.eoc?.sumber_resmi, filterable: { periode: !selected, provinsi: true, kabupaten: true } },
     psc: { sumber: 'PSC 119 & Ambulans', status: data.psc?.data_source === 'langsung' ? 'langsung' : 'snapshot', at: data.psc?.fetched_at_wib, label: data.psc?.data_source === 'langsung' ? data.psc.label : 'Snapshot kumulatif; filter periode sumber belum tersedia', url: data.psc?.sumber, filterable: { periode: false, provinsi: true, kabupaten: false } },
     ncc: { sumber: 'NCC Panggilan', status: 'snapshot', at: data.ncc?.fetched_at_wib, label: data.ncc?.label, url: data.ncc?.sumber, filterable: { periode: true, provinsi: false, kabupaten: false } },
     tck: { sumber: 'Tenaga Cadangan Kesehatan', status: data.tck?.data_source === 'langsung' ? 'langsung' : 'snapshot', at: data.tck?.fetched_at_wib, label: data.tck?.label, url: data.tck?.sumber, filterable: { periode: false, provinsi: true, kabupaten: false } },
@@ -256,6 +285,8 @@ export function applyDerive(data: any, filter: PuskrisFilter) {
     logistik,
     asistensi: asis,
     kejadian,
+    kejadianSemua,
+    eocLive: evLive,
     kabOptions,
     chartBulanan,
     jenisPanggilan: data.psc?.jenis_panggilan || [],
@@ -339,6 +370,9 @@ export function layerValue(row: ProvinceRow, layer: string): number {
 /** Situasi krisis sesuai filter jenis: bila jenis dipilih, dihitung dari daftar kejadian krisis terbaru (bukan KPI resmi). */
 export function situasiTerfilter(situasi: any, kejadian: any[], jenisScoped: boolean): any {
     if (!jenisScoped) return situasi
+    if (kejadian.length && typeof kejadian[0]?.krisis === 'boolean') {
+      return { ...rekapKejadian(kejadian), sumber: `${situasi?.sumber || 'API EOC'} · jenis terpilih`, catatanPeriode: null }
+    }
     const sum = (key: string) => kejadian.reduce((a: number, k: any) => a + Number(k[key] || 0), 0)
     return {
       terpantau: kejadian.length,
@@ -355,3 +389,39 @@ export function situasiTerfilter(situasi: any, kejadian: any[], jenisScoped: boo
       catatanPeriode: 'Filter jenis kejadian memakai daftar kejadian krisis terbaru, bukan angka resmi tahunan per jenis.',
     }
   }
+
+
+/** Rentang tanggal sesuai filter periode (YYYY-MM-DD, inklusif). */
+export function periodeRange(filter: PuskrisFilter): { from: string; to: string; label: string } {
+  if (filter.periode === '7hari') return { from: daysAgo(7), to: '9999-12-31', label: '7 hari terakhir' }
+  if (filter.periode === '30hari') return { from: daysAgo(30), to: '9999-12-31', label: '30 hari terakhir' }
+  if (filter.periode === 'bulan') {
+    const b = String(filter.bulan || 10).padStart(2, '0')
+    return { from: `${filter.tahun}-${b}-01`, to: `${filter.tahun}-${b}-31`, label: `bulan ${filter.tahun}-${b}` }
+  }
+  return { from: `${filter.tahun}-01-01`, to: `${filter.tahun}-12-31`, label: `tahun ${filter.tahun}` }
+}
+
+/** Kejadian ringkas API EOC → bentuk daftar kejadian dasbor. */
+export function eocKejadian(e: any, regionName: Record<string, string> = {}) {
+  return {
+    uid: e.u, tanggal: e.t, jam: e.w || null, jenis: e.n,
+    kelompok: e.k === 'A' ? 'Alam' : e.k === 'N' ? 'Non Alam' : e.k === 'S' ? 'Sosial' : 'Lainnya',
+    provinsi: regionName[e.p] || e.p, code: e.p, kabupaten: e.bn, kab_code: e.b || null,
+    krisis: Boolean(e.s), korban: e.kr || 0, terdampak: e.td || 0, meninggal: e.m || 0, hilang: e.h || 0,
+    luka_berat: e.lb || 0, luka_ringan: e.lr || 0, pengungsi: e.pg || 0, faskes_rusak: e.fr || 0,
+    lat: e.la ?? null, lon: e.lo ?? null, url: `https://pusatkrisis.kemkes.go.id/detail-bencana/${encodeURIComponent(e.u)}`,
+  }
+}
+
+/** KPI situasi dari daftar kejadian (API EOC). */
+export function rekapKejadian(list: any[]) {
+  const s = { terpantau: list.length, berdampak_krisis: 0, meninggal: 0, hilang: 0, luka_berat: 0, luka_ringan: 0, luka: 0, korban_total: 0, pengungsi: 0, terdampak: 0, faskes_rusak: 0, alam: 0, non_alam: 0, sosial: 0 }
+  for (const k of list) {
+    s.berdampak_krisis += k.krisis ? 1 : 0; s.meninggal += k.meninggal; s.hilang += k.hilang; s.luka_berat += k.luka_berat; s.luka_ringan += k.luka_ringan
+    s.korban_total += k.korban; s.pengungsi += k.pengungsi; s.terdampak += k.terdampak; s.faskes_rusak += k.faskes_rusak
+    if (k.kelompok === 'Alam') s.alam++; else if (k.kelompok === 'Non Alam') s.non_alam++; else if (k.kelompok === 'Sosial') s.sosial++
+  }
+  s.luka = s.luka_berat + s.luka_ringan
+  return s
+}

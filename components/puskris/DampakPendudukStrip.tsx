@@ -62,7 +62,7 @@ export default function DampakPendudukStrip({ raw, situasi, f }: { raw: any; sit
       <div className="mb-1 flex flex-wrap items-center gap-x-2 text-[10px] font-black uppercase tracking-wider text-slate-500">
         <span>Dampak terhadap penduduk</span>
         <span className="font-semibold normal-case tracking-normal text-slate-400">
-          {provinsiScoped ? 'Agregat provinsi 2026 · luka & hilang hanya tersedia nasional' : f.jenis ? `Jenis: ${f.jenis} (agregat daftar kejadian)` : f.periode === 'bulan' ? 'Oktober 2026 · sumber Pantauan Bencana' : 'Tahun 2026 · sumber Pantauan Bencana'}
+          {raw?.eoc?.data_source === 'langsung' ? `${(situasi as any)?.sumber || 'API EOC Pusat Krisis (langsung)'}${f.jenis ? ` · jenis ${f.jenis}` : ''}` : provinsiScoped ? 'Agregat provinsi 2026 · luka & hilang hanya tersedia nasional' : f.jenis ? `Jenis: ${f.jenis} (agregat daftar kejadian)` : f.periode === 'bulan' ? 'Oktober 2026 · sumber Pantauan Bencana' : 'Tahun 2026 · sumber Pantauan Bencana'}
         </span>
       </div>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">

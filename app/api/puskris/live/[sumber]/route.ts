@@ -1,6 +1,7 @@
 import { after, NextResponse } from 'next/server'
 import { loadPuskrisData } from '@/lib/puskris/load-data'
-import { getLiveOverlay } from '@/lib/server/puskris-live'
+import { getEocLive, getLiveOverlay, swr, wibStamp } from '@/lib/server/puskris-live'
+import { eocEnabled, fetchEocRange, rekapEoc, type EocEvent } from '@/lib/server/eoc-live'
 
 /**
  * Proksi API resmi (hasil agregat saja, tanpa data pribadi).
@@ -9,11 +10,12 @@ import { getLiveOverlay } from '@/lib/server/puskris-live'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
-const ALLOWED = ['asistensi', 'psc', 'panggilan', 'tck'] as const
+const ALLOWED = ['asistensi', 'psc', 'panggilan', 'tck', 'eoc'] as const
 
-export async function GET(_req: Request, ctx: { params: Promise<{ sumber: string }> }) {
+export async function GET(req: Request, ctx: { params: Promise<{ sumber: string }> }) {
   const { sumber } = await ctx.params
   if (!ALLOWED.includes(sumber as any)) return NextResponse.json({ ok: false, error: 'Sumber tidak dikenal' }, { status: 404 })
+  if (sumber === 'eoc') return eocResponse(req)
   const snapshot = loadPuskrisData()
   const codes = (snapshot.regions || []).map((r: any) => String(r.code))
   const ov = await getLiveOverlay(codes, 45000)
@@ -45,4 +47,57 @@ export async function GET(_req: Request, ctx: { params: Promise<{ sumber: string
     { ok: st.status === 'langsung', sumber: key, status: st.status, fetched_at: st.at || null, count, error: st.error || null, ringkas, data: value || null },
     { status: st.status === 'langsung' ? 200 : 502, headers: { 'Cache-Control': 'no-store' } },
   )
+}
+
+
+const D = /^\d{4}-\d{2}-\d{2}$/
+/**
+ * GET /api/puskris/live/eoc?tanggal1=YYYY-MM-DD&tanggal2=YYYY-MM-DD&prov=32&kab=3201
+ * Tanpa parameter = tahun berjalan. Rentang di dalam cache tahun berjalan disaring dari cache;
+ * di luar itu diteruskan ke API EOC (per bulan, di-cache 15 menit). Hanya agregat + kejadian ringkas.
+ */
+async function eocResponse(req: Request) {
+  const sp = new URL(req.url).searchParams
+  const t1 = sp.get('tanggal1') || ''
+  const t2 = sp.get('tanggal2') || ''
+  const prov = (sp.get('prov') || '').replace(/\D/g, '').slice(0, 2) || null
+  const kab = (sp.get('kab') || '').replace(/\D/g, '').slice(0, 4) || null
+  if ((t1 && !D.test(t1)) || (t2 && !D.test(t2)) || (t1 && t2 && t1 > t2)) return NextResponse.json({ ok: false, error: 'Format tanggal1/tanggal2 harus YYYY-MM-DD' }, { status: 400 })
+  if (!eocEnabled()) return NextResponse.json({ ok: false, sumber: 'eoc', status: 'snapshot', error: 'Akun API EOC (PUSKRIS_EOC_AUTH) belum diatur di server', data: null }, { status: 502 })
+  const base = await getEocLive(45000)
+  if (base.job) after(() => base.job)
+  let events: EocEvent[] | null = null
+  let at = base.at
+  let dari = t1 || base.value?.dari || ''
+  let sampai = t2 || base.value?.sampai || ''
+  let error = base.error
+  const inCache = base.value && (!t1 || t1 >= base.value.dari) && (!t2 || t2 <= base.value.sampai)
+  if (base.value && inCache) {
+    events = base.value.events.filter((e) => (!t1 || e.t >= t1) && (!t2 || e.t <= t2) && (!prov || e.p === prov) && (!kab || e.b === kab))
+    if (!t1 && !t2) { dari = base.value.dari; sampai = base.value.sampai }
+  } else if (t1 && t2) {
+    const r = await swr(`eoc:range:${t1}:${t2}:${prov || ''}:${kab || ''}`, () => fetchEocRange({ tanggal1: t1, tanggal2: t2, prov, kab }), 55000)
+    if (r.job) after(() => r.job)
+    events = r.value?.events || null
+    at = r.at
+    error = r.error || (r.pending ? 'Sedang mengambil data langsung' : undefined)
+  }
+  if (!events) return NextResponse.json({ ok: false, sumber: 'eoc', status: 'snapshot', error: error || 'Data belum tersedia', data: null }, { status: 502, headers: { 'Cache-Control': 'no-store' } })
+  const jenis: Record<string, number> = {}
+  const provinsi: Record<string, any> = {}
+  for (const e of events) {
+    jenis[e.n] = (jenis[e.n] || 0) + 1
+    const p = (provinsi[e.p] ||= { code: e.p, nama: e.pn, kejadian: 0, krisis: 0, meninggal: 0, hilang: 0, luka_berat: 0, luka_ringan: 0, pengungsi: 0, terdampak: 0 })
+    p.kejadian++; p.krisis += e.s; p.meninggal += e.m; p.hilang += e.h; p.luka_berat += e.lb; p.luka_ringan += e.lr; p.pengungsi += e.pg; p.terdampak += e.td
+  }
+  const ringkas = { dari, sampai, prov, kab, ...rekapEoc(events) }
+  return NextResponse.json({
+    ok: true, sumber: 'eoc', status: 'langsung', fetched_at: at ? wibStamp(at) : null, count: events.length, error: null, ringkas,
+    data: {
+      jenis: Object.entries(jenis).map(([nama, jumlah]) => ({ nama, jumlah })).sort((a, b) => b.jumlah - a.jumlah),
+      provinsi: Object.values(provinsi).sort((a: any, b: any) => a.code.localeCompare(b.code)),
+      kejadian_terbaru: events.slice(0, 50),
+      catatan: 'Agregat per kejadian dari data_krisis.php; field perkembangan, kecamatan dan content_html dibuang di server.',
+    },
+  }, { headers: { 'Cache-Control': 'no-store' } })
 }

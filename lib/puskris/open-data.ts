@@ -176,7 +176,7 @@ export type IntelStatus = { state: 'loading' | 'ok' | 'empty' | 'error'; count?:
 
 /** API resmi Pusat Krisis Kesehatan yang dipakai langsung (token hanya di server, keluaran agregat). */
 export type OfficialApi = {
-  id: 'asistensi' | 'psc' | 'panggilan' | 'tck'
+  id: 'asistensi' | 'psc' | 'panggilan' | 'tck' | 'eoc'
   nama: string
   icon: string
   deskripsi: string
@@ -186,6 +186,19 @@ export type OfficialApi = {
   belum?: string
 }
 export const OFFICIAL_APIS: OfficialApi[] = [
+  {
+    id: 'eoc',
+    nama: 'EOC Pusat Krisis — data kejadian bencana',
+    icon: '🌋',
+    deskripsi: 'Seluruh kejadian bencana/krisis tahun berjalan per kejadian: jenis, tanggal, provinsi, kab/kota, status krisis, korban (meninggal, hilang, LB/RI, LR/RJ, pengungsi), penduduk terdampak, faskes rusak, dan koordinat.',
+    dipakai: 'Situasi Krisis, KPI Ringkasan & Dampak Penduduk (mengikuti filter periode, provinsi, kab/kota, jenis), tren bulanan, peta arsiran & titik Kejadian Terbaru, Spatial Mode, Matriks Kejadian Bencana & Daftar Laporan Kejadian.',
+    proxy: '/api/puskris/live/eoc',
+    upstream: [
+      { nama: 'Data kejadian (data_krisis)', metode: 'GET (Basic Auth server)', url: 'https://pusatkrisis.kemkes.go.id/eoc/api/detail_bencana/data_krisis.php', parameter: 'tanggal1, tanggal2 (YYYY-MM-DD), prov (kode 2 digit), kab (kode 4 digit); diambil per bulan' },
+      { nama: 'Master jenis bencana', metode: 'GET (Basic Auth server)', url: 'https://pusatkrisis.kemkes.go.id/eoc/api/detail_bencana/jenis_bencana.php', parameter: '–' },
+    ],
+    belum: 'bencana_detail.php (deskripsi teks bebas, pos pengungsi, faskes terdampak) tidak dipakai. Tren 2022–2025 masih snapshot dashboard-new. Array "perkembangan" dibuang karena membengkak dan tidak konsisten.',
+  },
   {
     id: 'asistensi',
     nama: 'Asistensi Risiko — rekapitulasi',

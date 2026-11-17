@@ -7,7 +7,7 @@ import { AlertTriangle, Ambulance, Package, PhoneCall, Users } from 'lucide-reac
 import { DEFAULT_LAYERS, type Focus, type Layers as MapLayers } from '@/components/spasial/SpasialMap'
 import { type Area, type Metric } from '@/lib/spasial-api'
 import { useChoroConfig } from '@/lib/choropleth-classes'
-import { applyDerive, nf, pf } from '@/lib/puskris/derive'
+import { applyDerive, nf, pf, situasiTerfilter } from '@/lib/puskris/derive'
 import { PUBLIC_BASE_PATH } from '@/lib/public-path'
 import {
   METRIC_PILLS, buildJenisCards, centroidsFromGeo, toSpasial,
@@ -77,12 +77,13 @@ export default function PuskrisExecutiveView({
 
   const useOfficialJenis = !f.provinsi && !f.kabupaten && f.periode === 'tahun' && !f.jenis
   const jenisCards = useMemo(
-    () => buildJenisCards(useOfficialJenis ? raw : { ...raw, eoc: { ...raw.eoc, jenis_2026: [] } }, derived.kejadian || []),
-    [raw, derived.kejadian, useOfficialJenis],
+    () => buildJenisCards(useOfficialJenis ? raw : { ...raw, eoc: { ...raw.eoc, jenis_2026: [] } }, derived.kejadianSemua || derived.kejadian || []),
+    [raw, derived.kejadian, derived.kejadianSemua, useOfficialJenis],
   )
 
   const situasi = useMemo(() => {
     if (!f.jenis) return derived.situasi
+    if (derived.kejadianSemua) return situasiTerfilter(derived.situasi, derived.kejadianSemua.filter((k: any) => k.jenis === f.jenis), true)
     const sum = (key: string) => kejadian.reduce((a: number, k: any) => a + Number(k[key] || 0), 0)
     return {
       terpantau: kejadian.length,
@@ -91,7 +92,7 @@ export default function PuskrisExecutiveView({
       pengungsi: sum('pengungsi'),
       terdampak: sum('terdampak'),
     }
-  }, [derived.situasi, f.jenis, kejadian])
+  }, [derived.situasi, derived.kejadianSemua, f.jenis, kejadian])
 
   const [centroids, setCentroids] = useState<Centroids>({})
   useEffect(() => {

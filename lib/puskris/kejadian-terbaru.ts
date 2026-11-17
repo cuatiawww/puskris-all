@@ -86,6 +86,21 @@ export function fromDashboardNew(src: { crisisIncidents?: any[]; incidents?: any
   return out
 }
 
+/** Kejadian ringkas API EOC (lib/server/eoc-live) → kejadian terbaru. */
+export function fromEocApi(list: any[]): KejadianTerbaru[] {
+  return (list || []).map((e) => {
+    const w = e.la == null ? lookupWilayah(e.bn) : null
+    return {
+      id: `eoc-${e.u}`, sumber: 'Pusat Krisis', kategori: e.s ? 'krisis' : 'terpantau', jenis: String(e.n || 'Kejadian').trim(),
+      lokasi: titleCase(e.bn), provinsi: titleCase(e.pn) || null, provCode: e.p || null,
+      tanggal: e.t, jam: e.w || null, zonaWib: true,
+      lat: e.la ?? w?.lat ?? null, lon: e.lo ?? w?.lon ?? null,
+      terdampak: e.td ?? 0, korban: e.kr ?? 0, meninggal: e.m ?? 0, pengungsi: e.pg ?? 0,
+      url: `https://pusatkrisis.kemkes.go.id/detail-bencana/${encodeURIComponent(e.u)}`,
+    } as KejadianTerbaru
+  })
+}
+
 /** Ubah ISO/UTC menjadi tanggal + jam WIB. */
 export function toWib(iso: string | null | undefined): { tanggal: string; jam: string } | null {
   if (!iso) return null

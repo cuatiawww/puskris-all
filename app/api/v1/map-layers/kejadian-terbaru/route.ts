@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getUpstream, wibNow } from '@/lib/server/upstream'
-import { fromDashboardNew } from '@/lib/puskris/kejadian-terbaru'
+import { fromDashboardNew, fromEocApi } from '@/lib/puskris/kejadian-terbaru'
+import { getEocLive, wibStamp } from '@/lib/server/puskris-live'
 import data from '../../../../../data/puskris-data.json'
 
 // Proxy GET-only: kejadian bencana terbaru dari HTML publik dashboard-new Pusat Krisis
@@ -28,6 +29,20 @@ function readArray(html: string, key: string): any[] | null {
 }
 
 export async function GET() {
+  // 1) API EOC resmi (langsung): kejadian 45 hari terakhir + semua kejadian krisis tahun berjalan.
+  const eoc = await getEocLive(4000)
+  if (eoc.value) {
+    const today = new Date(Date.now() + 7 * 3600_000)
+    const from = new Date(today.getTime() - 45 * 86400_000).toISOString().slice(0, 10)
+    const y = String(eoc.value.tahun)
+    const pick = eoc.value.events.filter((e) => e.t.startsWith(y) && (e.t >= from || e.s))
+    const events = fromEocApi(pick).sort((a, b) => `${b.tanggal} ${b.jam || ''}`.localeCompare(`${a.tanggal} ${a.jam || ''}`))
+    return NextResponse.json({
+      ok: true, mode: 'langsung', fetched_at: eoc.at ? wibStamp(eoc.at) : wibNow(), count: events.length,
+      upstream: [{ nama: 'API EOC Pusat Krisis (data_krisis)', ok: true, status: 200, count: events.length }],
+      events,
+    })
+  }
   const r = await getUpstream(URL_SRC, { as: 'text', revalidate: 1800, timeoutMs: 25000 })
   let crisisIncidents: any[] | null = null, incidents: any[] | null = null
   if (r.ok) {

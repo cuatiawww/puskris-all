@@ -155,7 +155,14 @@ export default function PuskrisSumberSections({
         .sort((a: any, b: any) => b.poin_kapasitas_pct - a.poin_kapasitas_pct || String(a.nama).localeCompare(String(b.nama)))
     : asis.contoh_wilayah || []
 
-  const alam = [
+  const eocLive = raw.eoc?.data_source === 'langsung' && Array.isArray(view.kejadianSemua)
+  const evSemua: any[] = eocLive ? view.kejadianSemua : []
+  const byKel = (list: any[], kel: string) => list.filter((k: any) => k.kelompok === kel).length
+  const alam = eocLive ? [
+    { nama: 'Alam', tahun: byKel(evSemua, 'Alam'), krisis: byKel(evSemua.filter((k) => k.krisis), 'Alam') },
+    { nama: 'Non alam', tahun: byKel(evSemua, 'Non Alam'), krisis: byKel(evSemua.filter((k) => k.krisis), 'Non Alam') },
+    { nama: 'Sosial', tahun: byKel(evSemua, 'Sosial'), krisis: byKel(evSemua.filter((k) => k.krisis), 'Sosial') },
+  ] : [
     { nama: 'Alam', tahun: tahun.alam || 0, oktober: okt.alam || 0, krisis: krisisY.alam || 0 },
     { nama: 'Non alam', tahun: tahun.non_alam || 0, oktober: okt.non_alam || 0, krisis: krisisY.non_alam || 0 },
     { nama: 'Sosial', tahun: tahun.sosial || 0, oktober: okt.sosial || 0, krisis: krisisY.sosial || 0 },
@@ -168,7 +175,14 @@ export default function PuskrisSumberSections({
   const topPsc = [...(view.rows || [])].sort((a: any, b: any) => b.panggilan - a.panggilan).slice(0, 8)
   const topTck = [...(view.rows || [])].sort((a: any, b: any) => b.tck - a.tck).slice(0, 8)
   const topEoc = [...(view.rows || [])].sort((a: any, b: any) => b.krisis - a.krisis).slice(0, 5)
-  const bulanan = (raw.eoc?.bulanan_2026 || []).map((b: any) => ({ ...b, label: monthLabel(b.bulan) }))
+  const bulanan = eocLive
+    ? Object.values(evSemua.reduce((a: Record<string, any>, k: any) => {
+        const b = (a[k.tanggal.slice(0, 7)] ||= { bulan: k.tanggal.slice(0, 7), kejadian: 0, krisis: 0, meninggal: 0 })
+        b.kejadian++; b.krisis += k.krisis ? 1 : 0; b.meninggal += k.meninggal
+        return a
+      }, {})).sort((x: any, y: any) => x.bulan.localeCompare(y.bulan)).map((b: any) => ({ ...b, label: monthLabel(b.bulan) }))
+    : (raw.eoc?.bulanan_2026 || []).map((b: any) => ({ ...b, label: monthLabel(b.bulan) }))
+  const eocSumber = eocLive ? `Sumber: API EOC Pusat Krisis (langsung, ${raw.eoc?.fetched_at_wib || '-'}), ${view.situasi?.sumber?.replace(/^API EOC Pusat Krisis \(langsung\), /, '') || ''}.` : ''
   const kelengkapanRows = ['Profil Umum', 'Kerentanan', 'Ancaman', 'Kapasitas'].map((k) => ({
     nama: k,
     provinsi: kelP[k]?.lengkap || 0,
@@ -197,7 +211,7 @@ export default function PuskrisSumberSections({
         <>
           {tab === 'krisis' ? <DampakPenduduk raw={raw} rows={view.rows || []} filtered={filteredWilayah} /> : null}
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <Card eyebrow="Pantauan bencana" title="Jenis kejadian: Alam, Non alam, Sosial" desc="Pembagian resmi tahun 2026, dibanding Oktober, dan yang berdampak krisis.">
+            <Card eyebrow="Pantauan bencana" title="Jenis kejadian: Alam, Non alam, Sosial" desc={eocLive ? `Kejadian terpantau dan yang berdampak krisis menurut kelompok, mengikuti filter. ${eocSumber}` : 'Pembagian resmi tahun 2026, dibanding Oktober, dan yang berdampak krisis.'}>
               <div className="h-56">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={alam}>
@@ -206,14 +220,14 @@ export default function PuskrisSumberSections({
                     <YAxis tick={{ fontSize: 10 }} />
                     <Tooltip />
                     <Legend />
-                    <Bar dataKey="tahun" name="Tahun 2026" fill={TEAL} />
-                    <Bar dataKey="oktober" name="Oktober" fill={AMBER} />
+                    <Bar dataKey="tahun" name={eocLive ? 'Terpantau' : 'Tahun 2026'} fill={TEAL} />
+                    {eocLive ? null : <Bar dataKey="oktober" name="Oktober" fill={AMBER} />}
                     <Bar dataKey="krisis" name="Berdampak krisis" fill={ROSE} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
             </Card>
-            <Card eyebrow="Pantauan bencana" title="Tren bulanan 2026" desc="Kejadian terpantau, berdampak krisis, dan meninggal per bulan (sumber resmi; Sep–Okt belum muncul di snapshot).">
+            <Card eyebrow="Pantauan bencana" title="Tren bulanan 2026" desc={eocLive ? `Kejadian terpantau, berdampak krisis, dan meninggal per bulan, mengikuti filter. ${eocSumber}` : 'Kejadian terpantau, berdampak krisis, dan meninggal per bulan (sumber resmi; Sep–Okt belum muncul di snapshot).'}>
               <div className="h-56">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={bulanan}>
@@ -231,7 +245,7 @@ export default function PuskrisSumberSections({
             </Card>
           </div>
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            <Card eyebrow="Pantauan bencana" title="Tren 5 tahun" desc="Kejadian terpantau, berdampak krisis, dan meninggal menurut dashboard EOC.">
+            <Card eyebrow="Pantauan bencana" title="Tren 5 tahun" desc={eocLive ? 'Kejadian terpantau, berdampak krisis, dan meninggal nasional. Tahun 2022–2025 dari snapshot dashboard EOC; tahun berjalan dari API EOC (langsung).' : 'Kejadian terpantau, berdampak krisis, dan meninggal menurut dashboard EOC.'}>
               <div className="h-56">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={(resmi.tren_5_tahun_terpantau || []).map((t: any, i: number) => ({
@@ -252,7 +266,7 @@ export default function PuskrisSumberSections({
                 </ResponsiveContainer>
               </div>
             </Card>
-            <Card eyebrow="Pantauan bencana" title="Lima provinsi teratas" desc="Berdasarkan kejadian berdampak krisis 2026. Oktober resmi: terpantau dan krisis terpisah di sumber.">
+            <Card eyebrow="Pantauan bencana" title="Lima provinsi teratas" desc={eocLive ? `Berdasarkan kejadian berdampak krisis pada periode terpilih. ${eocSumber}` : 'Berdasarkan kejadian berdampak krisis 2026. Oktober resmi: terpantau dan krisis terpisah di sumber.'}>
               <ol className="space-y-2 text-xs">
                 {topEoc.map((r: any, i: number) => (
                   <li key={r.code} className="flex items-center justify-between gap-2">
@@ -261,7 +275,7 @@ export default function PuskrisSumberSections({
                   </li>
                 ))}
               </ol>
-              {resmi.top_provinsi_oktober_krisis?.length ? (
+              {!eocLive && resmi.top_provinsi_oktober_krisis?.length ? (
                 <p className="mt-3 text-[11px] text-slate-500">Oktober (resmi): {resmi.top_provinsi_oktober_krisis.map((x: any) => `${x.nama} (${nf(x.jumlah)})`).join(', ')}.</p>
               ) : null}
             </Card>

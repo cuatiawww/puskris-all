@@ -6,8 +6,10 @@
  *   tingkat nasional; tidak ada data perorangan.
  */
 
+import { getNccUrl, getNccKey } from './puskris-auth-config'
+
 export function nccEnabled() {
-  return Boolean(process.env.PUSKRIS_NCC_URL)
+  return Boolean(getNccUrl())
 }
 
 export type NccHari = {
@@ -27,13 +29,14 @@ export type NccRingkasan = {
 const num = (v: any) => (v === null || v === undefined || v === '' || Number.isNaN(Number(v)) ? null : Number(v))
 
 export async function fetchNcc(q: { tanggal1?: string | null; tanggal2?: string | null } = {}, timeoutMs = 30_000): Promise<NccRingkasan> {
-  const base = process.env.PUSKRIS_NCC_URL
-  if (!base) throw new Error('PUSKRIS_NCC_URL belum diatur di server')
+  const base = getNccUrl()
+  if (!base) throw new Error('URL API NCC belum diatur')
   const u = new URL(base)
   u.searchParams.set('action', 'ringkasan')
   if (q.tanggal1) u.searchParams.set('tanggal1', q.tanggal1)
   if (q.tanggal2) u.searchParams.set('tanggal2', q.tanggal2)
-  if (process.env.PUSKRIS_NCC_KEY) u.searchParams.set('key', process.env.PUSKRIS_NCC_KEY)
+  const key = getNccKey()
+  if (key) u.searchParams.set('key', key)
   const ctl = new AbortController()
   const t = setTimeout(() => ctl.abort(), timeoutMs)
   try {

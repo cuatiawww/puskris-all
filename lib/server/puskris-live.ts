@@ -11,13 +11,14 @@ import { fetchTckInti, fetchTckRelawan, TCK_PROFESI } from './tck-live'
 import { fetchLogistik, LOG_KATEGORI } from './logistik-live'
 import { nccEnabled, fetchNcc, type NccRingkasan } from './ncc-live'
 import { eocEnabled, fetchEocRange, fetchEocTahun, fetchEocTren, rekapEoc, type EocEvent } from './eoc-live'
+import { getPuskrisToken, getNccSheetUrl } from './puskris-auth-config'
 
 const TTL_MS = 15 * 60_000
 const PSC_BASE = (process.env.PUSKRIS_PSC_BASE || 'https://psc.kemkes.go.id').replace(/\/$/, '')
 const ASIS_BASE = (process.env.PUSKRIS_ASISTENSI_BASE || 'https://pusatkrisis.kemkes.go.id/asistensi').replace(/\/$/, '')
 
 export function liveEnabled() {
-  return Boolean(process.env.PUSKRIS_TTOKEN)
+  return Boolean(getPuskrisToken())
 }
 
 export function wibStamp(ms = Date.now()) {
@@ -26,8 +27,8 @@ export function wibStamp(ms = Date.now()) {
 }
 
 export async function postForm(url: string, form: Record<string, string | number>, timeoutMs = 60_000): Promise<any> {
-  const token = process.env.PUSKRIS_TTOKEN
-  if (!token) throw new Error('PUSKRIS_TTOKEN belum diatur di server')
+  const token = getPuskrisToken()
+  if (!token) throw new Error('Token Puskris (TTOKEN) belum diatur')
   const body = new URLSearchParams()
   for (const [k, v] of Object.entries(form)) body.set(k, String(v))
   const ctl = new AbortController()
@@ -829,7 +830,7 @@ function mergeNcc(data: any, ov: Awaited<ReturnType<typeof getLiveOverlay>>) {
   const start = v.meta.tanggal_awal, end = v.meta.tanggal_akhir
   data.ncc = {
     data_source: 'langsung',
-    sumber: process.env.PUSKRIS_NCC_SHEET_URL || null,
+    sumber: getNccSheetUrl() || null,
     fetched_at_wib: ov.status.ncc.at,
     label: `langsung dari API NCC 119 (Apps Script)${v.meta.terakhir_sinkron ? `, sinkron sumber ${v.meta.terakhir_sinkron}` : ''}`,
     sumber_api: v.meta.sumber,

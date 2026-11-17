@@ -7,10 +7,12 @@
  *   jadi diambil per bulan. `perkembangan`, `kecamatan`, `content_html` dibuang di sini.
  */
 
+import { getEocAuth } from './puskris-auth-config'
+
 const EOC_BASE = (process.env.PUSKRIS_EOC_BASE || 'https://pusatkrisis.kemkes.go.id/eoc/api/detail_bencana').replace(/\/$/, '')
 
 export function eocEnabled() {
-  return Boolean(process.env.PUSKRIS_EOC_AUTH)
+  return Boolean(getEocAuth())
 }
 
 /** Satu kejadian ringkas (agregat per kejadian, tanpa data perorangan). */
@@ -31,8 +33,8 @@ export type EocEvent = {
 }
 
 async function getJson(path: string, timeoutMs = 60_000): Promise<any> {
-  const auth = process.env.PUSKRIS_EOC_AUTH
-  if (!auth) throw new Error('PUSKRIS_EOC_AUTH belum diatur di server')
+  const auth = getEocAuth()
+  if (!auth) throw new Error('Autentikasi EOC belum diatur')
   const ctl = new AbortController()
   const tm = setTimeout(() => ctl.abort(), timeoutMs)
   try {

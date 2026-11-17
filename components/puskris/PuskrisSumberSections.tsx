@@ -472,8 +472,21 @@ export default function PuskrisSumberSections({
           </Card>
           )
           })()}
-          {show.logistik && (
-          <Card eyebrow="Logistik dan stok" title="Logistik" desc="Stok, penerimaan, dan pengeluaran dari landing SIMLOGKES, plus matriks 11 regional × Obat / Sarpras / Alkes / BMHP. Bukan 38 provinsi.">
+          {show.logistik && (() => {
+          const L = raw.logistik || {}
+          const lLive = L.data_source === 'langsung'
+          const selReg: any = lLive && view.selected ? (L.regional || []).find((r: any) => r.id === L.provinsi_regional?.[view.selected!.code]) : null
+          const regRows: any[] = lLive ? (selReg ? [selReg] : L.regional || []) : view.logistik.rows || []
+          const S = selReg || L.summary || {}
+          const perg = L.pergerakan || {}
+          const bul: any[] = (selReg ? perg.per_regional_bulanan?.[selReg.id] : perg.bulanan) || []
+          const tren = bul.filter((x: any) => x.bulan >= '2025-01').map((x: any) => ({ ...x, label: monthLabel(x.bulan) }))
+          const kedal: any[] = (L.kedaluwarsa || []).filter((k: any) => !selReg || k.regional === selReg.nama.replace(' (DKI Jakarta)', '') || k.regional === selReg.nama).slice(0, 8)
+          const katRows: any[] = selReg
+            ? [['Obat-Obatan', 'obat'], ['BMHP', 'bmhp'], ['Alkes', 'alkes'], ['Sarpras', 'sarpras'], ['Lainnya', 'lainnya']].map(([nama, k]) => ({ nama, stok: selReg[k] || 0 }))
+            : (L.kategori_rekap || []).map((k: any) => ({ nama: k.nama.replace(/ \(.*\)$/, ''), stok: k.stok }))
+          if (!lLive) return (
+          <Card eyebrow="Logistik dan stok" title="Logistik" desc="Stok, penerimaan, dan pengeluaran dari landing SIMLOGKES (snapshot), plus matriks 11 regional × Obat / Sarpras / Alkes / BMHP. Bukan 38 provinsi.">
             <div className="grid grid-cols-3 gap-2">
               <Stat label="Total stok" value={nf(view.logistik.totalStok)} />
               <Stat label="Penerimaan" value={view.logistik.penerimaan == null ? '—' : nf(view.logistik.penerimaan)} />
@@ -485,7 +498,7 @@ export default function PuskrisSumberSections({
                   <tr>{['Regional', 'Obat', 'Sarpras', 'Alkes', 'BMHP', 'Total'].map((h) => <th key={h} className="pb-2 pr-3">{h}</th>)}</tr>
                 </thead>
                 <tbody>
-                  {(view.logistik.rows || []).map((r: any) => (
+                  {regRows.map((r: any) => (
                     <tr key={r.code} className="border-t border-slate-100">
                       <td className="py-1.5 pr-3 font-semibold">{r.nama}</td>
                       <td className="py-1.5 pr-3 tabular-nums">{nf(r.obat)}</td>
@@ -498,8 +511,85 @@ export default function PuskrisSumberSections({
                 </tbody>
               </table>
             </div>
+            <p className="mt-2 text-[10px] text-slate-400">Sumber: snapshot.</p>
           </Card>
-          )}
+          )
+          return (
+          <Card eyebrow="Logistik dan stok" title="Logistik kesehatan"
+            desc={`Data langsung API Logistik Kesehatan (SIMLOGKES), diambil ${L.fetched_at_wib || '-'}: stok akhir per regional dan kategori, barang kedaluwarsa, dan pergerakan stok.${selReg ? ` ${view.selected!.nama} dilayani gudang regional ${selReg.nama}.` : ''} Angka dalam satuan masing-masing barang (tablet, box, unit, dan lainnya) yang dijumlahkan.`}>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+              <Stat label={selReg ? 'Stok regional' : 'Total stok'} value={nf(selReg ? selReg.total : S.total_stok)} sub={`${nf(selReg ? selReg.barang : S.jumlah_barang)} baris barang`} />
+              <Stat label="Unit masuk" value={nf(selReg ? selReg.masuk : S.unit_masuk)} sub="semua transaksi tercatat" hint="Jumlah unit barang yang diterima gudang (transaksi_masuk) sejak stok awal." />
+              <Stat label="Unit keluar" value={nf(selReg ? selReg.keluar : S.unit_keluar)} sub="semua transaksi tercatat" hint="Jumlah unit barang yang dikeluarkan gudang (transaksi_keluar): pemakaian institusi/dinas kesehatan dan pindah depo antarregional." />
+              <Stat label="Sudah kedaluwarsa" value={nf(selReg ? selReg.kedaluwarsa : S.kedaluwarsa)} sub="barang masih bersisa stok" hint="Barang dengan tanggal kedaluwarsa sebelum hari ini dan stok akhir masih di atas nol. Hanya barang yang tanggal kedaluwarsanya diisi." />
+              <Stat label="Kedaluwarsa ≤ 90 hari" value={nf(selReg ? selReg.segera_kedaluwarsa : S.segera_kedaluwarsa)} sub="perlu didistribusikan" />
+              <Stat label={selReg ? 'Provinsi dilayani' : 'Regional'} value={selReg ? nf(selReg.wilayah?.length || 0) : nf(S.regional_count)} sub={selReg ? selReg.nama : 'gudang regional'} />
+            </div>
+            <div className="mt-4 grid gap-4 lg:grid-cols-2">
+              <div className="h-56">
+                <p className="mb-1 flex items-center text-[10px] font-black uppercase tracking-wider text-slate-400">≈ Pergerakan stok bulanan (unit){selReg ? ` · ${selReg.nama}` : ''}<InfoHint text={`Perkiraan dari sampel ${perg.sampel_berhasil || 0} barang dengan transaksi terbesar (${perg.per_regional || 10} per regional), mencakup ±${(perg.cakupan_volume_pct || 0).toLocaleString('id-ID')}% volume transaksi. API pergerakan stok hanya bisa dibuka per barang.`} label="Penjelasan pergerakan stok" /></p>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={tren}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="label" tick={{ fontSize: 9 }} />
+                    <YAxis tick={{ fontSize: 10 }} />
+                    <Tooltip />
+                    <Legend />
+                    <Line type="monotone" dataKey="penerimaan" name="Masuk" stroke={TEAL} strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="pengeluaran" name="Keluar" stroke={AMBER} strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+              <div className="h-56">
+                <p className="mb-1 text-[10px] font-black uppercase tracking-wider text-slate-400">Stok per kategori{selReg ? ` · ${selReg.nama}` : ' · nasional'}</p>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={katRows} layout="vertical" margin={{ left: 8 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis type="number" tick={{ fontSize: 10 }} />
+                    <YAxis type="category" dataKey="nama" tick={{ fontSize: 9 }} width={150} />
+                    <Tooltip />
+                    <Bar dataKey="stok" name="Stok akhir" fill={BLUE} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+            <div className="mt-4 grid gap-4 lg:grid-cols-5">
+              <div className="overflow-x-auto lg:col-span-3">
+                <table className="min-w-full text-xs">
+                  <thead className="text-left text-[10px] font-black uppercase text-slate-500">
+                    <tr>{['Regional', 'Obat', 'BMHP', 'Alkes', 'Sarpras', 'Lainnya', 'Total', 'Kedaluwarsa'].map((h) => <th key={h} className="pb-2 pr-3">{h}</th>)}</tr>
+                  </thead>
+                  <tbody>
+                    {regRows.map((r: any) => (
+                      <tr key={r.id} className="border-t border-slate-100">
+                        <td className="py-1.5 pr-3 font-semibold">{r.nama}</td>
+                        {['obat', 'bmhp', 'alkes', 'sarpras', 'lainnya'].map((k) => <td key={k} className="py-1.5 pr-3 tabular-nums">{nf(r[k])}</td>)}
+                        <td className="py-1.5 pr-3 tabular-nums font-bold">{nf(r.total)}</td>
+                        <td className={`py-1.5 pr-3 tabular-nums ${r.kedaluwarsa ? 'font-bold text-rose-700' : ''}`}>{nf(r.kedaluwarsa)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <p className="mt-1 text-[10px] text-slate-400">BMHP = Bahan Medis Habis Pakai; Alkes = Alat Kesehatan; Sarpras = Sarana dan Prasarana. Stok negatif di sumber ({nf(S.stok_negatif || 0)} baris) dihitung nol.</p>
+              </div>
+              <div className="lg:col-span-2">
+                <p className="mb-1 text-[10px] font-black uppercase tracking-wider text-slate-400">Kedaluwarsa terdekat (≤ 90 hari / lewat)</p>
+                <ul className="space-y-1 text-[11px]">
+                  {kedal.length ? kedal.map((k: any, i: number) => (
+                    <li key={i} className="flex items-center justify-between gap-2 border-b border-slate-100 pb-1">
+                      <span className="min-w-0 truncate"><span className="font-semibold">{k.nama}</span> <span className="text-slate-400">· {k.regional}</span></span>
+                      <span className={`shrink-0 tabular-nums ${k.lewat ? 'font-bold text-rose-700' : 'text-amber-700'}`}>{k.expired} · {nf(k.stok)} {k.satuan}</span>
+                    </li>
+                  )) : <li className="text-slate-400">Tidak ada.</li>}
+                </ul>
+                {(perg.jenis_pengeluaran || []).length ? (
+                  <p className="mt-2 text-[10px] text-slate-500">≈ Tujuan pengeluaran (sampel): {(perg.jenis_pengeluaran || []).slice(0, 3).map((j: any) => `${j.nama} ${nf(j.jumlah)}`).join(' · ')}.</p>
+                ) : null}
+              </div>
+            </div>
+          </Card>
+          )
+          })()}
       </>
 
       {show.asis && (

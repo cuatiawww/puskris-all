@@ -82,7 +82,11 @@ export function applyDerive(data: any, filter: PuskrisFilter) {
     }
   })
 
-  const logBy = Object.fromEntries((data.logistik?.regional || []).map((r) => [r.code, Number(r.total || 0)]))
+  const logLive = data.logistik?.data_source === 'langsung' && data.logistik?.provinsi_regional
+  const logRegById = Object.fromEntries((data.logistik?.regional || []).map((r: any) => [r.id, r]))
+  const logBy = logLive
+    ? Object.fromEntries(Object.entries(data.logistik.provinsi_regional as Record<string, number>).map(([c, id]) => [c, Number(logRegById[id]?.total || 0)]))
+    : Object.fromEntries((data.logistik?.regional || []).map((r) => [r.code, Number(r.total || 0)]))
   const asisBy = Object.fromEntries((data.asistensi?.wilayah?.length ? data.asistensi.wilayah : data.asistensi?.contoh_wilayah || [])
     .filter((x) => x.level === 'provinsi')
     .map((x) => [String(x.kode_wilayah).padStart(2, '0'), Number(x.poin_kapasitas_pct)]))
@@ -219,11 +223,13 @@ export function applyDerive(data: any, filter: PuskrisFilter) {
 
   const logS = data.logistik?.summary || {}
   const logistikRegional = (data.logistik?.regional || []) as any[]
-  const logRow = selected ? logistikRegional.find((r) => r.code === selected.code) : null
+  const logRow = selected ? (logLive ? logRegById[data.logistik.provinsi_regional[selected.code]] : logistikRegional.find((r) => r.code === selected.code)) || null : null
   const logistik = {
     totalStok: selected ? (logRow ? logRow.total : null) : logS.total_stok,
-    penerimaan: selected ? null : logS.transaksi_penerimaan,
-    pengeluaran: selected ? null : logS.transaksi_pengeluaran,
+    penerimaan: selected ? (logLive && logRow ? logRow.masuk : null) : logS.transaksi_penerimaan,
+    pengeluaran: selected ? (logLive && logRow ? logRow.keluar : null) : logS.transaksi_pengeluaran,
+    live: Boolean(logLive),
+    regionalNama: logRow?.nama || null,
     regional: selected && !logRow ? 'Provinsi ini tidak masuk 11 regional yang dilaporkan landing Logistik.' : null,
     rows: selected && logRow ? [logRow] : logistikRegional,
   }
@@ -265,7 +271,7 @@ export function applyDerive(data: any, filter: PuskrisFilter) {
     psc: { sumber: 'PSC 119 & Ambulans', status: data.psc?.data_source === 'langsung' ? 'langsung' : 'snapshot', at: data.psc?.fetched_at_wib, label: data.psc?.data_source === 'langsung' ? data.psc.label : 'Snapshot kumulatif; filter periode sumber belum tersedia', url: data.psc?.sumber, filterable: { periode: false, provinsi: true, kabupaten: false } },
     ncc: { sumber: 'NCC Panggilan', status: 'snapshot', at: data.ncc?.fetched_at_wib, label: data.ncc?.label, url: data.ncc?.sumber, filterable: { periode: true, provinsi: false, kabupaten: false } },
     tck: { sumber: 'Tenaga Cadangan Kesehatan', status: data.tck?.data_source === 'langsung' ? 'langsung' : 'snapshot', at: data.tck?.fetched_at_wib, label: data.tck?.label, url: data.tck?.sumber, filterable: { periode: false, provinsi: true, kabupaten: false } },
-    logistik: { sumber: 'Logistik', status: 'snapshot', at: data.logistik?.fetched_at_wib, label: data.logistik?.label, url: data.logistik?.sumber, filterable: { periode: false, provinsi: false, kabupaten: false } },
+    logistik: { sumber: 'Logistik', status: logLive ? 'langsung' : 'snapshot', at: data.logistik?.fetched_at_wib, label: data.logistik?.label, url: data.logistik?.sumber, filterable: { periode: false, provinsi: Boolean(logLive), kabupaten: false } },
     asistensi: { sumber: 'Asistensi Risiko', status: data.asistensi?.data_source === 'langsung' ? 'langsung' : 'snapshot', at: data.asistensi?.fetched_at_wib, label: data.asistensi?.label, url: data.asistensi?.sumber_provinsi, filterable: { periode: false, provinsi: false, kabupaten: false } },
   }
 
@@ -424,4 +430,14 @@ export function rekapKejadian(list: any[]) {
   }
   s.luka = s.luka_berat + s.luka_ringan
   return s
+}
+
+/** Stok logistik per provinsi untuk peta: langsung = stok regional penanggung provinsi itu; snapshot = hanya provinsi lokasi gudang. */
+export function logistikPerProvinsi(raw: any): Record<string, number> {
+  const l = raw?.logistik || {}
+  if (l.data_source === 'langsung' && l.provinsi_regional) {
+    const byId = Object.fromEntries((l.regional || []).map((r: any) => [r.id, Number(r.total || 0)]))
+    return Object.fromEntries(Object.entries(l.provinsi_regional as Record<string, number>).map(([c, id]) => [c, byId[id] ?? 0]))
+  }
+  return Object.fromEntries((l.regional || []).map((r: any) => [r.code, r.total]))
 }

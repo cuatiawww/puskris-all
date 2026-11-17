@@ -2,6 +2,7 @@
 
 // Peta spasial terpadu Pusat Krisis Kesehatan: dipakai di Ringkasan (variant "card") dan Spatial Mode (variant "fullscreen").
 // Seluruh state lapisan, dok kiri (Analisa / Kejadian Terbaru / Terpadu) dan pengaturan lapisan ada di sini supaya tidak terduplikasi.
+import { logistikPerProvinsi } from '@/lib/puskris/derive'
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
@@ -99,7 +100,7 @@ export default function PuskrisPetaTerpadu({
     setChoro(nextChoro)
   }
 
-  const logistikByCode = useMemo(() => Object.fromEntries((raw.logistik?.regional || []).map((r: any) => [r.code, r.total])), [raw])
+  const logistikByCode = useMemo(() => logistikPerProvinsi(raw), [raw])
   const asistensiByCode = useMemo(
     () => Object.fromEntries(asistensiWilayah(raw).map((r: any) => [String(r.kode_wilayah).padStart(2, '0'), r.poin_kapasitas_pct])),
     [raw],

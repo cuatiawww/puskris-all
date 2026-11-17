@@ -8,6 +8,7 @@
 
 import KAB_CENTROID from '../../data/kab-centroid.json'
 import { fetchTckInti, fetchTckRelawan, TCK_PROFESI } from './tck-live'
+import { fetchLogistik, LOG_KATEGORI } from './logistik-live'
 import { eocEnabled, fetchEocTahun, rekapEoc, type EocEvent } from './eoc-live'
 
 const TTL_MS = 15 * 60_000
@@ -451,20 +452,21 @@ export async function getLiveOverlay(provCodes: string[], budgetMs = 7000) {
     const stOff: LiveStatus = { status: 'snapshot', error: 'Token API belum diatur di server' }
     const e = { fresh: false, pending: false } as LiveResult<any>
     const eoc = await eocP
-    return { asistensi: e, psc: e, panggilan: e, tck: e, tckRelawan: e, eoc, status: { asistensi: stOff, psc: stOff, panggilan: stOff, tck: stOff, tckRelawan: stOff, eoc: st(eoc) }, jobs: [eoc.job].filter(Boolean) as Promise<any>[] }
+    return { asistensi: e, psc: e, panggilan: e, tck: e, tckRelawan: e, logistik: e as LiveResult<Awaited<ReturnType<typeof fetchLogistik>>>, eoc, status: { asistensi: stOff, psc: stOff, panggilan: stOff, tck: stOff, tckRelawan: stOff, logistik: stOff, eoc: st(eoc) }, jobs: [eoc.job].filter(Boolean) as Promise<any>[] }
   }
-  const [asistensi, psc, panggilan, tck, tckRelawan, eoc] = await Promise.all([
+  const [asistensi, psc, panggilan, tck, tckRelawan, eoc, logistik] = await Promise.all([
     swr(`asistensi:${tahun}`, () => fetchAsistensi(tahun), budgetMs),
     swr('psc:master', () => fetchPscMaster(), budgetMs),
     swr(`psc:panggilan:${tahun}`, () => fetchPanggilan(tahun, provCodes), budgetMs),
     swr('tck:inti', () => fetchTckInti(), budgetMs),
     swr('tck:relawan', () => fetchTckRelawan(provCodes), budgetMs),
     eocP,
+    swr('logistik:stok', () => fetchLogistik(), budgetMs),
   ])
   return {
-    asistensi, psc, panggilan, tck, tckRelawan, eoc,
-    status: { asistensi: st(asistensi), psc: st(psc), panggilan: st(panggilan), tck: st(tck), tckRelawan: st(tckRelawan), eoc: st(eoc) },
-    jobs: [asistensi.job, psc.job, panggilan.job, tck.job, tckRelawan.job, eoc.job].filter(Boolean) as Promise<any>[],
+    asistensi, psc, panggilan, tck, tckRelawan, eoc, logistik,
+    status: { asistensi: st(asistensi), psc: st(psc), panggilan: st(panggilan), tck: st(tck), tckRelawan: st(tckRelawan), eoc: st(eoc), logistik: st(logistik) },
+    jobs: [asistensi.job, psc.job, panggilan.job, tck.job, tckRelawan.job, eoc.job, logistik.job].filter(Boolean) as Promise<any>[],
   }
 }
 
@@ -559,13 +561,14 @@ export function mergeLive(snapshot: any, ov: Awaited<ReturnType<typeof getLiveOv
   }
   mergeTck(data, snapshot, ov)
   mergeEoc(data, snapshot, ov)
-  const { tckRelawan: _rel, eoc: stEoc, ...stRest } = ov.status
+  mergeLogistik(data, snapshot, ov)
+  const { tckRelawan: _rel, eoc: stEoc, logistik: stLog, ...stRest } = ov.status
   data.live_status = {
     ...stRest,
     tck: ov.tck.value || ov.tckRelawan.value
       ? { status: 'langsung', at: ov.status.tck.at || ov.status.tckRelawan.at, pending: ov.status.tck.pending || ov.status.tckRelawan.pending || undefined, error: !ov.tckRelawan.value ? 'Sebaran relawan per provinsi masih dimuat / snapshot' : !ov.tck.value ? 'Tim & EMT masih snapshot' : undefined }
       : { ...ov.status.tck, at: ov.status.tck.at || snapshot.tck?.fetched_at_wib },
-    logistik: { status: 'snapshot', at: snapshot.logistik?.fetched_at_wib, error: 'API Logistik belum tersedia (hanya alamat dasar)' },
+    logistik: ov.logistik.value ? stLog : { ...stLog, at: snapshot.logistik?.fetched_at_wib },
     eoc: ov.eoc.value ? stEoc : { ...stEoc, at: snapshot.eoc?.fetched_at_wib },
     ncc: { status: 'snapshot', at: snapshot.ncc?.fetched_at_wib },
   }
@@ -713,5 +716,54 @@ function mergeEoc(data: any, snapshot: any, ov: Awaited<ReturnType<typeof getLiv
     events: v.events.map(packEvent),
     events_dari: v.dari,
     events_sampai: v.sampai,
+  }
+}
+
+
+/** Timpa data.logistik snapshot dengan agregat langsung API Logistik (bentuk lama tetap ada). */
+function mergeLogistik(data: any, snapshot: any, ov: Awaited<ReturnType<typeof getLiveOverlay>>) {
+  const v = ov.logistik.value
+  if (!v) return
+  const snap = snapshot.logistik || {}
+  const regions: { code: string; name: string }[] = snapshot.regions || []
+  const norm = (x: string) => x.toLowerCase().replace(/[^a-z]/g, '')
+  const homeCode = (r: any) => {
+    if (/^pusat$/i.test(r.nama)) return '31'
+    const hit = regions.find((g) => norm(g.name) === norm(r.nama))
+    return hit?.code || (snap.regional || []).find((x: any) => norm(String(x.nama)).startsWith(norm(r.nama)))?.code || r.wilayah[0] || null
+  }
+  const covered = new Set<string>(v.regional.flatMap((r: any) => r.wilayah))
+  const regional = v.regional.map((r: any) => {
+    const code = homeCode(r)
+    const wilayah = /^pusat$/i.test(r.nama) ? regions.map((g) => g.code).filter((c) => !covered.has(c)) : Array.from(new Set([...(r.wilayah as string[]), ...(code ? [code] : [])]))
+    return { ...r, nama: /^pusat$/i.test(r.nama) ? 'Pusat (DKI Jakarta)' : r.nama, code, wilayah, total: r.stok }
+  })
+  const provRegional: Record<string, number> = {}
+  for (const r of regional) for (const c of r.wilayah) provRegional[c] = r.id
+  const n = v.nasional
+  data.logistik = {
+    ...snap,
+    data_source: 'langsung',
+    fetched_at_wib: ov.status.logistik.at,
+    label: `stok ${n.barang.toLocaleString('id-ID')} baris barang di ${regional.length} regional langsung dari API Logistik; pergerakan ≈ sampel ${v.pergerakan.sampel_berhasil} barang teratas`,
+    sumber_api: 'https://pusatkrisis.kemkes.go.id/logistik/web_api/v1/data-stok-logistik',
+    filterable_provinsi: true,
+    kategori: LOG_KATEGORI.map((k) => k.nama),
+    kategori_rekap: v.kategori,
+    summary: {
+      ...(snap.summary || {}),
+      total_stok: n.stok, unit_masuk: n.masuk, unit_keluar: n.keluar, saldo_awal: n.awal,
+      transaksi_penerimaan: n.masuk, transaksi_pengeluaran: n.keluar, satuan_transaksi: 'unit',
+      jumlah_barang: n.barang, barang_unik: n.barang_unik, kedaluwarsa: n.kedaluwarsa, stok_kedaluwarsa: n.stok_kedaluwarsa,
+      segera_kedaluwarsa: n.segera_kedaluwarsa, dengan_kedaluwarsa: n.dengan_kedaluwarsa, stok_negatif: n.stok_negatif,
+      kategori_count: LOG_KATEGORI.length, regional_count: regional.length,
+    },
+    regional,
+    provinsi_regional: provRegional,
+    barang_teratas: v.barang_teratas,
+    kedaluwarsa: v.kedaluwarsa,
+    asal_teratas: v.asal_teratas,
+    pergerakan: v.pergerakan,
+    gagal_regional: v.gagal,
   }
 }

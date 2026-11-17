@@ -10,7 +10,7 @@ import { eocEnabled, fetchEocRange, rekapEoc, type EocEvent } from '@/lib/server
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
-const ALLOWED = ['asistensi', 'psc', 'panggilan', 'tck', 'eoc'] as const
+const ALLOWED = ['asistensi', 'psc', 'panggilan', 'tck', 'eoc', 'logistik'] as const
 
 export async function GET(req: Request, ctx: { params: Promise<{ sumber: string }> }) {
   const { sumber } = await ctx.params
@@ -39,6 +39,9 @@ export async function GET(req: Request, ctx: { params: Promise<{ sumber: string 
       relawan_provinsi: value.relawan ? value.relawan.provinsi.length : null, relawan_total: value.relawan ? value.relawan.provinsi.reduce((a: number, p: any) => a + p.individu, 0) : null,
       inti: ov.status.tck.status, relawan: ov.status.tckRelawan.status,
     }
+  } else if (value && key === 'logistik') {
+    count = value.nasional.barang
+    ringkas = { regional: value.regional.length, regional_gagal: value.gagal.length, barang: value.nasional.barang, barang_unik: value.nasional.barang_unik, total_stok: value.nasional.stok, unit_masuk: value.nasional.masuk, unit_keluar: value.nasional.keluar, kedaluwarsa: value.nasional.kedaluwarsa, segera_kedaluwarsa: value.nasional.segera_kedaluwarsa, pergerakan_sampel: value.pergerakan.sampel_berhasil, pergerakan_cakupan_pct: value.pergerakan.cakupan_volume_pct }
   } else if (value && key === 'panggilan') {
     count = value.total
     ringkas = { tahun: value.tahun, total: value.total, selesai: value.selesai, total_tahun_lalu: value.total_tahun_lalu, sampel: { dari: value.sampel.dari, sampai: value.sampel.sampai, jumlah: value.sampel.jumlah } }

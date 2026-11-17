@@ -352,7 +352,9 @@ export function buildTerpadu(opts: {
     logistik: {
       nama: logName,
       stok: row.stok,
-      catatan: row.stok != null ? `Regional ${row.nama} termasuk 11 gudang yang dilaporkan.` : 'Provinsi ini tidak masuk 11 regional landing Logistik.',
+      catatan: raw?.logistik?.data_source === 'langsung'
+        ? (() => { const g = (raw.logistik.regional || []).find((r: any) => r.id === raw.logistik.provinsi_regional?.[row.code]); return g ? `Dilayani gudang regional ${g.nama} (API Logistik langsung, ${raw.logistik.fetched_at_wib || ''}); ${g.kedaluwarsa || 0} barang kedaluwarsa.` : 'Belum terpetakan ke gudang regional.' })()
+        : row.stok != null ? `Regional ${row.nama} termasuk 11 gudang yang dilaporkan.` : 'Provinsi ini tidak masuk 11 regional landing Logistik.',
     },
     asistensi: asis
       ? { nama: asis.nama, poin: asis.poin_kapasitas_pct, status: asis.status_kapasitas, irbi: asis.status_risiko_irbi_2024, catatan: asisLive ? `Rekapitulasi Asistensi ${raw.asistensi?.tahun || ''}, diambil langsung ${raw.asistensi?.fetched_at_wib || ''}.` : 'Snapshot manual 16 November 2026, sumber butuh login.' }

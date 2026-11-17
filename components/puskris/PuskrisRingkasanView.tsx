@@ -324,8 +324,11 @@ function DynamicKpiCards({
 
   if (tab === 'kesiapsiagaan') {
     if (bagian === 'logistik') {
-      const stokTotal = derived.logistik?.total || raw.logistik?.summary?.total_stok || 0
+      const stokTotal = derived.logistik?.totalStok ?? raw.logistik?.summary?.total_stok ?? 0
       const gudangCount = raw.logistik?.regional?.length || derived.logistik?.rows?.length || 10
+      const lS = raw.logistik?.summary || {}
+      const lLive = raw.logistik?.data_source === 'langsung'
+      const selReg: any = lLive && derived.selected ? (raw.logistik.regional || []).find((r: any) => r.id === raw.logistik.provinsi_regional?.[derived.selected!.code]) : null
       return (
         <section className="skdr-section">
           <SectionHead eyebrow="Kesiapsiagaan · Logistik" title="Ketersediaan Stok &amp; Buffer Logistik Regional" />
@@ -334,15 +337,15 @@ function DynamicKpiCards({
               label="Total Stok Logistik"
               value={nf(stokTotal)}
               unit="unit"
-              sub="Buffer logistik kesehatan regional"
+              sub={selReg ? `Gudang regional ${selReg.nama} (melayani ${derived.selected!.nama})` : lLive ? `${nf(lS.jumlah_barang || 0)} baris barang, satuan campuran` : 'Buffer logistik kesehatan regional'}
               icon={Package}
               tone="emerald"
             />
             <KpiCardItem
-              label="Gudang Regional"
-              value={`${gudangCount}`}
-              unit="lokasi"
-              sub="Pusat sebaran logistik se-Indonesia"
+              label={lLive ? 'Kedaluwarsa' : 'Gudang Regional'}
+              value={lLive ? nf(selReg ? selReg.kedaluwarsa : lS.kedaluwarsa || 0) : `${gudangCount}`}
+              unit={lLive ? 'barang' : 'lokasi'}
+              sub={lLive ? `${nf(selReg ? selReg.segera_kedaluwarsa : lS.segera_kedaluwarsa || 0)} lagi kedaluwarsa ≤ 90 hari · ${gudangCount} gudang regional` : 'Pusat sebaran logistik se-Indonesia'}
               icon={Building2}
               tone="teal"
             />
@@ -350,16 +353,16 @@ function DynamicKpiCards({
               label="Kategori Logistik"
               value={`${raw.logistik?.summary?.kategori_count || 5}`}
               unit="kategori"
-              sub="Obat, tenda, MPASI, hygiene kit"
+              sub={lLive ? 'Obat, BMHP (bahan medis habis pakai), alat kesehatan, sarana prasarana, lainnya' : 'Obat, tenda, MPASI, hygiene kit'}
               icon={Layers}
               tone="blue"
             />
             <KpiCardItem
-              label="TCK Siaga Logistik"
-              value={nf(sdm.individu)}
-              unit="personel"
-              sub="Tenaga cadangan terlatih"
-              icon={Users}
+              label={lLive ? 'Unit Keluar' : 'Tenaga Cadangan Siaga'}
+              value={lLive ? nf(selReg ? selReg.keluar : lS.unit_keluar || 0) : nf(sdm.individu)}
+              unit={lLive ? 'unit' : 'personel'}
+              sub={lLive ? `masuk ${nf(selReg ? selReg.masuk : lS.unit_masuk || 0)} unit, semua transaksi tercatat` : 'Tenaga cadangan terlatih'}
+              icon={lLive ? Package : Users}
               tone="amber"
             />
           </div>
@@ -400,9 +403,9 @@ function DynamicKpiCards({
           />
           <KpiCardItem
             label="Buffer Logistik"
-            value={nf(derived.logistik?.total || 0)}
+            value={derived.logistik?.totalStok == null ? '—' : nf(derived.logistik.totalStok)}
             unit="unit"
-            sub="Stok logistik regional siap salur"
+            sub={derived.logistik?.regionalNama ? `Gudang regional ${derived.logistik.regionalNama}` : 'Stok logistik regional siap salur'}
             icon={Package}
             tone="amber"
             href={withQuery('/dashboard/kesiapsiagaan/logistik', f)}

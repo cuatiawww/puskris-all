@@ -176,7 +176,7 @@ export type IntelStatus = { state: 'loading' | 'ok' | 'empty' | 'error'; count?:
 
 /** API resmi Pusat Krisis Kesehatan yang dipakai langsung (token hanya di server, keluaran agregat). */
 export type OfficialApi = {
-  id: 'asistensi' | 'psc' | 'panggilan' | 'tck' | 'eoc'
+  id: 'asistensi' | 'psc' | 'panggilan' | 'tck' | 'eoc' | 'logistik'
   nama: string
   icon: string
   deskripsi: string
@@ -186,6 +186,20 @@ export type OfficialApi = {
   belum?: string
 }
 export const OFFICIAL_APIS: OfficialApi[] = [
+  {
+    id: 'logistik',
+    nama: 'Logistik Kesehatan (SIMLOGKES)',
+    icon: '📦',
+    deskripsi: 'Stok akhir per gudang regional dan kategori (obat, bahan medis habis pakai, alat kesehatan, sarana prasarana, lainnya), unit masuk/keluar, barang kedaluwarsa, dan pergerakan stok bulanan (sampel).',
+    dipakai: 'Halaman Logistik, KPI Ringkasan (buffer logistik per regional penanggung provinsi), variabel peta Stok logistik regional, Kartu Kejadian Terpadu, radius dukungan.',
+    proxy: '/api/puskris/live/logistik',
+    upstream: [
+      { nama: 'Data regional (11 gudang + provinsi yang dilayani)', metode: 'POST (kueri baca)', url: 'https://pusatkrisis.kemkes.go.id/logistik/web_api/v1/data-regional', parameter: 'id_regional (kosong = semua)' },
+      { nama: 'Data stok logistik', metode: 'POST (kueri baca)', url: 'https://pusatkrisis.kemkes.go.id/logistik/web_api/v1/data-stok-logistik', parameter: 'id_regional (kosong = hanya Pusat, jadi dipanggil 11×)' },
+      { nama: 'Pergerakan stok', metode: 'POST (kueri baca)', url: 'https://pusatkrisis.kemkes.go.id/logistik/web_api/v1/pergerakan-stok', parameter: 'id_barang (= kode_barang.id), id_regional, id_asal_pengirim — ketiganya wajib; dipanggil untuk 10 barang teratas per regional (≈)' },
+    ],
+    belum: 'Nama/telepon/email penanggung jawab, alamat gudang, foto barang, dan petugas logistik dibuang di server. Gudang tidak punya koordinat, jadi peta memakai arsiran provinsi menurut regional penanggung. Satuan barang campuran (tablet, box, unit) dijumlahkan apa adanya.',
+  },
   {
     id: 'eoc',
     nama: 'EOC Pusat Krisis — data kejadian bencana',

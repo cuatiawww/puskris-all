@@ -7,7 +7,7 @@ import { AlertTriangle, Ambulance, Package, PhoneCall, Users } from 'lucide-reac
 import { DEFAULT_LAYERS, type Focus, type Layers as MapLayers } from '@/components/spasial/SpasialMap'
 import { type Area, type Metric } from '@/lib/spasial-api'
 import { useChoroConfig } from '@/lib/choropleth-classes'
-import { applyDerive, nf, pf, situasiTerfilter } from '@/lib/puskris/derive'
+import { applyDerive, nf, pf, situasiTerfilter, logistikPerProvinsi } from '@/lib/puskris/derive'
 import { PUBLIC_BASE_PATH } from '@/lib/public-path'
 import {
   METRIC_PILLS, buildJenisCards, centroidsFromGeo, toSpasial,
@@ -121,7 +121,7 @@ export default function PuskrisExecutiveView({
   const RED_CHORO = { mode: 'quantile' as const, zeroColor: '#FDE8E8', colors: ['#FECACA', '#F87171', '#DC2626', '#7F1D1D'], quantiles: [0.25, 0.5, 0.75] }
   const choroCfg = choro === 'kesenjangan' ? RED_CHORO : baseChoro
 
-  const logistikByCode = useMemo(() => Object.fromEntries((raw.logistik?.regional || []).map((r: any) => [r.code, r.total])), [raw])
+  const logistikByCode = useMemo(() => logistikPerProvinsi(raw), [raw])
   const asistensiByCode = useMemo(
     () => Object.fromEntries(asistensiWilayah(raw).map((r: any) => [String(r.kode_wilayah).padStart(2, '0'), r.poin_kapasitas_pct])),
     [raw],

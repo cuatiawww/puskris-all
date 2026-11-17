@@ -530,8 +530,8 @@ export default function PuskrisRingkasanView({
                   <div>
                     <div className="mb-2 text-[10px] font-black uppercase tracking-wider text-slate-400">Visualisasi Kasus &amp; Wilayah</div>
                     <div className="space-y-2">
-                      <div className={`rounded-xl border p-2.5 transition ${layers.points !== 'off' ? 'border-teal-200 bg-white shadow-2xs' : 'border-slate-100 bg-slate-50'}`}>
-                        <div className="flex items-center justify-between">
+                      <label className={`block cursor-pointer rounded-xl border p-2.5 transition select-none ${layers.points !== 'off' ? 'border-teal-200 bg-white shadow-2xs' : 'border-slate-100 bg-slate-50'}`}>
+                        <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2">
                             <span className="flex items-center gap-1">
                               <span className="h-2 w-2 rounded-full bg-blue-600" title="Titik kejadian" />
@@ -541,43 +541,60 @@ export default function PuskrisRingkasanView({
                           </div>
                           <div className="flex items-center gap-2">
                             <span className="text-xs font-black tabular-nums text-slate-800">{totalTitik.toLocaleString('id-ID')}</span>
-                            <Switch on={layers.points !== 'off'} color="#00705a" label="Titik kejadian krisis"
-                              onChange={() => setLayers({ ...layers, points: layers.points !== 'off' ? 'off' : 'kluster' })} />
+                            <input
+                              type="checkbox"
+                              checked={layers.points !== 'off'}
+                              onChange={(e) => setLayers({ ...layers, points: e.target.checked ? 'kluster' : 'off' })}
+                              className="h-4 w-4 cursor-pointer rounded border-slate-300 text-teal-700 focus:ring-teal-500"
+                              aria-label="Titik kejadian krisis"
+                            />
                           </div>
                         </div>
                         <p className="ml-5 mt-0.5 text-[10px] text-slate-500">Klaster di pusat provinsi · {totalTitik.toLocaleString('id-ID')} kejadian terbaru</p>
                         {layers.points !== 'off' && (
-                          <div className="ml-5 mt-2 flex items-center gap-2">
+                          <div className="ml-5 mt-2 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                             <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Opasitas</span>
                             <input type="range" min={0.2} max={1} step={0.05} value={pointOpacity} onChange={(e) => setPointOpacity(Number(e.target.value))} className="h-1 flex-1 cursor-pointer accent-[#00705a]" />
                             <span className="w-8 text-right text-[10px] font-bold tabular-nums text-slate-600">{Math.round(pointOpacity * 100)}%</span>
                           </div>
                         )}
-                      </div>
-                      <div className={`rounded-xl border p-2.5 transition ${radiusOn ? 'border-teal-200 bg-white shadow-2xs' : 'border-slate-100 bg-slate-50'}`}>
-                        <div className="flex items-center justify-between">
+                      </label>
+                      <label className={`block cursor-pointer rounded-xl border p-2.5 transition select-none ${radiusOn ? 'border-teal-200 bg-white shadow-2xs' : 'border-slate-100 bg-slate-50'}`}>
+                        <div className="flex items-center justify-between gap-2">
                           <span className="text-xs font-bold text-slate-800">Radius dukungan 50/100/200 km</span>
-                          <Switch on={radiusOn} color="#00705a" label="Radius dukungan" onChange={() => setRadiusOn(!radiusOn)} />
+                          <input
+                            type="checkbox"
+                            checked={radiusOn}
+                            onChange={(e) => setRadiusOn(e.target.checked)}
+                            className="h-4 w-4 cursor-pointer rounded border-slate-300 text-teal-700 focus:ring-teal-500"
+                            aria-label="Radius dukungan"
+                          />
                         </div>
                         <p className="mt-0.5 text-[10px] text-slate-500">Lingkaran di sekitar titik/provinsi terpilih. Jarak memakai pusat provinsi ({CONTOH_LABEL} koordinat fasilitas).</p>
-                      </div>
-                      <div className={`rounded-xl border p-2.5 transition ${layers.choro ? 'border-teal-200 bg-white shadow-2xs' : 'border-slate-100 bg-slate-50'}`}>
-                        <div className="flex items-center justify-between">
+                      </label>
+                      <label className={`block cursor-pointer rounded-xl border p-2.5 transition select-none ${layers.choro ? 'border-teal-200 bg-white shadow-2xs' : 'border-slate-100 bg-slate-50'}`}>
+                        <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2">
                             <Shapes className="h-3.5 w-3.5 text-teal-700" />
                             <span className="text-xs font-bold text-slate-800">Arsiran wilayah</span>
                           </div>
-                          <Switch on={layers.choro} color="#0f766e" label="Arsiran wilayah" onChange={() => setLayers({ ...layers, choro: !layers.choro })} />
+                          <input
+                            type="checkbox"
+                            checked={layers.choro}
+                            onChange={(e) => setLayers({ ...layers, choro: e.target.checked })}
+                            className="h-4 w-4 cursor-pointer rounded border-slate-300 text-teal-700 focus:ring-teal-500"
+                            aria-label="Arsiran wilayah"
+                          />
                         </div>
                         <p className="ml-5 mt-0.5 text-[10px] text-slate-500">Mengikuti pil variabel di atas peta (legenda kiri bawah)</p>
                         {layers.choro && (
-                          <div className="ml-5 mt-2 flex items-center gap-2">
+                          <div className="ml-5 mt-2 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                             <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Opasitas</span>
                             <input type="range" min={0.2} max={1} step={0.05} value={layers.opChoro} onChange={(e) => setLayers({ ...layers, opChoro: Number(e.target.value) })} className="h-1 flex-1 cursor-pointer accent-teal-700" />
                             <span className="w-8 text-right text-[10px] font-bold tabular-nums text-slate-600">{Math.round(layers.opChoro * 100)}%</span>
                           </div>
                         )}
-                      </div>
+                      </label>
                     </div>
                   </div>
 
@@ -591,16 +608,20 @@ export default function PuskrisRingkasanView({
                         const active = Boolean((intelLayers as any)[api.id])
                         const st = intelStatus[api.id]
                         return (
-                          <div key={api.id}
-                            className={`cursor-pointer rounded-xl border p-2 transition ${active ? 'border-teal-300 bg-teal-50/50' : 'border-slate-100 bg-white hover:border-slate-200'}`}
-                            onClick={() => setIntelLayers((prev) => ({ ...prev, [api.id]: !(prev as any)[api.id] }))}
+                          <label key={api.id}
+                            className={`block cursor-pointer rounded-xl border p-2.5 transition select-none ${active ? 'border-teal-300 bg-teal-50/50' : 'border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50/60'}`}
                             data-testid={`intel-${api.id}`}>
-                            <div className="flex items-center justify-between">
+                            <div className="flex items-center justify-between gap-2">
                               <span className="flex min-w-0 items-center gap-1.5 text-xs font-bold text-slate-800">
                                 <span>{api.icon}</span><span className="truncate">{api.nama}</span>
                               </span>
-                              <Switch on={active} color="#00705a" label={api.nama}
-                                onChange={() => setIntelLayers((prev) => ({ ...prev, [api.id]: !(prev as any)[api.id] }))} />
+                              <input
+                                type="checkbox"
+                                checked={active}
+                                onChange={(e) => setIntelLayers((prev) => ({ ...prev, [api.id]: e.target.checked }))}
+                                className="h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 text-teal-700 focus:ring-teal-500"
+                                aria-label={api.nama}
+                              />
                             </div>
                             <p className="mt-0.5 line-clamp-2 text-[10px] leading-tight text-slate-500">{api.deskripsi}</p>
                             {active && st ? (
@@ -609,7 +630,7 @@ export default function PuskrisRingkasanView({
                                 {st.at && st.state !== 'error' ? <span className="font-medium text-slate-400"> · {st.at}</span> : null}
                               </p>
                             ) : null}
-                          </div>
+                          </label>
                         )
                       })}
                     </div>
@@ -627,22 +648,27 @@ export default function PuskrisRingkasanView({
                         const on = Boolean(bnpbLayers[l.id])
                         const st = bnpbStatus[l.id]
                         return (
-                          <div key={l.id} data-testid={`bnpb-${l.id}`}
-                            className={`cursor-pointer rounded-lg border px-2 py-1.5 transition ${on ? 'border-teal-300 bg-teal-50/50' : 'border-slate-100 bg-white hover:border-slate-200'}`}
-                            onClick={() => setBnpbLayers((p) => ({ ...p, [l.id]: !p[l.id] }))}>
+                          <label key={l.id} data-testid={`bnpb-${l.id}`}
+                            className={`block cursor-pointer rounded-lg border px-2.5 py-1.5 transition select-none ${on ? 'border-teal-300 bg-teal-50/50' : 'border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50/60'}`}>
                             <div className="flex items-center justify-between gap-2">
                               <span className="min-w-0">
                                 <span className="block truncate text-[11px] font-bold text-slate-800">{l.nama}</span>
                                 <span className="block truncate text-[9.5px] leading-tight text-slate-500">{l.deskripsi}</span>
                               </span>
-                              <Switch on={on} color="#00705a" label={l.nama} onChange={() => setBnpbLayers((p) => ({ ...p, [l.id]: !p[l.id] }))} />
+                              <input
+                                type="checkbox"
+                                checked={on}
+                                onChange={(e) => setBnpbLayers((p) => ({ ...p, [l.id]: e.target.checked }))}
+                                className="h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 text-teal-700 focus:ring-teal-500"
+                                aria-label={l.nama}
+                              />
                             </div>
                             {on && st ? (
                               <p className={`mt-0.5 text-[9.5px] font-bold ${st.state === 'error' ? 'text-red-700' : st.state === 'loading' ? 'text-slate-500' : 'text-emerald-700'}`} data-testid={`bnpb-status-${l.id}`}>
-                                {st.state === 'loading' ? 'Memuat ubin dari gis.bnpb.go.id…' : st.message}
+                                {st.state === 'loading' ? 'Memuat citra dari gis.bnpb.go.id…' : st.message}
                               </p>
                             ) : null}
-                          </div>
+                          </label>
                         )
                       })}
                     </div>

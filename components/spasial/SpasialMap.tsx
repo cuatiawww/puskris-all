@@ -8,6 +8,7 @@ import View from 'ol/View'
 import Overlay from 'ol/Overlay'
 import { createPortal } from 'react-dom'
 import TileLayer from 'ol/layer/Tile'
+import ImageLayer from 'ol/layer/Image'
 import VectorLayer from 'ol/layer/Vector'
 import HeatmapLayer from 'ol/layer/Heatmap'
 import VectorSource from 'ol/source/Vector'
@@ -15,6 +16,7 @@ import Cluster from 'ol/source/Cluster'
 import XYZ from 'ol/source/XYZ'
 import OSM from 'ol/source/OSM'
 import TileArcGISRest from 'ol/source/TileArcGISRest'
+import ImageArcGISRest from 'ol/source/ImageArcGISRest'
 import { BNPB_LAYERS, type BnpbLayerId, type BnpbStatus } from '@/lib/puskris/open-data'
 import GeoJSON from 'ol/format/GeoJSON'
 import Feature from 'ol/Feature'
@@ -553,8 +555,8 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
     return () => { alive = false }
   }, [intelLayers?.vectors]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── lapisan BNPB InaRISK (ArcGIS REST, langsung dari gis.bnpb.go.id seperti ABVC) ──
-  const bnpbRefs = useRef<Partial<Record<BnpbLayerId, TileLayer<any>>>>({})
+  // ── lapisan BNPB InaRISK (ArcGIS REST ImageServer / MapServer, viewport overlay seperti ABVC/kemkes-web) ──
+  const bnpbRefs = useRef<Partial<Record<BnpbLayerId, ImageLayer<ImageArcGISRest>>>>({})
   useEffect(() => {
     const m = map.current
     if (!m) return
@@ -562,12 +564,18 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
       const on = Boolean(bnpbLayers?.[def.id])
       let l = bnpbRefs.current[def.id]
       if (!l && on) {
-        const src = new TileArcGISRest({ url: def.url })
-        let ok = 0, bad = 0
-        src.on('tileloadstart', () => { if (!ok && !bad) onBnpbStatus?.(def.id, { state: 'loading' }) })
-        src.on('tileloadend', () => { ok++; onBnpbStatus?.(def.id, { state: 'ok', message: `${ok} ubin dimuat${bad ? `, ${bad} gagal` : ''}` }) })
-        src.on('tileloaderror', () => { bad++; onBnpbStatus?.(def.id, ok ? { state: 'ok', message: `${ok} ubin dimuat, ${bad} gagal` } : { state: 'error', message: 'Server BNPB tidak merespons / ubin gagal dimuat' }) })
-        l = new TileLayer({ source: src, opacity: def.opacity, zIndex: 5, visible: false })
+        const src = new ImageArcGISRest({
+          url: def.url,
+          ratio: 1,
+          params: {
+            format: 'png32',
+            transparent: true,
+          },
+        })
+        src.on('imageloadstart', () => onBnpbStatus?.(def.id, { state: 'loading' }))
+        src.on('imageloadend', () => onBnpbStatus?.(def.id, { state: 'ok', message: 'Lapisan berhasil dimuat' }))
+        src.on('imageloaderror', () => onBnpbStatus?.(def.id, { state: 'error', message: 'Server BNPB tidak merespons' }))
+        l = new ImageLayer({ source: src, opacity: def.opacity, zIndex: 5, visible: false })
         bnpbRefs.current[def.id] = l
         m.addLayer(l)
       }

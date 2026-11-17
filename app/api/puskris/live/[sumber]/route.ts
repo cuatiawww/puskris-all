@@ -11,6 +11,8 @@ import { eocEnabled, fetchEocRange, rekapEoc, type EocEvent } from '@/lib/server
 export const dynamic = 'force-dynamic'
 // Vercel (Fluid compute): cache dingin diisi dalam permintaan pertama; potongan hasil tersimpan di Data Cache.
 export const maxDuration = 300
+// Server API Kemenkes ada di Indonesia: jalankan fungsi di Singapura (sin1) agar panggilan per bulan/provinsi tidak lambat.
+export const preferredRegion = 'sin1'
 
 const ALLOWED = ['asistensi', 'psc', 'panggilan', 'tck', 'eoc', 'logistik', 'ncc'] as const
 
@@ -96,7 +98,8 @@ async function eocResponse(req: Request) {
     const p = (provinsi[e.p] ||= { code: e.p, nama: e.pn, kejadian: 0, krisis: 0, meninggal: 0, hilang: 0, luka_berat: 0, luka_ringan: 0, pengungsi: 0, terdampak: 0 })
     p.kejadian++; p.krisis += e.s; p.meninggal += e.m; p.hilang += e.h; p.luka_berat += e.lb; p.luka_ringan += e.lr; p.pengungsi += e.pg; p.terdampak += e.td
   }
-  const ringkas = { dari, sampai, prov, kab, ...rekapEoc(events) }
+  const gagalBulan: string[] = (inCache ? base.value?.gagal : null) || []
+  const ringkas = { dari, sampai, prov, kab, ...rekapEoc(events), lengkap: gagalBulan.length === 0, bulan_gagal: gagalBulan.map((g) => g.slice(0, 7)) }
   return NextResponse.json({
     ok: true, sumber: 'eoc', status: 'langsung', fetched_at: at ? wibStamp(at) : null, count: events.length, error: null, ringkas,
     data: {

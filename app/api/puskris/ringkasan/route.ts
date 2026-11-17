@@ -10,6 +10,8 @@ import { getLiveOverlay, mergeLive, parseRentang } from '@/lib/server/puskris-li
 export const dynamic = 'force-dynamic'
 // Vercel (Fluid compute): sisa pengambilan berjalan lewat after() sampai batas ini; hasil per potongan tersimpan di Data Cache.
 export const maxDuration = 300
+// Server API Kemenkes ada di Indonesia: jalankan fungsi di Singapura (sin1) agar panggilan per bulan/provinsi tidak lambat.
+export const preferredRegion = 'sin1'
 
 export async function GET(req: Request) {
   // ?tanggal1&tanggal2 (opsional): rentang Filter Dasbor di luar tahun berjalan -> EOC & NCC diambil untuk rentang itu.

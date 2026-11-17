@@ -79,7 +79,10 @@ export async function swr<T>(key: string, fn: () => Promise<T>, budgetMs: number
   if (!e.pending) {
     e.pending = fn()
       .then((v) => {
-        store.set(key, { at: Date.now(), value: v })
+        // Hasil sebagian (ada potongan gagal: bulan EOC / provinsi TCK / regional Logistik) hanya disimpan 30 detik
+        // di memori, supaya permintaan berikutnya mengulang potongan yang gagal (yang berhasil sudah di cache persisten).
+        const sebagian = (Array.isArray((v as any)?.gagal) && (v as any).gagal.length > 0) || (Array.isArray(v) && v.some((x: any) => Array.isArray(x?.gagal) && x.gagal.length > 0))
+        store.set(key, { at: sebagian ? Date.now() - ttlMs + 30_000 : Date.now(), value: v })
         return v
       })
       .catch((err) => {

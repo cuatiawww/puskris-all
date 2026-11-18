@@ -76,9 +76,9 @@ export const PUSKRIS_PAGES: { key: PuskrisTab; label: string; eyebrow: string; t
   },
   {
     key: 'krisis',
-    label: 'Situasi Krisis',
+    label: 'Pantauan Krisis',
     eyebrow: 'Dasbor Pusat Krisis Kesehatan',
-    title: 'Situasi Krisis Kesehatan',
+    title: 'Pantauan Krisis Kesehatan',
     desc: 'Kejadian terpantau, berdampak krisis, korban, pengungsi, dan penduduk terdampak.',
   },
   {

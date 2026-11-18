@@ -405,7 +405,7 @@ export const DEFAULT_NAVIGATION_CONFIG: SidebarGroupConfig[] = [
     it('mod_ringkasan', 'Ringkasan', '/dashboard/ringkasan', 'LayoutDashboard', 1, {
       description: 'Dasbor agregat Pusat Krisis Kesehatan',
     }),
-    it('mod_situasi_krisis', 'Situasi Krisis', '/dashboard/situasi-krisis', 'AlertTriangle', 2, {
+    it('mod_situasi_krisis', 'Pantauan Krisis', '/dashboard/situasi-krisis', 'AlertTriangle', 2, {
       description: 'Kejadian bencana, korban, pengungsi, dan tren dari Pantauan Bencana / EOC',
     }),
     it('mod_layanan', 'Layanan Gawat Darurat', '/dashboard/layanan-gawat-darurat', 'PhoneCall', 3, {

@@ -40,10 +40,10 @@ export const PUSKRIS_NAV: PuskrisNavItem[] = [
   {
     key: 'krisis',
     href: '/dashboard/situasi-krisis',
-    label: 'Situasi Krisis',
-    shortLabel: 'Situasi Krisis',
+    label: 'Pantauan Krisis',
+    shortLabel: 'Pantauan Krisis',
     eyebrow: 'Pantauan bencana',
-    title: 'Situasi Krisis Kesehatan',
+    title: 'Pantauan Krisis Kesehatan',
     desc: 'Kejadian terpantau dan yang berdampak krisis, korban, pengungsi, penduduk terdampak, jenis kejadian, tren, dan peta sebaran.',
     sources: [SOURCE.eocResmi, SOURCE.eocVercel],
   },
@@ -121,7 +121,7 @@ export const PUSKRIS_TOP_BAR_TABS: PuskrisTopBarTab[] = [
   {
     id: 'krisis',
     href: '/dashboard/situasi-krisis',
-    label: 'Situasi Krisis',
+    label: 'Pantauan Krisis',
     pageKey: 'krisis',
     bagian: null,
   },

@@ -154,7 +154,7 @@ function DynamicKpiCards({
   if (tab === 'krisis') {
     return (
       <section className="skdr-section">
-        <SectionHead eyebrow="Situasi Krisis" title="Indikator Kejadian &amp; Dampak Bencana" />
+        <SectionHead eyebrow="Pantauan Krisis" title="Indikator Kejadian &amp; Dampak Bencana" />
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
           <KpiCardItem
             label="Kejadian Bencana"
@@ -696,7 +696,7 @@ export default function PuskrisRingkasanView({
           </section>
           <p className="text-[11px] text-slate-500">
             Detail pilar ada di{' '}
-            <Link href={withQuery('/dashboard/situasi-krisis', f)} className="font-bold text-primary hover:underline">Situasi Krisis</Link>
+            <Link href={withQuery('/dashboard/situasi-krisis', f)} className="font-bold text-primary hover:underline">Pantauan Krisis</Link>
             {', '}
             <Link href={withQuery('/dashboard/layanan-gawat-darurat', f)} className="font-bold text-primary hover:underline">Layanan Gawat Darurat</Link>
             {', '}

@@ -700,7 +700,7 @@ export default function PuskrisAnalisisView({
       setPreviewData({
         title: genericDef.title,
         subtitle: `${genericDef.rowLabel}: ${item.label}${item.sub ? ` · ${item.sub}` : ''}`,
-        badgeText: genericDef.id === 'tck' ? 'Kesiapsiagaan' : genericDef.id === 'bencana' ? 'Situasi Krisis' : 'Layanan Gawat Darurat',
+        badgeText: genericDef.id === 'tck' ? 'Kesiapsiagaan' : genericDef.id === 'bencana' ? 'Pantauan Krisis' : 'Layanan Gawat Darurat',
         badgeColor: 'bg-teal-50 text-[#0D6B67] border-teal-200',
         docId: `MTX-${genericDef.id.toUpperCase()}-${item.code || item.tanggal || item.id}`,
         timestamp: now,

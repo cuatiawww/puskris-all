@@ -37,6 +37,19 @@ import { glyphSvg, type ExtraPointLayer } from '@/lib/puskris/internal-layers'
 
 export type BaseMap = 'light' | 'osm' | 'satellite' | 'terrain' | 'none'
 export type PointMode = 'kluster' | 'titik' | 'off'
+/** Arsiran kategorikal (mis. status Asistensi / IRBI): warna per kode wilayah dari data API. */
+export type CatChoro = {
+  id: string
+  level: 'provinsi' | 'kabkota'
+  /** kode provinsi untuk membatasi kab/kota & menebalkan batas provinsi terpilih */
+  prov?: string | null
+  judul: string
+  sumber: string
+  items: Record<string, { color: string; title: string; details: Array<{ label: string; value: string }> }>
+  legend: Array<{ label: string; color: string; n: number }>
+  catatan?: string
+}
+
 export interface Layers { base: BaseMap; choro: boolean; opChoro: number; points: PointMode; heat: boolean; status: string[]; kasusMin: number }
 export const DEFAULT_LAYERS: Layers = { base: 'light', choro: true, opChoro: 0.78, points: 'kluster', heat: false, status: [], kasusMin: 0 }
 export type Focus = { lat: number; lon: number; titik?: Titik | null; row?: any; area?: Area | null; zoom?: number; nonce: number }
@@ -109,7 +122,7 @@ export interface MapHudCtrl {
   setShowLayers: (v: boolean) => void
 }
 
-export default function SpasialMap({ data, titik, metric, setMetric, layers, setLayers, choroCfg, sumber, selectedId, onSelectArea, onDrill, onUp, focus, rightPanel, panelOpen, setPanelOpen, height = 680, fullHeight = false, topHud, leftDock, topOffset, hideDefaultToolbar = false, intelLayers, radiusSupport, onIntelStatus, pointOpacity = 1, showBoundaries = true, windFlow = false, metricLabel, bnpbLayers, onBnpbStatus, fitPadding, legendDefaultOpen = true, extraLayers }: {
+export default function SpasialMap({ data, titik, metric, setMetric, layers, setLayers, choroCfg, sumber, selectedId, onSelectArea, onDrill, onUp, focus, rightPanel, panelOpen, setPanelOpen, height = 680, fullHeight = false, topHud, leftDock, topOffset, hideDefaultToolbar = false, intelLayers, radiusSupport, onIntelStatus, pointOpacity = 1, showBoundaries = true, windFlow = false, metricLabel, bnpbLayers, onBnpbStatus, fitPadding, legendDefaultOpen = true, extraLayers, catChoro }: {
   data: SpasialResp | null; titik: Titik[]; metric: Metric; setMetric: (m: Metric) => void; layers: Layers; setLayers: (l: Layers) => void
   choroCfg: ChoroConfig | null; sumber: string; selectedId: number | null; onSelectArea: (a: Area | null) => void; onDrill: (a: Area) => void; onUp: (() => void) | null
   focus: Focus | null; rightPanel: ReactNode; panelOpen: boolean; setPanelOpen: (v: boolean) => void; height?: number
@@ -131,6 +144,8 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
   metricLabel?: string
   /** Lapisan titik tambahan (mis. API Internal: PSC, ambulans, panggilan) yang dihitung di luar peta. */
   extraLayers?: ExtraPointLayer[]
+  /** Arsiran kategorikal; bila aktif menggantikan arsiran angka. */
+  catChoro?: CatChoro | null
 }) {
   const statusRef = useRef(onIntelStatus)
   statusRef.current = onIntelStatus
@@ -157,6 +172,9 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
   const ptSrc = useRef(new VectorSource())
   const clusterSrc = useRef(new Cluster({ distance: 42, minDistance: 12, source: ptSrc.current }))
   const choroL = useRef<VectorLayer<any> | null>(null)
+  const catSrc = useRef(new VectorSource())
+  const catL = useRef<VectorLayer<any> | null>(null)
+  const catCtx = useRef<{ cat: CatChoro | null; hover: string | null; op: number }>({ cat: null, hover: null, op: 0.78 })
   const ptL = useRef<VectorLayer<any> | null>(null)
   const clL = useRef<VectorLayer<any> | null>(null)
   const heatL = useRef<HeatmapLayer | null>(null)
@@ -212,6 +230,21 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
       })
     }
     choroL.current = new VectorLayer({ source: choroSrc.current, style: choroStyle, zIndex: 1 })
+    const catStyle = (f: FeatureLike) => {
+      const c = catCtx.current
+      const code = String(f.get('code'))
+      const it = c.cat?.items[code]
+      const col = it?.color && /^#[0-9a-f]{6}$/i.test(it.color) ? it.color : '#e5e7eb'
+      const r = parseInt(col.slice(1, 3), 16), g = parseInt(col.slice(3, 5), 16), b = parseInt(col.slice(5, 7), 16)
+      const sel = Boolean(c.cat?.prov) && (c.cat!.level === 'provinsi' ? code === c.cat!.prov : false)
+      const hov = c.hover === code
+      return new Style({
+        fill: new Fill({ color: `rgba(${r},${g},${b},${c.op})` }),
+        stroke: new Stroke({ color: sel ? '#0f172a' : hov ? '#334155' : 'rgba(100,116,139,0.55)', width: sel ? 3 : hov ? 2 : 0.6 }),
+        zIndex: sel ? 2 : hov ? 1 : 0,
+      })
+    }
+    catL.current = new VectorLayer({ source: catSrc.current, style: catStyle, zIndex: 1, visible: false })
     heatL.current = new HeatmapLayer({ source: ptSrc.current, blur: 24, radius: 14, weight: (f) => f.get('hw') || 0, zIndex: 2, visible: false, opacity: 0.85 })
     const cache: Record<string, Style> = {}
     const ptStyle = (f: FeatureLike) => {
@@ -272,6 +305,7 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
       layers: [
         tile.current,
         choroL.current,
+        catL.current,
         heatL.current,
         clL.current,
         ptL.current,
@@ -304,6 +338,12 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
         const t = hit.f.get('title') || ''
         const sub = hit.f.get('subtitle') || ''
         text = `${it === 'flight' ? '✈️ Penerbangan' : it === 'fire' ? '🔥 Titik Panas FIRMS' : it === 'hazard' ? '⚠️ Bahaya Bencana' : it === 'wildlife' ? '🦅 Satwa Liar GBIF' : it === 'wind' ? '🌬️ Angin' : '🦟 Vektor Nyamuk'}: ${t}${sub ? ` · ${sub}` : ''}`
+      } else if (hit?.l === catL.current) {
+        code = String(hit.f.get('code'))
+        const it = catCtx.current.cat?.items[code]
+        text = `${hit.f.get('name')}: ${it ? it.title : 'tidak ada data'}`
+        if (catCtx.current.hover !== code) { catCtx.current.hover = code; catL.current?.changed() }
+        code = null
       } else if (hit?.l === choroL.current) {
         code = String(hit.f.get('code'))
         const a = styleCtx.current.byCode[code]
@@ -316,6 +356,7 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
         text = fs2.length > 1 ? `${nf(fs2.length)} unit pelapor · klik untuk memperbesar` : t ? `${t.unit || '(unit tanpa nama)'} · ${nf(fs2[0].get('v').k)} kasus` : null
       }
       if (styleCtx.current.hover !== code) { styleCtx.current.hover = code; choroL.current?.changed() }
+      if (hit?.l !== catL.current && catCtx.current.hover) { catCtx.current.hover = null; catL.current?.changed() }
       m.getTargetElement().style.cursor = hit ? 'pointer' : ''
       setHover(text ? { x: e.pixel[0], y: e.pixel[1], text } : null)
     })
@@ -357,6 +398,13 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
           details: hit.f.get('details') || [],
           link: hit.f.get('link'),
         })
+        overlay.current?.setPosition(e.coordinate)
+        return
+      }
+      if (hit.l === catL.current) {
+        const cat = catCtx.current.cat
+        const it = cat?.items[String(hit.f.get('code'))]
+        setPopup({ kind: 'intel', type: 'kategori', badgeText: cat?.judul || '', badgeColor: '#be123c', source: cat?.sumber || '', title: String(hit.f.get('name') || ''), subtitle: it ? it.title : 'Tidak ada data dari API', details: it?.details || [] })
         overlay.current?.setPosition(e.coordinate)
         return
       }
@@ -774,7 +822,38 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
     Object.assign(styleCtx.current, { byCode, cls, wi, metric, sel: selectedId, op: layers.opChoro })
     choroL.current?.changed()
   }, [areas, cls, wi, metric, selectedId, layers.opChoro, geoReady])
-  useEffect(() => { choroL.current?.setVisible(layers.choro) }, [layers.choro])
+  useEffect(() => { choroL.current?.setVisible(layers.choro && !catChoro) }, [layers.choro, catChoro])
+
+  // ── arsiran kategorikal (status Asistensi / IRBI) ──
+  const catGeoKey = catChoro ? `${catChoro.level}|${catChoro.prov || ''}` : ''
+  useEffect(() => {
+    if (!catGeoKey) { catSrc.current.clear(); return }
+    let alive = true
+    const [lv, pc] = catGeoKey.split('|')
+    catCtx.current.cat = catChoro || null
+    const url = lv === 'provinsi' ? `${PUBLIC_BASE_PATH}/data/indonesia-38-provinces.geojson` : `${PUBLIC_BASE_PATH}/data/indonesia-kabupaten.geojson`
+    loadJson(url).then((fc) => {
+      if (!alive) return
+      const raw = (fc.features || []).filter((f: any) => lv === 'provinsi' || !pc || String(f.properties?.kode_prov) === pc)
+      const feats = new GeoJSON().readFeatures({ type: 'FeatureCollection', features: raw }, { featureProjection: 'EPSG:3857' }) as Feature[]
+      feats.forEach((f) => { const p = f.getProperties(); f.set('code', String(lv === 'provinsi' ? p.id_provinsi : p.kode_kab)); f.set('name', String(lv === 'provinsi' ? p.provinsi : p.nama_kab)) })
+      catSrc.current.clear(); catSrc.current.addFeatures(feats)
+      const pv = catCtx.current.cat?.prov
+      const fokus = pv ? feats.filter((f) => lv === 'kabkota' || String(f.get('code')) === pv) : []
+      if (fokus.length && map.current) {
+        const ext = fokus.reduce((e, f) => { const g = f.getGeometry()?.getExtent(); return g ? [Math.min(e[0], g[0]), Math.min(e[1], g[1]), Math.max(e[2], g[2]), Math.max(e[3], g[3])] : e }, [Infinity, Infinity, -Infinity, -Infinity])
+        map.current.getView().fit(ext, { padding: fitPadding || [120, 80, 80, 80], duration: 300, maxZoom: 9 })
+      }
+    }).catch(() => alive && setGeoErr(true))
+    return () => { alive = false }
+  }, [catGeoKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setPopup((pp) => (pp?.kind === 'intel' && pp.type === 'kategori' ? null : pp)); overlay.current?.setPosition(undefined) }, [catChoro?.id, catChoro?.level])
+  useEffect(() => {
+    catCtx.current.cat = catChoro || null
+    catCtx.current.op = layers.opChoro
+    catL.current?.setVisible(Boolean(catChoro) && layers.choro)
+    catL.current?.changed()
+  }, [catChoro, layers.opChoro, layers.choro])
 
   // ── points ──
   const statusOpts = statusFor(sumber)
@@ -847,7 +926,7 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
           <div className="flex min-h-0 flex-1 items-start justify-between gap-3">
             <div className="flex max-h-full flex-col gap-2 overflow-y-auto pr-0.5">
               {leftDock}
-              {showLegend ? <Legend metric={metric} label={metricLabel} cls={cls} lvLabel={lvLabel} sumber={sumber} weekly={wi >= 0} points={layers.points !== 'off'} heat={layers.heat} extra={(extraLayers || []).filter((l) => l.visible)} onClose={() => setShowLegend(false)} inline /> : null}
+              {showLegend ? <Legend cat={catChoro || null} metric={metric} label={metricLabel} cls={cls} lvLabel={lvLabel} sumber={sumber} weekly={wi >= 0} points={layers.points !== 'off'} heat={layers.heat} extra={(extraLayers || []).filter((l) => l.visible)} onClose={() => setShowLegend(false)} inline /> : null}
             </div>
             <div className="flex min-w-0 flex-1 flex-col items-center justify-end self-stretch pb-0.5">
               {weeks.length > 1 ? (
@@ -915,7 +994,7 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
           ) : null}
 
           {/* legend */}
-          {showLegend && !showLayers ? <Legend metric={metric} label={metricLabel} cls={cls} lvLabel={lvLabel} sumber={sumber} weekly={wi >= 0} points={layers.points !== 'off'} heat={layers.heat} extra={(extraLayers || []).filter((l) => l.visible)} onClose={() => setShowLegend(false)} /> : null}
+          {showLegend && !showLayers ? <Legend cat={catChoro || null} metric={metric} label={metricLabel} cls={cls} lvLabel={lvLabel} sumber={sumber} weekly={wi >= 0} points={layers.points !== 'off'} heat={layers.heat} extra={(extraLayers || []).filter((l) => l.visible)} onClose={() => setShowLegend(false)} /> : null}
 
           {/* right panel */}
           {panelOpen ? <div className="absolute bottom-3 right-3 z-30 w-[350px] max-w-[calc(100%-24px)] transition-all duration-200" style={{ top: topOffset ?? 64 }} data-testid="spasial-panel">{rightPanel}</div> : null}
@@ -1029,7 +1108,7 @@ function TitikPopup({ t, wi, label, weeks }: { t: Titik; wi: number; label?: str
   )
 }
 
-function Legend({ metric, label, cls, lvLabel, sumber, weekly, points, heat, onClose, inline = false, extra = [] }: { metric: Metric; label?: string; cls: MapClass[]; lvLabel: string; sumber: string; weekly: boolean; points: boolean; heat: boolean; onClose: () => void; inline?: boolean; extra?: ExtraPointLayer[] }) {
+function Legend({ cat = null, metric, label, cls, lvLabel, sumber, weekly, points, heat, onClose, inline = false, extra = [] }: { cat?: CatChoro | null; metric: Metric; label?: string; cls: MapClass[]; lvLabel: string; sumber: string; weekly: boolean; points: boolean; heat: boolean; onClose: () => void; inline?: boolean; extra?: ExtraPointLayer[] }) {
   const [col, setCol] = useState(false)
   const mt = METRICS.find((x) => x.key === metric)!
   return (
@@ -1040,12 +1119,19 @@ function Legend({ metric, label, cls, lvLabel, sumber, weekly, points, heat, onC
       </div>
       {!col ? (
         <div className="mt-1.5 space-y-2">
+          {cat ? (
+            <div data-testid="legend-kategori">
+              <p className="font-bold text-slate-700">{cat.judul} per {cat.level === 'provinsi' ? 'provinsi' : 'kab/kota'}</p>
+              <ul className="mt-1 space-y-0.5">{cat.legend.map((g) => <li key={g.label} className="flex items-center gap-1.5"><span className="h-3 w-5 rounded-[2px] border border-slate-300/70" style={{ background: g.color }} /><span className="flex-1">{g.label}</span><span className="tabular-nums font-bold text-slate-700">{g.n}</span></li>)}</ul>
+              <p className="mt-1 leading-snug text-slate-400">Sumber: {cat.sumber}.{cat.catatan ? ` ${cat.catatan}` : ''}</p>
+            </div>
+          ) : (
           <div>
             <p className="font-bold text-slate-700">{label || mt.label} per {lvLabel}</p>
             <ul className="mt-1 space-y-0.5">{cls.map((c) => <li key={c.label} className="flex items-center gap-1.5"><span className="h-3 w-5 rounded-[2px] border border-slate-300/70" style={{ background: c.color }} /><span className="tabular-nums">{c.label}</span></li>)}
               <li className="flex items-center gap-1.5"><span className="h-3 w-5 rounded-[2px] border border-slate-300/70" style={{ background: '#e5e7eb' }} />{metric === 'chg_minggu' ? 'Tidak ada pembanding' : metric === 'cfr' ? 'Tidak ada kasus' : 'Tidak ada data'}</li></ul>
             <p className="mt-1 leading-snug text-slate-400">{metric === 'chg_minggu' || metric === 'cfr' ? 'Ambang tetap.' : `Kelas: 0 lalu kuartil wilayah bernilai > 0${weekly ? ' (skala sama untuk semua minggu)' : ''}.`}</p>
-          </div>
+          </div>)}
           {points ? (
             <div>
               <p className="font-bold text-slate-700">Titik unit pelapor</p>

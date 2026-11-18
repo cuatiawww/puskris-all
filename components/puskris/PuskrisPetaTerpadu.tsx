@@ -23,6 +23,8 @@ import { hitungKategori, katOf, type JenisRow, type KategoriId } from '@/lib/pus
 import { BNPB_LAYERS, INTEL_LAYER_APIS, type BnpbLayerId, type BnpbStatus, type IntelLayerId } from '@/lib/puskris/open-data'
 import { KORBAN_LABEL } from '@/lib/puskris/labels'
 import { buildInternalLayers, DEFAULT_INTERNAL, type InternalLayerToggles } from '@/lib/puskris/internal-layers'
+import ApiKosong from '@/components/puskris/ApiKosong'
+import { buildRisikoAsistensi, asistensiTersedia, type RisikoAsisMode, type RisikoAsisLevel } from '@/lib/puskris/risiko-asistensi'
 import { RISIKO_LAYERS } from '@/lib/puskris/risiko-layers'
 import { asistensiWilayah, attachTimEstimate, titikFasilitas, buildTerpadu, countRadius } from '@/lib/puskris/integrasi'
 
@@ -113,6 +115,16 @@ export default function PuskrisPetaTerpadu({
 
   // Filter lapisan: kategori & jenis bencana (dari data EOC yang sudah tersaring Filter Dasbor).
   const [katOff, setKatOff] = useState<Set<KategoriId>>(new Set())
+  // Risiko Krisis Kesehatan (API Asistensi): satu arsiran kategorikal aktif pada satu waktu.
+  const [risikoAsis, setRisikoAsis] = useState<RisikoAsisMode | null>(null)
+  const [risikoLevel, setRisikoLevel] = useState<RisikoAsisLevel>('provinsi')
+  const asisOk = asistensiTersedia(raw)
+  const provKode = f.provinsi ? String(f.provinsi).padStart(2, '0') : null
+  const catChoro = useMemo(() => (risikoAsis ? buildRisikoAsistensi(raw, risikoAsis, risikoLevel, provKode) : null), [raw, risikoAsis, risikoLevel, provKode])
+  const legendAsis = useMemo(() => ({
+    kapasitas: asisOk ? buildRisikoAsistensi(raw, 'kapasitas', risikoLevel, provKode)?.legend || [] : [],
+    irbi: asisOk ? buildRisikoAsistensi(raw, 'irbi', risikoLevel, provKode)?.legend || [] : [],
+  }), [raw, asisOk, risikoLevel, provKode])
   const [jenisOff, setJenisOff] = useState<Set<string>>(new Set())
   const katHitung = useMemo(() => hitungKategori(kejadian || []), [kejadian])
   const kejadianPeta = useMemo(
@@ -432,10 +444,47 @@ export default function PuskrisPetaTerpadu({
                   <div data-testid="risiko-group">
                     <div className="mb-2 flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-slate-400">
                       <span>Risiko</span>
-                      <span className="normal-case tracking-normal text-slate-400">{RISIKO_LAYERS.filter((r) => r.status === 'siap').length} tersedia</span>
+                      <span className="normal-case tracking-normal text-slate-400">{asisOk ? 1 : 0} tersedia</span>
                     </div>
                     <div className="space-y-1.5">
-                      {RISIKO_LAYERS.map((r) => (
+                      <div data-testid="risiko-risiko-krisis" className={`rounded-xl border p-2.5 ${risikoAsis ? 'border-rose-300 bg-rose-50/40' : 'border-slate-100 bg-white'}`}>
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="flex min-w-0 items-center gap-1.5 text-xs font-bold text-slate-800"><span className="h-2.5 w-2.5 rounded-full" style={{ background: '#e11d48' }} />Risiko Krisis Kesehatan</span>
+                          {asisOk ? <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[9px] font-bold text-emerald-800">API Asistensi</span> : null}
+                        </div>
+                        {asisOk ? (
+                          <>
+                            <p className="mt-0.5 text-[10px] leading-tight text-slate-500">Arsir poligon wilayah dengan warna status dari API Asistensi{raw?.asistensi?.tahun ? ` ${raw.asistensi.tahun}` : ''}. Hanya satu arsiran aktif.</p>
+                            <div className="mt-1.5 flex items-center gap-1 text-[10px]" data-testid="risiko-level">
+                              <span className="font-bold text-slate-500">Tingkat:</span>
+                              {(['provinsi', 'kabkota'] as const).map((lv) => (
+                                <button key={lv} type="button" onClick={() => setRisikoLevel(lv)} data-testid={`risiko-level-${lv}`}
+                                  className={`rounded-full px-2 py-0.5 font-bold ${risikoLevel === lv ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>{lv === 'provinsi' ? 'Provinsi' : 'Kab/Kota'}</button>
+                              ))}
+                            </div>
+                            {([
+                              { id: 'kapasitas' as const, nama: 'Risiko Asistensi — Status Kapasitas', info: 'Warna dari API Asistensi (status_kapasitas.color); poin kapasitas di tooltip.', lg: legendAsis.kapasitas },
+                              { id: 'irbi' as const, nama: 'Status IRBI', info: 'IRBI = Indeks Risiko Bencana Indonesia. API tidak mengirim warna, dipakai skala baku: TINGGI merah, SEDANG jingga, RENDAH hijau.', lg: legendAsis.irbi },
+                            ]).map((o) => (
+                              <label key={o.id} data-testid={`risiko-asis-${o.id}`} className="mt-1.5 block cursor-pointer rounded-lg border border-slate-100 bg-white p-2 select-none hover:bg-slate-50/60">
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="flex min-w-0 items-center gap-1 text-[11px] font-bold text-slate-800">{o.nama}<span title={o.info} className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-200 text-[8px] font-black text-slate-600">i</span></span>
+                                  <input type="checkbox" checked={risikoAsis === o.id} aria-label={o.nama}
+                                    onChange={(e) => { setRisikoAsis(e.target.checked ? o.id : null); if (e.target.checked && !layers.choro) setLayers({ ...layers, choro: true }) }}
+                                    className="h-4 w-4 shrink-0 rounded border-slate-300 text-rose-600" />
+                                </div>
+                                <div className="mt-1 flex flex-wrap gap-1">
+                                  {o.lg.map((g) => <span key={g.label} className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-1.5 py-0.5 text-[9px] font-bold text-slate-600"><span className="h-2 w-2 rounded-full border border-slate-300" style={{ background: g.color }} />{g.label} {g.n}</span>)}
+                                </div>
+                              </label>
+                            ))}
+                            {risikoAsis ? <p className="mt-1 text-[10px] leading-tight text-slate-400">Arsiran ini menggantikan arsiran angka selama aktif.{risikoLevel === 'kabkota' && !provKode ? ' Kab/kota seluruh Indonesia (pilih provinsi di Filter Dasbor untuk memperbesar).' : ''}</p> : null}
+                          </>
+                        ) : (
+                          <ApiKosong compact pesan="Data belum tersedia dari API Asistensi" detail={raw?.asistensi?.error} pending={Boolean(raw?.asistensi?.pending)} />
+                        )}
+                      </div>
+                      {RISIKO_LAYERS.filter((r) => r.id !== 'risiko-krisis').map((r) => (
                         <label key={r.id} data-testid={`risiko-${r.id}`} className="block cursor-not-allowed rounded-xl border border-dashed border-slate-200 bg-slate-50/70 p-2.5 select-none" title="Data segera tersedia">
                           <div className="flex items-center justify-between gap-2">
                             <span className="flex min-w-0 items-center gap-1.5 text-xs font-bold text-slate-500"><span className="h-2.5 w-2.5 rounded-full opacity-50" style={{ background: r.warna }} />{r.nama}</span>
@@ -584,6 +633,8 @@ export default function PuskrisPetaTerpadu({
                       setInternal(DEFAULT_INTERNAL)
                       setKatOff(new Set())
                       setJenisOff(new Set())
+                      setRisikoAsis(null)
+                      setRisikoLevel('provinsi')
                       setPill('kasus', 'kejadian')
                     }}
                     className="w-full rounded-xl bg-[#00705a] py-2.5 text-center text-xs font-bold text-white shadow-sm transition hover:bg-[#005a48] active:scale-[0.99]">
@@ -626,6 +677,7 @@ export default function PuskrisPetaTerpadu({
               bnpbLayers={bnpbLayers}
               onBnpbStatus={onBnpbStatus}
               metricLabel={choroLabel}
+              catChoro={catChoro}
               radiusSupport={{ enabled: radiusOn && Boolean(radiusCenter), center: radiusCenter, ringsKm: [50, 100, 200] }}
               {...extra}
             />

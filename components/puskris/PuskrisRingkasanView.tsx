@@ -195,6 +195,49 @@ function DynamicKpiCards({
   }
 
   if (tab === 'layanan') {
+    if (bagian === 'psc') {
+      return (
+        <section className="skdr-section">
+          <SectionHead eyebrow="Layanan 119 · PSC 119" title="Kapasitas &amp; Keaktifan Pos Simpul PSC 119" />
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            <KpiCardItem
+              label="PSC 119 Aktif"
+              value={nf(layanan.pscAktif)}
+              unit="PSC"
+              sub={`${nf(layanan.pscAktif)} dari ${nf(layanan.pscTotal)} kab/kota terdaftar`}
+              icon={Building2}
+              tone="teal"
+            />
+            <KpiCardItem
+              label="Tingkat Keaktifan"
+              value={layanan.pscTotal ? `${Math.round(((layanan.pscAktif || 0) / (layanan.pscTotal || 1)) * 100)}` : '—'}
+              unit="%"
+              sub="Rasio PSC beroperasi aktif di kab/kota"
+              icon={CheckCircle}
+              tone="emerald"
+            />
+            <KpiCardItem
+              label="Armada Pendukung"
+              value={nf(layanan.ambulans)}
+              unit="unit"
+              sub="Total ambulans terhubung PSC 119"
+              icon={Ambulance}
+              tone="blue"
+              href={withQuery('/dashboard/layanan-gawat-darurat/ambulans', f)}
+            />
+            <KpiCardItem
+              label="Waktu Respons Rata-rata"
+              value={`${layanan.waktuRespons ?? 0}`}
+              unit="menit"
+              sub="Kecepatan respons PSC 119"
+              icon={Clock}
+              tone="amber"
+            />
+          </div>
+        </section>
+      )
+    }
+
     if (bagian === 'panggilan-119') {
       return (
         <section className="skdr-section">
@@ -367,6 +410,50 @@ function DynamicKpiCards({
               sub={lLive ? `masuk ${nf(selReg ? selReg.masuk : lS.unit_masuk || 0)} unit, semua transaksi tercatat` : 'Tenaga cadangan terlatih'}
               icon={lLive ? Package : Users}
               tone="amber"
+            />
+          </div>
+        </section>
+      )
+    }
+
+    if (bagian === 'tenaga-cadangan') {
+      return (
+        <section className="skdr-section">
+          <SectionHead eyebrow="Kesiapsiagaan · SDM" title="Tenaga Cadangan Kesehatan (TCK) Siaga Bencana" />
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            <KpiCardItem
+              label="Tenaga Cadangan Individu"
+              value={nf(sdm.individu)}
+              unit="personel"
+              sub={`${nf(sdm.nakes || 0)} nakes · ${nf(sdm.nonNakes || 0)} non-kesehatan`}
+              icon={Users}
+              tone="blue"
+            />
+            <KpiCardItem
+              label="Tenaga Kesehatan (Nakes)"
+              value={nf(sdm.nakes || 0)}
+              unit="nakes"
+              sub={sdm.individu ? `${Math.round(((sdm.nakes || 0) / (sdm.individu || 1)) * 100)}% dari total tenaga terdaftar` : 'Tenaga kesehatan terlatih'}
+              icon={HeartPulse}
+              tone="emerald"
+            />
+            <KpiCardItem
+              label={isWilayah && sdm.tim != null ? "Tim Tenaga Cadangan (wilayah)" : "Tim Tenaga Cadangan"}
+              value={sdm.tim != null ? nf(sdm.tim) : '—'}
+              unit={sdm.tim != null ? 'tim' : ''}
+              sub="Tim cadangan siap mobilisasi"
+              icon={ShieldCheck}
+              tone="teal"
+              note={isWilayah && sdm.tim == null ? NASIONAL_NOTE : null}
+            />
+            <KpiCardItem
+              label={EMT_LABEL}
+              value={sdm.emt != null ? nf(sdm.emt) : '—'}
+              unit={sdm.emt != null ? 'tim' : ''}
+              sub={(() => { const rs = isWilayah && derived.selected ? [derived.selected] : derived.rows || []; const st = rs.some((r: any) => r.tckEmtStandar != null) ? rs.reduce((a: number, r: any) => a + (r.tckEmtStandar || 0), 0) : null; return st != null ? `${nf(st)} memenuhi standar EMT` : 'Terdaftar di Tenaga Cadangan' })()}
+              icon={CheckCircle}
+              tone="teal"
+              note={isWilayah && sdm.emt == null ? NASIONAL_NOTE : null}
             />
           </div>
         </section>

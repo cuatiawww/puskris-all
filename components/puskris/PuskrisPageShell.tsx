@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react'
-import { PUSKRIS_NAV, filterQuery, type PuskrisNavItem } from '@/lib/puskris/pages'
+import { PUSKRIS_NAV, PUSKRIS_TOP_BAR_TABS, isTopBarTabActive, filterQuery, type PuskrisNavItem } from '@/lib/puskris/pages'
 import type { PuskrisUiFilter } from '@/lib/puskris/ui-filter'
 
 export default function PuskrisPageShell({
@@ -26,7 +26,7 @@ export default function PuskrisPageShell({
         <Link href={`/dashboard/ringkasan${qs}`} className="hover:text-primary">Dasbor</Link>
         <span aria-hidden>/</span>
         {item.key === 'ringkasan' ? (
-          <span className="text-slate-800">Ringkasan Utama</span>
+          <span className="text-slate-800">Dasbor Utama</span>
         ) : (
           <>
             <Link href={`${item.href}${qs}`} className={child ? 'hover:text-primary' : 'text-slate-800'}>{item.label}</Link>
@@ -66,17 +66,17 @@ export default function PuskrisPageShell({
 
       <div className="border-b border-slate-200 pb-3">
         <nav className="flex flex-wrap items-center gap-1.5 overflow-x-auto py-1" aria-label="Menu dasbor Pusat Krisis">
-          {PUSKRIS_NAV.map((nav) => {
-            const active = nav.key === item.key
+          {PUSKRIS_TOP_BAR_TABS.map((tab) => {
+            const active = isTopBarTabActive(tab, item.key, bagian)
             return (
               <Link
-                key={nav.key}
-                href={`${nav.href}${qs}`}
+                key={tab.id}
+                href={`${tab.href}${qs}`}
                 className={`inline-flex items-center gap-2 whitespace-nowrap rounded-xl px-3.5 py-2 text-xs font-bold transition ${
                   active ? 'bg-primary text-white shadow-xs' : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                 }`}
               >
-                {nav.label}
+                {tab.label}
               </Link>
             )
           })}

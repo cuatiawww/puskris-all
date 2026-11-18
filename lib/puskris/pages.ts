@@ -30,10 +30,10 @@ export const PUSKRIS_NAV: PuskrisNavItem[] = [
   {
     key: 'ringkasan',
     href: '/dashboard/ringkasan',
-    label: 'Ringkasan Utama',
-    shortLabel: 'Ringkasan',
+    label: 'Dasbor Utama',
+    shortLabel: 'Dasbor Utama',
     eyebrow: 'Dasbor Pusat Krisis Kesehatan',
-    title: 'Ringkasan Eksekutif Krisis Kesehatan',
+    title: 'Dasbor Utama Krisis Kesehatan',
     desc: 'Gambaran nasional yang menyatukan pantauan bencana, layanan 119, tenaga cadangan, logistik, dan asesmen risiko.',
     sources: [],
   },
@@ -101,6 +101,93 @@ export const PUSKRIS_NAV: PuskrisNavItem[] = [
     sources: [SOURCE.ambulans, SOURCE.psc, SOURCE.eocResmi, SOURCE.eocVercel],
   },
 ]
+
+export type PuskrisTopBarTab = {
+  id: string
+  href: string
+  label: string
+  pageKey: PuskrisPageKey
+  bagian: string | null
+}
+
+export const PUSKRIS_TOP_BAR_TABS: PuskrisTopBarTab[] = [
+  {
+    id: 'ringkasan',
+    href: '/dashboard/ringkasan',
+    label: 'Dasbor Utama',
+    pageKey: 'ringkasan',
+    bagian: null,
+  },
+  {
+    id: 'krisis',
+    href: '/dashboard/situasi-krisis',
+    label: 'Situasi Krisis',
+    pageKey: 'krisis',
+    bagian: null,
+  },
+  {
+    id: 'psc',
+    href: '/dashboard/layanan-gawat-darurat/psc',
+    label: 'PSC 119',
+    pageKey: 'layanan',
+    bagian: 'psc',
+  },
+  {
+    id: 'ambulans',
+    href: '/dashboard/layanan-gawat-darurat/ambulans',
+    label: 'Ambulans',
+    pageKey: 'layanan',
+    bagian: 'ambulans',
+  },
+  {
+    id: 'ncc',
+    href: '/dashboard/layanan-gawat-darurat/panggilan-119',
+    label: 'Panggilan 119 (NCC)',
+    pageKey: 'layanan',
+    bagian: 'panggilan-119',
+  },
+  {
+    id: 'tck',
+    href: '/dashboard/kesiapsiagaan/tenaga-cadangan',
+    label: 'Tenaga Cadangan (TCK)',
+    pageKey: 'kesiapsiagaan',
+    bagian: 'tenaga-cadangan',
+  },
+  {
+    id: 'logistik',
+    href: '/dashboard/kesiapsiagaan/logistik',
+    label: 'Logistik Kesehatan',
+    pageKey: 'kesiapsiagaan',
+    bagian: 'logistik',
+  },
+  {
+    id: 'asistensi',
+    href: '/dashboard/asistensi-risiko',
+    label: 'Asistensi Risiko',
+    pageKey: 'asistensi',
+    bagian: null,
+  },
+  {
+    id: 'analisis',
+    href: '/dashboard/analisis',
+    label: 'Analisis & Matriks',
+    pageKey: 'analisis',
+    bagian: null,
+  },
+]
+
+export function isTopBarTabActive(tab: PuskrisTopBarTab, pageKey: PuskrisPageKey, bagian: string | null): boolean {
+  if (tab.pageKey !== pageKey) return false
+  if (tab.bagian) {
+    if (bagian === tab.bagian) return true
+    if (!bagian) {
+      if (pageKey === 'layanan' && tab.bagian === 'psc') return true
+      if (pageKey === 'kesiapsiagaan' && tab.bagian === 'tenaga-cadangan') return true
+    }
+    return false
+  }
+  return true
+}
 
 export const NASIONAL_NOTE = 'Data nasional, belum tersedia per provinsi.'
 

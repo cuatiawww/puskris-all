@@ -69,9 +69,9 @@ export function activeFilterCount(f: PuskrisUiFilter): number {
 export const PUSKRIS_PAGES: { key: PuskrisTab; label: string; eyebrow: string; title: string; desc: string }[] = [
   {
     key: 'ringkasan',
-    label: 'Ringkasan Utama',
+    label: 'Dasbor Utama',
     eyebrow: 'Dasbor Pusat Krisis Kesehatan',
-    title: 'Ringkasan Eksekutif Krisis Kesehatan',
+    title: 'Dasbor Utama Krisis Kesehatan',
     desc: 'Gambaran nasional yang menyatukan pantauan bencana, layanan 119, tenaga cadangan, logistik, dan asesmen risiko.',
   },
   {

@@ -943,7 +943,7 @@ export default function EbsIbsLayerMap({
             <div role="tablist" className="flex border-b border-slate-200 bg-white px-2 py-1.5 gap-1">
               {(
                 [
-                  ['hotspot', 'Hotspot Wilayah'],
+                  ['hotspot', 'Peringkat Wilayah'],
                   ['ringkasan', 'Ringkasan'],
                   ['titik', 'Daftar Titik'],
                 ] as const

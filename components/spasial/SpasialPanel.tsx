@@ -83,7 +83,7 @@ export default function SpasialPanel({ f, data, titik, metric, selected, onPickA
         </div>
       </div>
       <div role="tablist" className="flex gap-1 border-b border-slate-200 bg-white px-2 py-1.5">
-        {([['ringkasan', 'Ringkasan'], ['hotspot', 'Hotspot'], ['detail', 'Detail wilayah']] as [Tab, string][]).map(([k, l]) => (
+        {([['ringkasan', 'Ringkasan'], ['hotspot', 'Peringkat'], ['detail', 'Detail wilayah']] as [Tab, string][]).map(([k, l]) => (
           <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)} data-testid={`spasial-tab-${k}`}
             className={`flex-1 rounded-lg px-2 py-1 text-[11px] font-bold ${tab === k ? 'bg-teal-50 text-teal-800' : 'text-slate-500 hover:bg-slate-100'}`}>{l}</button>
         ))}
@@ -110,7 +110,7 @@ export default function SpasialPanel({ f, data, titik, metric, selected, onPickA
         {data && tab === 'hotspot' ? (
           <section className="rounded-xl border border-slate-200 bg-white p-3" data-testid="spasial-hotspot">
             <div className="mb-2 flex items-center justify-between gap-2">
-              <p className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wide text-slate-500">Hotspot<InfoTip text={`Peringkat menurut indikator warna peta (${(metricLabel || mt.label)}). Perubahan dihitung hanya untuk wilayah dengan ≥ 5 kasus minggu ini; CFR hanya untuk wilayah dengan ≥ 20 kasus. Unit pelapor diurutkan menurut kasus.`} /></p>
+              <p className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wide text-slate-500">Peringkat Teratas<InfoTip text={`Peringkat menurut indikator warna peta (${(metricLabel || mt.label)}). Perubahan dihitung hanya untuk wilayah dengan ≥ 5 kasus minggu ini; CFR hanya untuk wilayah dengan ≥ 20 kasus. Unit pelapor diurutkan menurut kasus.`} /></p>
               <Seg value={hs} onChange={(v) => setHs(v)} options={[{ value: 'wilayah', label: lvLabel }, { value: 'unit', label: 'Unit pelapor' }]} testId="spasial-hotspot-jenis" />
             </div>
             {hs === 'wilayah' ? (
@@ -131,7 +131,7 @@ export default function SpasialPanel({ f, data, titik, metric, selected, onPickA
           </section>
         ) : null}
         {data && tab === 'detail' ? (
-          !selected ? <p className="rounded-xl border border-dashed border-slate-300 bg-white p-3 text-slate-500">Klik wilayah atau baris hotspot untuk melihat detail: penyakit teratas, {data.level === 'kabkota' ? 'kecamatan' : 'kab/kota'} dan unit pelapor teratas, serta kurva mingguan.</p> : (
+          !selected ? <p className="rounded-xl border border-dashed border-slate-300 bg-white p-3 text-slate-500">Klik wilayah atau baris peringkat untuk melihat detail: penyakit teratas, {data.level === 'kabkota' ? 'kecamatan' : 'kab/kota'} dan unit pelapor teratas, serta kurva mingguan.</p> : (
             <>
               <section className="rounded-xl border-2 border-teal-700/20 bg-white p-3" data-testid="spasial-detail">
                 <div className="grid grid-cols-3 gap-2 text-center">

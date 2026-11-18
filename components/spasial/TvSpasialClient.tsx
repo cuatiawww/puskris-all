@@ -1081,7 +1081,7 @@ function EpidemiologyPanel({
         {([
           ['sitrep', 'Kajian Epid'],
           ['wilayah', `Triase (${triagedAreas.length})`],
-          ['fasyankes', `Hotspot (${nf(titik.length)})`],
+          ['fasyankes', `Unit Pelapor (${nf(titik.length)})`],
           ['detail', 'Detail wilayah'],
         ] as [EpidTab, string][]).map(([k, label]) => (
           <button
@@ -1383,7 +1383,7 @@ function EpidemiologyPanel({
             <div className="mb-2 flex items-center justify-between gap-2">
               <div>
                 <p className="text-[10px] font-black uppercase tracking-wide text-slate-500">
-                  Hotspot Unit Pelapor
+                  Peringkat Unit Pelapor
                 </p>
                 <p className="text-[10px] text-slate-400">
                   {topUnits.length} teratas dari {nf(titik.length)} titik ({nf(allTitikCount)} total)

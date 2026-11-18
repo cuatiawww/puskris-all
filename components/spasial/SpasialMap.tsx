@@ -877,7 +877,7 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
               <span className="mx-1 h-5 w-px bg-slate-200" />
               <button type="button" onClick={() => setShowLayers(!showLayers)} className={btn(showLayers)} aria-pressed={showLayers} data-testid="spasial-toggle-layers"><Layers className="h-4 w-4" /><span className="hidden xl:inline">Lapisan</span></button>
               <button type="button" onClick={() => setShowLegend(!showLegend)} className={btn(showLegend)} aria-pressed={showLegend} data-testid="spasial-toggle-legend"><ListTree className="h-4 w-4" /><span className="hidden xl:inline">Legenda</span></button>
-              <button type="button" onClick={() => setPanelOpen(!panelOpen)} className={btn(panelOpen)} aria-pressed={panelOpen} data-testid="spasial-toggle-panel"><PanelRight className="h-4 w-4" /><span className="hidden xl:inline">Hotspot & detail</span></button>
+              <button type="button" onClick={() => setPanelOpen(!panelOpen)} className={btn(panelOpen)} aria-pressed={panelOpen} data-testid="spasial-toggle-panel"><PanelRight className="h-4 w-4" /><span className="hidden xl:inline">Peringkat & detail</span></button>
               <span className="mx-1 h-5 w-px bg-slate-200" />
               <button type="button" onClick={fitAll} className={btn(false)} title="Tampilkan seluruh wilayah terpilih" data-testid="spasial-fit"><Crosshair className="h-4 w-4" /></button>
               <button type="button" onClick={toggleFs} className={btn(fs)} title={fs ? 'Keluar layar penuh' : 'Layar penuh'}>{fs ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}</button>

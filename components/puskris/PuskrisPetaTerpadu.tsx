@@ -25,6 +25,7 @@ import { KORBAN_LABEL } from '@/lib/puskris/labels'
 import { buildInternalLayers, DEFAULT_INTERNAL, type InternalLayerToggles } from '@/lib/puskris/internal-layers'
 import ApiKosong from '@/components/puskris/ApiKosong'
 import { buildRisikoAsistensi, asistensiTersedia, type RisikoAsisMode, type RisikoAsisLevel } from '@/lib/puskris/risiko-asistensi'
+import { buildRisikoPie, pieTersedia, PIE_DISEASES, type PieDiseaseOption } from '@/lib/puskris/risiko-pie'
 import { RISIKO_LAYERS } from '@/lib/puskris/risiko-layers'
 import { asistensiWilayah, attachTimEstimate, titikFasilitas, buildTerpadu, countRadius } from '@/lib/puskris/integrasi'
 
@@ -117,14 +118,23 @@ export default function PuskrisPetaTerpadu({
   const [katOff, setKatOff] = useState<Set<KategoriId>>(new Set())
   // Risiko Krisis Kesehatan (API Asistensi): satu arsiran kategorikal aktif pada satu waktu.
   const [risikoAsis, setRisikoAsis] = useState<RisikoAsisMode | null>(null)
+  // Risiko Emerging (API Peta Risiko PIE Kemenkes)
+  const [risikoPie, setRisikoPie] = useState<boolean>(false)
+  const [pieDisease, setPieDisease] = useState<PieDiseaseOption>('all')
   const [risikoLevel, setRisikoLevel] = useState<RisikoAsisLevel>('provinsi')
   const asisOk = asistensiTersedia(raw)
+  const pieOk = pieTersedia(raw)
   const provKode = f.provinsi ? String(f.provinsi).padStart(2, '0') : null
-  const catChoro = useMemo(() => (risikoAsis ? buildRisikoAsistensi(raw, risikoAsis, risikoLevel, provKode) : null), [raw, risikoAsis, risikoLevel, provKode])
+  const catChoro = useMemo(() => {
+    if (risikoAsis) return buildRisikoAsistensi(raw, risikoAsis, risikoLevel, provKode)
+    if (risikoPie) return buildRisikoPie(raw, pieDisease, risikoLevel, provKode)
+    return null
+  }, [raw, risikoAsis, risikoPie, pieDisease, risikoLevel, provKode])
   const legendAsis = useMemo(() => ({
     kapasitas: asisOk ? buildRisikoAsistensi(raw, 'kapasitas', risikoLevel, provKode)?.legend || [] : [],
     irbi: asisOk ? buildRisikoAsistensi(raw, 'irbi', risikoLevel, provKode)?.legend || [] : [],
   }), [raw, asisOk, risikoLevel, provKode])
+  const legendPie = useMemo(() => (pieOk ? buildRisikoPie(raw, pieDisease, risikoLevel, provKode)?.legend || [] : []), [raw, pieOk, pieDisease, risikoLevel, provKode])
   const [jenisOff, setJenisOff] = useState<Set<string>>(new Set())
   const katHitung = useMemo(() => hitungKategori(kejadian || []), [kejadian])
   const kejadianPeta = useMemo(
@@ -470,7 +480,13 @@ export default function PuskrisPetaTerpadu({
                                 <div className="flex items-center justify-between gap-2">
                                   <span className="flex min-w-0 items-center gap-1 text-[11px] font-bold text-slate-800">{o.nama}<span title={o.info} className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-200 text-[8px] font-black text-slate-600">i</span></span>
                                   <input type="checkbox" checked={risikoAsis === o.id} aria-label={o.nama}
-                                    onChange={(e) => { setRisikoAsis(e.target.checked ? o.id : null); if (e.target.checked && !layers.choro) setLayers({ ...layers, choro: true }) }}
+                                    onChange={(e) => {
+                                      setRisikoAsis(e.target.checked ? o.id : null)
+                                      if (e.target.checked) {
+                                        setRisikoPie(false)
+                                        if (!layers.choro) setLayers({ ...layers, choro: true })
+                                      }
+                                    }}
                                     className="h-4 w-4 shrink-0 rounded border-slate-300 text-rose-600" />
                                 </div>
                                 <div className="mt-1 flex flex-wrap gap-1">
@@ -484,18 +500,96 @@ export default function PuskrisPetaTerpadu({
                           <ApiKosong compact pesan="Data belum tersedia dari API Asistensi" detail={raw?.asistensi?.error} pending={Boolean(raw?.asistensi?.pending)} />
                         )}
                       </div>
-                      {RISIKO_LAYERS.filter((r) => r.id !== 'risiko-krisis').map((r) => (
-                        <label key={r.id} data-testid={`risiko-${r.id}`} className="block cursor-not-allowed rounded-xl border border-dashed border-slate-200 bg-slate-50/70 p-2.5 select-none" title="Data segera tersedia">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="flex min-w-0 items-center gap-1.5 text-xs font-bold text-slate-500"><span className="h-2.5 w-2.5 rounded-full opacity-50" style={{ background: r.warna }} />{r.nama}</span>
-                            <span className="flex items-center gap-2">
-                              <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-bold text-amber-800">Data segera tersedia</span>
-                              <input type="checkbox" disabled checked={false} readOnly className="h-4 w-4 shrink-0 cursor-not-allowed rounded border-slate-300 opacity-50" aria-label={r.nama} />
-                            </span>
+                      {/* Lapisan Risiko Emerging (PIE) dari petarisikopie.id */}
+                      <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-2.5 transition select-none" data-testid="risiko-pie-card">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="flex min-w-0 items-center gap-1.5 text-xs font-bold text-slate-800">
+                            <span className="h-2.5 w-2.5 rounded-full" style={{ background: '#9333ea' }} />
+                            <span>Risiko Emerging (Peta PIE)</span>
+                          </span>
+                          <span className="flex items-center gap-1.5">
+                            {pieOk ? (
+                              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[9px] font-bold text-emerald-800">API Langsung</span>
+                            ) : (
+                              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-bold text-slate-600">Memuat...</span>
+                            )}
+                            <input
+                              type="checkbox"
+                              checked={risikoPie}
+                              onChange={(e) => {
+                                setRisikoPie(e.target.checked)
+                                if (e.target.checked) {
+                                  setRisikoAsis(null)
+                                  if (!layers.choro) setLayers({ ...layers, choro: true })
+                                }
+                              }}
+                              className="h-4 w-4 shrink-0 rounded border-slate-300 text-purple-600 focus:ring-purple-500"
+                              aria-label="Risiko Emerging (Peta PIE)"
+                            />
+                          </span>
+                        </div>
+                        <p className="mt-0.5 text-[10px] leading-tight text-slate-500">
+                          Tingkat risiko penyakit infeksi emerging per wilayah (Peta Risiko PIE Kemenkes{raw?.pie?.tahun ? ` ${raw.pie.tahun}` : ''}).
+                        </p>
+
+                        {risikoPie && pieOk ? (
+                          <div className="mt-2.5 space-y-2 border-t border-slate-200/80 pt-2">
+                            {/* Pilihan Tingkat Wilayah */}
+                            <div className="flex items-center justify-between text-[10px]">
+                              <span className="font-bold text-slate-500">Tingkat wilayah:</span>
+                              <div className="flex items-center gap-1">
+                                {(['provinsi', 'kabkota'] as const).map((lv) => (
+                                  <button
+                                    key={lv}
+                                    type="button"
+                                    onClick={() => setRisikoLevel(lv)}
+                                    className={`rounded-full px-2 py-0.5 font-bold transition ${
+                                      risikoLevel === lv
+                                        ? 'bg-purple-700 text-white shadow-xs'
+                                        : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-100'
+                                    }`}
+                                  >
+                                    {lv === 'provinsi' ? 'Provinsi' : 'Kab/Kota'}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Pilihan Penyakit */}
+                            <div>
+                              <label className="mb-1 block text-[10px] font-bold text-slate-500">Penyakit Emerging:</label>
+                              <select
+                                value={pieDisease}
+                                onChange={(e) => setPieDisease(e.target.value as PieDiseaseOption)}
+                                className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-800 shadow-xs focus:border-purple-500 focus:outline-none"
+                              >
+                                {PIE_DISEASES.map((d) => (
+                                  <option key={d.id} value={d.id}>
+                                    {d.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+
+                            {/* Legend pills */}
+                            <div className="flex flex-wrap gap-1 pt-1">
+                              {legendPie.map((g) => (
+                                <span
+                                  key={g.label}
+                                  className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-1.5 py-0.5 text-[9px] font-bold text-slate-700"
+                                >
+                                  <span className="h-2 w-2 rounded-full" style={{ background: g.color }} />
+                                  <span>{g.label}</span>
+                                  <span className="font-normal text-slate-400">({g.n})</span>
+                                </span>
+                              ))}
+                            </div>
+                            <p className="text-[10px] leading-tight text-slate-400">
+                              Skala risiko: TINGGI (merah), SEDANG (jingga), RENDAH (hijau). Menimpa arsiran angka selama aktif.
+                            </p>
                           </div>
-                          <p className="mt-0.5 text-[10px] leading-tight text-slate-400">{r.deskripsi}</p>
-                        </label>
-                      ))}
+                        ) : null}
+                      </div>
                     </div>
                   </div>
 

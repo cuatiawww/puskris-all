@@ -12,7 +12,8 @@ import { fetchTckInti, fetchTckRelawan, TCK_PROFESI } from './tck-live'
 import { fetchLogistik, LOG_KATEGORI } from './logistik-live'
 import { nccEnabled, fetchNcc, type NccRingkasan } from './ncc-live'
 import { eocEnabled, fetchEocRange, fetchEocTahun, fetchEocTren, rekapEoc, type EocEvent } from './eoc-live'
-import { getPuskrisToken, getNccSheetUrl } from './puskris-auth-config'
+import { getPuskrisToken, getNccSheetUrl, getPieBase, getPieKey } from './puskris-auth-config'
+import { parsePieStatus, resolveKodeKab } from '@/lib/puskris/risiko-pie'
 
 const TTL_MS = 15 * 60_000
 const PSC_BASE = (process.env.PUSKRIS_PSC_BASE || 'https://psc.kemkes.go.id').replace(/\/$/, '')
@@ -132,6 +133,56 @@ export async function fetchAsistensi(tahun: number) {
     }
   })
   return { tahun, provinsi, kabkota }
+}
+
+// ------------------------------------------------------------------ PIE (Peta Risiko PIE)
+export async function fetchRisikoPie(tahun = 2025) {
+  const base = getPieBase()
+  const key = getPieKey()
+  const res = await fetch(`${base}/record-data?year=${tahun}`, {
+    headers: {
+      'X-API-KEY': key,
+      Accept: 'application/json',
+    },
+    signal: AbortSignal.timeout(25_000),
+  })
+  if (!res.ok) throw new Error(`PIE API HTTP ${res.status}`)
+  const json = await res.json()
+  const rawList: any[] = json.data || []
+  const records = rawList.map((r: any) => {
+    const rawP = String(r.jns_penyakit || '')
+    const pParts = rawP.split(',')
+    const pId = pParts[0]?.trim() || ''
+    const pName = pParts.slice(1).join(',').trim() || rawP
+    const rawSt = String(r.status || '')
+    const stParsed = parsePieStatus(rawSt)
+    const rawCode = String(r.kode_kako || '').padStart(4, '0')
+    const kemenCode = resolveKodeKab(rawCode, r.nama_kako)
+    const kdProp = kemenCode.slice(0, 2)
+    return {
+      jns_penyakit: rawP,
+      penyakit_nama: pName,
+      penyakit_id: pId,
+      tahun: String(r.tahun || tahun),
+      timestamp_isi: r.timestamp_isi || '',
+      kode_kako: rawCode,
+      kode_kemendagri: kemenCode,
+      kd_prop: kdProp,
+      nama_kako: r.nama_kako || '',
+      status_raw: rawSt,
+      status_label: stParsed.label,
+      status_score: stParsed.score,
+      warna: stParsed.color,
+    }
+  })
+  const summary = {
+    total_records: records.length,
+    tahun,
+    tinggi: records.filter((r) => r.status_score === 3).length,
+    sedang: records.filter((r) => r.status_score === 2).length,
+    rendah: records.filter((r) => r.status_score === 1).length,
+  }
+  return { tahun, records, summary }
 }
 
 // ------------------------------------------------------------------ PSC (master data, agregat)
@@ -477,15 +528,16 @@ export async function getLiveOverlay(provCodes: string[], budgetMs = 7000, renta
     : swr('eoc:tahun', () => fetchEocTahun(), budgetMs)
   // tren tahun-tahun sebelumnya: data historis jarang berubah, cache 6 jam
   const trenP = eocEnabled() ? swr(`eoc:tren:${tahun}`, () => fetchEocTren(4), Math.min(budgetMs, 1500), 6 * 3600_000) : Promise.resolve(eocOff as LiveResult<any>)
+  const pieP = swr('pie:2025', () => P(['pie-data', 2025], () => fetchRisikoPie(2025)), budgetMs)
   const st = (r: LiveResult<any>): LiveStatus =>
     r.value !== undefined ? { status: 'langsung', at: r.at ? wibStamp(r.at) : undefined, pending: r.pending || undefined } : { status: 'tidak_tersedia', error: r.error || (r.pending ? 'Sedang mengambil data dari API' : 'Data belum tersedia dari API'), pending: r.pending || undefined }
   if (!liveEnabled()) {
     const stOff: LiveStatus = { status: 'tidak_tersedia', error: 'Token API (PUSKRIS_TTOKEN) belum diatur di server' }
     const e = { fresh: false, pending: false } as LiveResult<any>
-    const [eoc, ncc, eocTren] = await Promise.all([eocP, nccP, trenP])
-    return { asistensi: e, psc: e, panggilan: e, tck: e, tckRelawan: e, logistik: e as LiveResult<Awaited<ReturnType<typeof fetchLogistik>>>, eoc, ncc, eocTren: eocTren as LiveResult<Awaited<ReturnType<typeof fetchEocTren>>>, status: { asistensi: stOff, psc: stOff, panggilan: stOff, tck: stOff, tckRelawan: stOff, logistik: stOff, eoc: st(eoc), ncc: st(ncc) }, jobs: [eoc.job, ncc.job, eocTren.job].filter(Boolean) as Promise<any>[] }
+    const [eoc, ncc, eocTren, pie] = await Promise.all([eocP, nccP, trenP, pieP])
+    return { asistensi: e, psc: e, panggilan: e, tck: e, tckRelawan: e, logistik: e as LiveResult<Awaited<ReturnType<typeof fetchLogistik>>>, eoc, ncc, eocTren: eocTren as LiveResult<Awaited<ReturnType<typeof fetchEocTren>>>, pie, status: { asistensi: stOff, psc: stOff, panggilan: stOff, tck: stOff, tckRelawan: stOff, logistik: stOff, eoc: st(eoc), ncc: st(ncc), pie: st(pie) }, jobs: [eoc.job, ncc.job, eocTren.job, pie.job].filter(Boolean) as Promise<any>[] }
   }
-  const [asistensi, psc, panggilan, tck, tckRelawan, eoc, logistik, ncc, eocTren] = await Promise.all([
+  const [asistensi, psc, panggilan, tck, tckRelawan, eoc, logistik, ncc, eocTren, pie] = await Promise.all([
     // P(): hasil ringkas juga disimpan di cache persisten (lintas instance Vercel), 15 menit.
     swr(`asistensi:${tahun}`, () => P(['asistensi', tahun], () => fetchAsistensi(tahun)), budgetMs),
     swr('psc:master', () => P(['psc-master'], () => fetchPscMaster()), budgetMs),
@@ -496,11 +548,12 @@ export async function getLiveOverlay(provCodes: string[], budgetMs = 7000, renta
     swr('logistik:stok', () => fetchLogistik(), budgetMs),
     nccP,
     trenP as Promise<LiveResult<Awaited<ReturnType<typeof fetchEocTren>>>>,
+    pieP,
   ])
   return {
-    asistensi, psc, panggilan, tck, tckRelawan, eoc, logistik, ncc, eocTren,
-    status: { asistensi: st(asistensi), psc: st(psc), panggilan: st(panggilan), tck: st(tck), tckRelawan: st(tckRelawan), eoc: st(eoc), logistik: st(logistik), ncc: st(ncc) },
-    jobs: [asistensi.job, psc.job, panggilan.job, tck.job, tckRelawan.job, eoc.job, logistik.job, ncc.job, eocTren.job].filter(Boolean) as Promise<any>[],
+    asistensi, psc, panggilan, tck, tckRelawan, eoc, logistik, ncc, eocTren, pie,
+    status: { asistensi: st(asistensi), psc: st(psc), panggilan: st(panggilan), tck: st(tck), tckRelawan: st(tckRelawan), eoc: st(eoc), logistik: st(logistik), ncc: st(ncc), pie: st(pie) },
+    jobs: [asistensi.job, psc.job, panggilan.job, tck.job, tckRelawan.job, eoc.job, logistik.job, ncc.job, eocTren.job, pie.job].filter(Boolean) as Promise<any>[],
   }
 }
 
@@ -604,6 +657,18 @@ export function mergeLive(base: any, ov: Awaited<ReturnType<typeof getLiveOverla
   }
   data.generated_at_wib = wibStamp()
   const { tckRelawan: _rel, eoc: stEoc, logistik: stLog, ncc: stNcc, ...stRest } = ov.status as typeof ov.status & { eocTren?: LiveStatus }
+  const pie = (ov as any).pie?.value
+  if (pie) {
+    data.pie = {
+      data_source: 'langsung',
+      fetched_at_wib: ov.status.pie?.at,
+      label: `langsung dari API Peta Risiko PIE (${pie.tahun})`,
+      tahun: pie.tahun,
+      summary: pie.summary,
+      records: pie.records,
+    }
+  }
+
   data.live_status = {
     ...stRest,
     tck: ov.tck.value || ov.tckRelawan.value
@@ -612,6 +677,7 @@ export function mergeLive(base: any, ov: Awaited<ReturnType<typeof getLiveOverla
     logistik: stLog,
     eoc: stEoc,
     ncc: ov.ncc.value ? stNcc : { status: 'tidak_tersedia', error: stNcc.error || ov.ncc.error, pending: stNcc.pending },
+    pie: ov.status.pie || { status: 'tidak_tersedia' },
   }
   return data
 }

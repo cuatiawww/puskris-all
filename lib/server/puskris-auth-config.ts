@@ -21,6 +21,10 @@ export const PUSKRIS_FALLBACK = {
   // Spreadsheet rujukan NCC 119
   NCC_SHEET_URL:
     'https://docs.google.com/spreadsheets/d/1j6f0e9cyLPHlH2R4Me1vzGCz_OKfx9ipq4y4M3sr8eQ/edit',
+
+  // API Peta Risiko PIE (Penyakit Infeksi Emerging)
+  PIE_BASE: 'https://petarisikopie.id/api',
+  PIE_KEY: '6385340732e6b3c1197272f0b5a6d7dcc3132ee34e9cd6d53fd22c2cfb201ad6',
 }
 
 /** Mengambil Token Puskris (TTOKEN): Membaca process.env dahulu, fallback ke konstanta kode */
@@ -46,4 +50,14 @@ export function getNccKey(): string {
 /** Mengambil URL Spreadsheet NCC: Membaca process.env dahulu, fallback ke konstanta kode */
 export function getNccSheetUrl(): string {
   return process.env.PUSKRIS_NCC_SHEET_URL || PUSKRIS_FALLBACK.NCC_SHEET_URL
+}
+
+/** Mengambil Base URL Peta Risiko PIE: Membaca process.env dahulu, fallback ke konstanta kode */
+export function getPieBase(): string {
+  return process.env.PUSKRIS_PIE_BASE || PUSKRIS_FALLBACK.PIE_BASE
+}
+
+/** Mengambil Kunci API Peta Risiko PIE: Membaca process.env dahulu, fallback ke konstanta kode */
+export function getPieKey(): string {
+  return process.env.PUSKRIS_PIE_KEY || PUSKRIS_FALLBACK.PIE_KEY
 }

@@ -14,7 +14,7 @@ export const maxDuration = 300
 // Server API Kemenkes ada di Indonesia: jalankan fungsi di Singapura (sin1) agar panggilan per bulan/provinsi tidak lambat.
 export const preferredRegion = 'sin1'
 
-const ALLOWED = ['asistensi', 'psc', 'panggilan', 'tck', 'eoc', 'logistik', 'ncc'] as const
+const ALLOWED = ['asistensi', 'psc', 'panggilan', 'tck', 'eoc', 'logistik', 'ncc', 'pie'] as const
 
 export async function GET(req: Request, ctx: { params: Promise<{ sumber: string }> }) {
   const { sumber } = await ctx.params
@@ -50,6 +50,9 @@ export async function GET(req: Request, ctx: { params: Promise<{ sumber: string 
   } else if (value && key === 'panggilan') {
     count = value.total
     ringkas = { tahun: value.tahun, total: value.total, selesai: value.selesai, total_tahun_lalu: value.total_tahun_lalu, sampel: { dari: value.sampel.dari, sampai: value.sampel.sampai, jumlah: value.sampel.jumlah } }
+  } else if (value && key === 'pie') {
+    count = value.summary?.total_records || value.records?.length || 0
+    ringkas = value.summary
   }
   return NextResponse.json(
     { ok: st.status === 'langsung', sumber: key, status: st.status, fetched_at: st.at || null, count, error: st.error || null, ringkas, data: value || null },

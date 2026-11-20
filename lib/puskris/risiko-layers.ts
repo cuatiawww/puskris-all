@@ -16,15 +16,15 @@ export const RISIKO_LAYERS: RisikoLayerDef[] = [
   {
     id: 'risiko-krisis',
     nama: 'Risiko Krisis Kesehatan',
-    deskripsi: 'Tingkat risiko terjadinya krisis kesehatan per wilayah (ancaman, kerentanan, dan kapasitas).',
-    status: 'segera',
+    deskripsi: 'Tingkat risiko terjadinya krisis kesehatan per wilayah (ancaman, kerentanan, dan kapasitas) berbasis Asistensi.',
+    status: 'siap',
     warna: '#e11d48',
   },
   {
     id: 'risiko-infeksi',
-    nama: 'Risiko Infeksi Penyakit',
-    deskripsi: 'Risiko penularan penyakit infeksi per wilayah (mis. pascabencana, kepadatan pengungsian, vektor).',
-    status: 'segera',
+    nama: 'Risiko Emerging (PIE)',
+    deskripsi: 'Tingkat risiko penyakit infeksi emerging per kab/kota dari Peta Risiko PIE Kemenkes.',
+    status: 'siap',
     warna: '#9333ea',
   },
 ]

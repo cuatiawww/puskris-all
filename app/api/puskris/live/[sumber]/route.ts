@@ -1,12 +1,13 @@
 import { after, NextResponse } from 'next/server'
 import { loadPuskrisData } from '@/lib/puskris/load-data'
-import { getEocLive, getLiveOverlay, swr, wibStamp } from '@/lib/server/puskris-live'
+import { getEocLive, getLiveOverlay, getRisikoPie, swr, wibStamp } from '@/lib/server/puskris-live'
+import { PIE_TAHUN_BAWAAN } from '@/lib/puskris/risiko-pie'
 import { nccEnabled, fetchNcc } from '@/lib/server/ncc-live'
 import { eocEnabled, fetchEocRange, rekapEoc, type EocEvent } from '@/lib/server/eoc-live'
 
 /**
  * Proksi API resmi (hasil agregat saja, tanpa data pribadi).
- * GET /api/puskris/live/asistensi | psc | panggilan
+ * GET /api/puskris/live/asistensi | psc | panggilan | ... | pie?tahun=YYYY
  */
 export const dynamic = 'force-dynamic'
 // Vercel (Fluid compute): cache dingin diisi dalam permintaan pertama; potongan hasil tersimpan di Data Cache.
@@ -21,6 +22,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ sumber: string 
   if (!ALLOWED.includes(sumber as any)) return NextResponse.json({ ok: false, error: 'Sumber tidak dikenal' }, { status: 404 })
   if (sumber === 'eoc') return eocResponse(req)
   if (sumber === 'ncc') return nccResponse(req)
+  if (sumber === 'pie') return pieResponse(req)
   const snapshot = loadPuskrisData()
   const codes = (snapshot.regions || []).map((r: any) => String(r.code))
   const ov = await getLiveOverlay(codes, 240_000)
@@ -50,9 +52,6 @@ export async function GET(req: Request, ctx: { params: Promise<{ sumber: string 
   } else if (value && key === 'panggilan') {
     count = value.total
     ringkas = { tahun: value.tahun, total: value.total, selesai: value.selesai, total_tahun_lalu: value.total_tahun_lalu, sampel: { dari: value.sampel.dari, sampai: value.sampel.sampai, jumlah: value.sampel.jumlah } }
-  } else if (value && key === 'pie') {
-    count = value.summary?.total_records || value.records?.length || 0
-    ringkas = value.summary
   }
   return NextResponse.json(
     { ok: st.status === 'langsung', sumber: key, status: st.status, fetched_at: st.at || null, count, error: st.error || null, ringkas, data: value || null },
@@ -119,6 +118,21 @@ async function eocResponse(req: Request) {
  * GET /api/puskris/live/ncc?tanggal1=YYYY-MM-DD&tanggal2=YYYY-MM-DD
  * Proksi Web App Apps Script NCC 119 (kunci hanya di server). Data nasional saja.
  */
+// Peta Risiko PIE: satu tahun per permintaan (?tahun=YYYY, bawaan 2026). Tanpa data pengganti bila API gagal.
+async function pieResponse(req: Request) {
+  const raw = new URL(req.url).searchParams.get('tahun')
+  const tahun = raw === null || raw === '' ? PIE_TAHUN_BAWAAN : Number(raw)
+  if (!Number.isInteger(tahun) || tahun < 2020 || tahun > 2030) return NextResponse.json({ ok: false, sumber: 'pie', error: 'tahun harus 2020–2030' }, { status: 400 })
+  const r = await getRisikoPie(tahun)
+  if (r.job) after(() => r.job)
+  const v = r.value
+  if (!v) return NextResponse.json({ ok: false, sumber: 'pie', tahun, status: 'tidak_tersedia', pending: Boolean(r.pending), error: r.error || (r.pending ? 'Sedang mengambil data dari API Peta Risiko PIE' : 'Data belum tersedia dari API'), data: null }, { status: r.pending ? 202 : 502, headers: { 'Cache-Control': 'no-store' } })
+  return NextResponse.json(
+    { ok: true, sumber: 'pie', tahun, status: 'langsung', fetched_at: r.at ? wibStamp(r.at) : null, count: v.records.length, error: null, ringkas: v.summary, data: v },
+    { headers: { 'Cache-Control': 'private, max-age=300' } },
+  )
+}
+
 async function nccResponse(req: Request) {
   const sp = new URL(req.url).searchParams
   const t1 = sp.get('tanggal1') || ''

@@ -25,7 +25,7 @@ import { KORBAN_LABEL } from '@/lib/puskris/labels'
 import { buildInternalLayers, DEFAULT_INTERNAL, type InternalLayerToggles } from '@/lib/puskris/internal-layers'
 import ApiKosong from '@/components/puskris/ApiKosong'
 import { buildRisikoAsistensi, asistensiTersedia, type RisikoAsisMode, type RisikoAsisLevel } from '@/lib/puskris/risiko-asistensi'
-import { buildRisikoPie, pieTersedia, PIE_DISEASES, type PieDiseaseOption } from '@/lib/puskris/risiko-pie'
+import { buildRisikoPie, pieDiseaseOptions, PIE_YEARS, PIE_TAHUN_BAWAAN, type PieDiseaseOption, type PiePayload } from '@/lib/puskris/risiko-pie'
 import { RISIKO_LAYERS } from '@/lib/puskris/risiko-layers'
 import { asistensiWilayah, attachTimEstimate, titikFasilitas, buildTerpadu, countRadius } from '@/lib/puskris/integrasi'
 
@@ -121,20 +121,49 @@ export default function PuskrisPetaTerpadu({
   // Risiko Emerging (API Peta Risiko PIE Kemenkes)
   const [risikoPie, setRisikoPie] = useState<boolean>(false)
   const [pieDisease, setPieDisease] = useState<PieDiseaseOption>('all')
+  // Tahun PIE: mengikuti tahun Filter Dasbor bila tersedia di PIE, bisa diganti lewat pilihan tahun di kartu lapisan.
+  const tahunPieAwal = (PIE_YEARS as readonly number[]).includes(f.tahun) ? f.tahun : PIE_TAHUN_BAWAAN
+  const [pieYear, setPieYear] = useState<number>(tahunPieAwal)
+  useEffect(() => { setPieYear(tahunPieAwal) }, [tahunPieAwal])
+  // Hasil API per tahun (tidak pernah menampilkan data tahun lain saat tahun terpilih gagal / sedang dimuat).
+  const [pieByYear, setPieByYear] = useState<Record<number, { data?: PiePayload; error?: string; loading?: boolean }>>({})
+  useEffect(() => {
+    if (pieByYear[pieYear]?.data) return
+    let alive = true
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const ambil = (coba: number) => {
+      setPieByYear((m) => ({ ...m, [pieYear]: { loading: true } }))
+      fetch(`${PUBLIC_BASE_PATH}/api/puskris/live/pie?tahun=${pieYear}`)
+        .then(async (r) => ({ status: r.status, j: await r.json().catch(() => null) }))
+        .then(({ status, j }) => {
+          if (!alive) return
+          if (j?.ok && j?.data && Number(j.data.tahun) === pieYear) setPieByYear((m) => ({ ...m, [pieYear]: { data: j.data } }))
+          else if ((status === 202 || j?.pending) && coba < 8) timer = setTimeout(() => ambil(coba + 1), 5000)
+          else setPieByYear((m) => ({ ...m, [pieYear]: { error: j?.error || `HTTP ${status}` } }))
+        })
+        .catch((e) => { if (alive) setPieByYear((m) => ({ ...m, [pieYear]: { error: String(e?.message || e) } })) })
+    }
+    ambil(0)
+    return () => { alive = false; if (timer) clearTimeout(timer) }
+  }, [pieYear]) // eslint-disable-line react-hooks/exhaustive-deps
+  const pieState = pieByYear[pieYear] || { loading: true }
+  const pieData = pieState.data && pieState.data.records.length ? pieState.data : null
   const [risikoLevel, setRisikoLevel] = useState<RisikoAsisLevel>('provinsi')
   const asisOk = asistensiTersedia(raw)
-  const pieOk = pieTersedia(raw)
+  const pieOk = Boolean(pieData)
+  const pieOpsi = useMemo(() => pieDiseaseOptions(pieData), [pieData])
+  useEffect(() => { if (pieData && !pieOpsi.some((o) => o.id === pieDisease)) setPieDisease('all') }, [pieData, pieOpsi, pieDisease])
   const provKode = f.provinsi ? String(f.provinsi).padStart(2, '0') : null
   const catChoro = useMemo(() => {
     if (risikoAsis) return buildRisikoAsistensi(raw, risikoAsis, risikoLevel, provKode)
-    if (risikoPie) return buildRisikoPie(raw, pieDisease, risikoLevel, provKode)
+    if (risikoPie) return buildRisikoPie(pieData, pieDisease, risikoLevel, provKode)
     return null
-  }, [raw, risikoAsis, risikoPie, pieDisease, risikoLevel, provKode])
+  }, [raw, risikoAsis, risikoPie, pieData, pieDisease, risikoLevel, provKode])
   const legendAsis = useMemo(() => ({
     kapasitas: asisOk ? buildRisikoAsistensi(raw, 'kapasitas', risikoLevel, provKode)?.legend || [] : [],
     irbi: asisOk ? buildRisikoAsistensi(raw, 'irbi', risikoLevel, provKode)?.legend || [] : [],
   }), [raw, asisOk, risikoLevel, provKode])
-  const legendPie = useMemo(() => (pieOk ? buildRisikoPie(raw, pieDisease, risikoLevel, provKode)?.legend || [] : []), [raw, pieOk, pieDisease, risikoLevel, provKode])
+  const legendPie = useMemo(() => (pieData ? buildRisikoPie(pieData, pieDisease, risikoLevel, provKode)?.legend || [] : []), [pieData, pieDisease, risikoLevel, provKode])
   const [jenisOff, setJenisOff] = useState<Set<string>>(new Set())
   const katHitung = useMemo(() => hitungKategori(kejadian || []), [kejadian])
   const kejadianPeta = useMemo(
@@ -510,8 +539,10 @@ export default function PuskrisPetaTerpadu({
                           <span className="flex items-center gap-1.5">
                             {pieOk ? (
                               <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[9px] font-bold text-emerald-800">API Langsung</span>
-                            ) : (
+                            ) : pieState.loading ? (
                               <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-bold text-slate-600">Memuat...</span>
+                            ) : (
+                              <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[9px] font-bold text-rose-700" title={pieState.error}>Tidak tersedia</span>
                             )}
                             <input
                               type="checkbox"
@@ -529,11 +560,40 @@ export default function PuskrisPetaTerpadu({
                           </span>
                         </div>
                         <p className="mt-0.5 text-[10px] leading-tight text-slate-500">
-                          Tingkat risiko penyakit infeksi emerging per wilayah (Peta Risiko PIE Kemenkes{raw?.pie?.tahun ? ` ${raw.pie.tahun}` : ''}).
+                          Tingkat risiko penyakit infeksi emerging per wilayah (Peta Risiko PIE Kemenkes {pieYear}).
                         </p>
 
-                        {risikoPie && pieOk ? (
+                        {risikoPie ? (
                           <div className="mt-2.5 space-y-2 border-t border-slate-200/80 pt-2">
+                            {/* Pilihan Tahun (sama dengan SKDR); data diambil ulang dari API per tahun */}
+                            <div className="flex items-center justify-between text-[10px]" data-testid="pie-tahun">
+                              <span className="font-bold text-slate-500">Tahun:</span>
+                              <div className="flex items-center gap-1">
+                                {PIE_YEARS.map((yr) => (
+                                  <button
+                                    key={yr}
+                                    type="button"
+                                    data-testid={`pie-tahun-${yr}`}
+                                    onClick={() => setPieYear(yr)}
+                                    className={`rounded-full px-2 py-0.5 font-bold transition ${
+                                      pieYear === yr
+                                        ? 'bg-purple-700 text-white shadow-xs'
+                                        : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-100'
+                                    }`}
+                                  >
+                                    {yr}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                            {!pieOk ? (
+                              pieState.loading ? (
+                                <p className="text-[10px] text-slate-500">Memuat data Peta Risiko PIE {pieYear} dari API…</p>
+                              ) : (
+                                <ApiKosong compact pesan={`Data belum tersedia dari API (Peta Risiko PIE ${pieYear})`} detail={pieState.error || (pieState.data ? 'API mengembalikan 0 rekaman untuk tahun ini' : null)} />
+                              )
+                            ) : (
+                            <>
                             {/* Pilihan Tingkat Wilayah */}
                             <div className="flex items-center justify-between text-[10px]">
                               <span className="font-bold text-slate-500">Tingkat wilayah:</span>
@@ -563,9 +623,9 @@ export default function PuskrisPetaTerpadu({
                                 onChange={(e) => setPieDisease(e.target.value as PieDiseaseOption)}
                                 className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-800 shadow-xs focus:border-purple-500 focus:outline-none"
                               >
-                                {PIE_DISEASES.map((d) => (
+                                {pieOpsi.map((d) => (
                                   <option key={d.id} value={d.id}>
-                                    {d.label}
+                                    {d.label} ({d.n})
                                   </option>
                                 ))}
                               </select>
@@ -587,6 +647,11 @@ export default function PuskrisPetaTerpadu({
                             <p className="text-[10px] leading-tight text-slate-400">
                               Skala risiko: TINGGI (merah), SEDANG (jingga), RENDAH (hijau). Menimpa arsiran angka selama aktif.
                             </p>
+                            <p className="text-[10px] leading-tight text-slate-400" data-testid="pie-ringkas">
+                              API {pieYear}: {pieData!.summary.api_total} rekaman{pieData!.summary.tanpa_status || pieData!.summary.tanpa_kode ? ` · ${pieData!.summary.tanpa_status} tanpa status & ${pieData!.summary.tanpa_kode} kab/kota tak terpetakan tidak ditampilkan` : ''}.
+                            </p>
+                            </>
+                            )}
                           </div>
                         ) : null}
                       </div>

@@ -3,14 +3,14 @@
 // TINGGI = merah (#dc2626), SEDANG = jingga (#f59e0b), RENDAH = hijau (#16a34a).
 import type { CatChoro } from '@/components/spasial/SpasialMap'
 
-export type PieDiseaseOption =
-  | 'all'
-  | 'polio'
-  | 'mers'
-  | 'meningitis'
-  | 'avian-influenza'
-  | 'covid-19'
+/** 'all' atau id penyakit; id = nama penyakit dari API (huruf besar) bila tidak ada di label bawaan. */
+export type PieDiseaseOption = string
 
+/** Tahun yang dapat dipilih (sama dengan SKDR); bawaan 2026. Datanya tetap diambil per tahun dari API. */
+export const PIE_YEARS = [2026, 2025, 2024] as const
+export const PIE_TAHUN_BAWAAN = 2026
+
+/** Label tampilan untuk penyakit yang dikenal. Daftar pilihan diambil dari data API tahun terpilih (pieDiseaseOptions). */
 export const PIE_DISEASES: { id: PieDiseaseOption; label: string; short: string; keyInApi?: string }[] = [
   { id: 'all', label: 'Semua Penyakit Emerging', short: 'Semua PIE' },
   { id: 'polio', label: 'Polio', short: 'Polio', keyInApi: 'POLIO' },
@@ -19,6 +19,23 @@ export const PIE_DISEASES: { id: PieDiseaseOption; label: string; short: string;
   { id: 'avian-influenza', label: 'Avian Influenza (Flu Burung)', short: 'Flu Burung', keyInApi: 'AVIAN INFLUENZA' },
   { id: 'covid-19', label: 'COVID-19', short: 'COVID-19', keyInApi: 'COVID-19' },
 ]
+
+const judulKata = (s: string) => s.toLowerCase().replace(/\b([a-z])/g, (c) => c.toUpperCase())
+/** Info penyakit untuk id pilihan: label bawaan bila dikenal, selain itu nama dari API. */
+export function pieDiseaseInfo(id: PieDiseaseOption): { id: string; label: string; short: string; key: string | null } {
+  if (id === 'all') return { id, label: 'Semua Penyakit Emerging', short: 'Semua PIE', key: null }
+  const k = PIE_DISEASES.find((d) => d.id === id || d.keyInApi === id)
+  if (k) return { id: k.id, label: k.label, short: k.short, key: k.keyInApi || null }
+  return { id, label: judulKata(id), short: judulKata(id), key: id.toUpperCase() }
+}
+/** Pilihan penyakit = 'Semua' + penyakit yang benar-benar ada di data API tahun itu. */
+export function pieDiseaseOptions(pieData: PiePayload | null | undefined): Array<{ id: string; label: string; n: number }> {
+  const n: Record<string, number> = {}
+  for (const r of pieData?.records || []) { const k = r.penyakit_nama.toUpperCase(); n[k] = (n[k] || 0) + 1 }
+  const list = Object.entries(n).map(([nama, c]) => { const d = pieDiseaseInfo(PIE_DISEASES.find((x) => x.keyInApi === nama)?.id || nama); return { id: d.id, label: d.label, n: c } })
+  list.sort((a, b) => a.label.localeCompare(b.label))
+  return [{ id: 'all', label: 'Semua Penyakit Emerging', n: pieData?.records.length || 0 }, ...list]
+}
 
 export const PIE_SKALA: Record<string, string> = {
   Tinggi: '#dc2626',
@@ -46,24 +63,31 @@ const KAKO_OVERRIDES: Record<string, string> = {
   '1607': '6302', // Kota Baru -> Kotabaru (Kalsel)
 }
 
-const cleanName = (s: string) =>
-  String(s || '')
-    .toLowerCase()
-    .replace(/^(kota|kab\.|kabupaten|adm\.|administrasi)\s+/g, '')
-    .replace(/[^a-z0-9]/g, '')
-
-export function resolveKodeKab(kodeKako: string, namaKako: string, nameToCodeMap?: Map<string, string>): string {
-  if (KAKO_OVERRIDES[kodeKako]) return KAKO_OVERRIDES[kodeKako]
-  if (nameToCodeMap) {
-    const clean = cleanName(namaKako)
-    const found = nameToCodeMap.get(clean)
-    if (found) return found
-  }
-  return kodeKako
+/** Kunci nama kab/kota: jenis (Kota / Kabupaten) + nama tanpa awalan, agar Kota Bekasi ≠ Kab. Bekasi. */
+export function pieNamaKey(nama: string): string {
+  const s = String(nama || '').toLowerCase().trim()
+  const kota = /^kota\s/.test(s)
+  return (kota ? 'K:' : 'B:') + s.replace(/^(kota|kab\.|kabupaten|adm\.|administrasi)\s+/g, '').replace(/[^a-z0-9]/g, '')
 }
 
-export const pieTersedia = (raw: any): boolean =>
-  raw?.pie?.data_source === 'langsung' && Boolean(raw?.pie?.records?.length)
+/** Kode Kemendagri untuk rekaman PIE, atau null bila tidak terpetakan (tidak memakai kode PIE apa adanya). */
+export function resolveKodeKab(kodeKako: string, namaKako: string, nameToCodeMap: Map<string, string>): string | null {
+  if (KAKO_OVERRIDES[kodeKako]) return KAKO_OVERRIDES[kodeKako]
+  return nameToCodeMap.get(pieNamaKey(namaKako)) || null
+}
+
+export type PieSummary = {
+  tahun: number
+  api_total: number
+  total_records: number
+  tinggi: number
+  sedang: number
+  rendah: number
+  tanpa_status: number
+  tanpa_kode: number
+  tanpa_kode_contoh: string[]
+}
+export type PiePayload = { tahun: number; records: PieRecord[]; summary: PieSummary }
 
 export type PieRecord = {
   jns_penyakit: string
@@ -81,29 +105,26 @@ export type PieRecord = {
   warna: string
 }
 
-export function parsePieStatus(statusStr: string): { label: 'Tinggi' | 'Sedang' | 'Rendah'; score: number; color: string } {
+/** Status API berbentuk "3,TINGGI" / "2,SEDANG" / "1,RENDAH". Selain itu → null (tidak diberi nilai pengganti). */
+export function parsePieStatus(statusStr: string): { label: 'Tinggi' | 'Sedang' | 'Rendah'; score: number; color: string } | null {
   const norm = String(statusStr || '').toUpperCase()
-  if (norm.includes('3') || norm.includes('TINGGI')) {
-    return { label: 'Tinggi', score: 3, color: PIE_SKALA.Tinggi }
-  }
-  if (norm.includes('2') || norm.includes('SEDANG')) {
-    return { label: 'Sedang', score: 2, color: PIE_SKALA.Sedang }
-  }
-  return { label: 'Rendah', score: 1, color: PIE_SKALA.Rendah }
+  if (/\bTINGGI\b/.test(norm) || /^\s*3\s*(,|$)/.test(norm)) return { label: 'Tinggi', score: 3, color: PIE_SKALA.Tinggi }
+  if (/\bSEDANG\b/.test(norm) || /^\s*2\s*(,|$)/.test(norm)) return { label: 'Sedang', score: 2, color: PIE_SKALA.Sedang }
+  if (/\bRENDAH\b/.test(norm) || /^\s*1\s*(,|$)/.test(norm)) return { label: 'Rendah', score: 1, color: PIE_SKALA.Rendah }
+  return null
 }
 
 export function buildRisikoPie(
-  raw: any,
+  pieData: PiePayload | null | undefined,
   diseaseOption: PieDiseaseOption = 'all',
   level: 'provinsi' | 'kabkota' = 'provinsi',
   provKode: string | null = null,
 ): CatChoro | null {
-  const pieData = raw?.pie
   if (!pieData || !Array.isArray(pieData.records) || !pieData.records.length) return null
 
   const records: PieRecord[] = pieData.records
-  const selectedDisease = PIE_DISEASES.find((d) => d.id === diseaseOption)
-  const diseaseFilterKey = selectedDisease?.keyInApi
+  const selectedDisease = diseaseOption === 'all' ? null : pieDiseaseInfo(diseaseOption)
+  const diseaseFilterKey = selectedDisease?.key
 
   // Saring berdasarkan penyakit jika bukan 'all'
   const filtered = diseaseFilterKey
@@ -141,7 +162,7 @@ export function buildRisikoPie(
       const details: Array<{ label: string; value: string }> = [
         { label: 'Status Risiko', value: label.toUpperCase() },
         { label: 'Kabupaten/Kota', value: highest.nama_kako },
-        { label: 'Tahun Penilaian', value: highest.tahun || '2025' },
+        { label: 'Tahun Penilaian', value: highest.tahun || String(pieData.tahun) },
       ]
 
       if (diseaseOption === 'all') {
@@ -195,7 +216,7 @@ export function buildRisikoPie(
 
       items[pCode] = {
         color,
-        title: `Provinsi ${pCode} · Risiko ${provLabel.toUpperCase()} (${diseaseOption === 'all' ? 'Emerging PIE' : selectedDisease?.short || ''})`,
+        title: `Risiko ${provLabel.toUpperCase()} (${diseaseOption === 'all' ? 'Emerging PIE' : selectedDisease?.short || ''})`,
         details: [
           { label: 'Status Risiko Tertinggi', value: provLabel.toUpperCase() },
           { label: 'Kab/Kota Berisiko Tinggi', value: `${countTinggi} kab/kota` },
@@ -217,7 +238,7 @@ export function buildRisikoPie(
 
   const diseaseTitle = selectedDisease ? selectedDisease.label : 'Penyakit Infeksi Emerging'
   return {
-    id: `pie-${diseaseOption}-${level}`,
+    id: `pie-${pieData.tahun}-${diseaseOption}-${level}`,
     level,
     prov: provKode,
     judul: `Peta Risiko PIE: ${diseaseTitle}`,

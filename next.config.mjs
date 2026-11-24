@@ -28,6 +28,10 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  // GeoJSON kab/kota dibaca di server untuk memetakan kode kab/kota API Peta Risiko PIE ke kode Kemendagri.
+  outputFileTracingIncludes: {
+    '/api/puskris/live/[sumber]': ['./public/data/indonesia-kabupaten.geojson'],
+  },
   async headers() {
     return [{ source: '/:path*', headers: [{ key: 'Content-Security-Policy', value: cspDirectives }] }];
   },

@@ -5,12 +5,11 @@ import { useMemo, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import { ExternalLink } from 'lucide-react'
 import {
-  Area,
-  AreaChart,
   Bar,
   BarChart,
   CartesianGrid,
   ComposedChart,
+  Area,
   Legend,
   Line,
   ResponsiveContainer,
@@ -19,13 +18,15 @@ import {
   YAxis,
 } from 'recharts'
 import ApiKosong from '@/components/puskris/ApiKosong'
-import { KejadianKesiapanDock, KejadianRisikoDock } from '@/components/puskris/KejadianDock'
 import { PUBLIC_BASE_PATH } from '@/lib/public-path'
 import { fmtAngka, tglKejadian } from '@/lib/puskris/eoc-markers'
 
-function nf(n: number | null | undefined, satuan?: string, digits = 1) {
+const TCK_PROFESI = ['Tenaga Medis', 'Tenaga Keperawatan', 'Tenaga Kebidanan', 'Tenaga Kefarmasian', 'Tenaga Kesehatan Masyarakat', 'Tenaga Kesehatan Lingkungan', 'Tenaga Gizi', 'Tenaga Kesehatan Lainnya', 'Non-Kesehatan']
+const USIA_LABEL = ['< 30 th', '30–39 th', '40–49 th', '50+ th', 'Tidak diisi']
+
+function nf(n: number | null | undefined, satuan?: string, digits = 0) {
   if (n == null || Number.isNaN(Number(n))) return '—'
-  const s = Number(n).toLocaleString('id-ID', { maximumFractionDigits: digits })
+  const s = Number(n).toLocaleString('id-ID', { maximumFractionDigits: digits, minimumFractionDigits: 0 })
   return satuan ? `${s} ${satuan}` : s
 }
 
@@ -49,28 +50,35 @@ function sumInWindow(rows: any[] | undefined, field: string, hours: number) {
 const PILL: Record<string, string> = {
   rose: 'bg-rose-700 text-white',
   amber: 'bg-amber-500 text-slate-900',
-  teal: 'bg-teal-700 text-white',
+  teal: 'bg-[#00705a] text-white',
   slate: 'bg-slate-600 text-white',
 }
-
-const KPI_TONE: Record<string, string> = {
+const KPI_BOX: Record<string, string> = {
   rose: 'border-rose-100 bg-rose-50/80',
   amber: 'border-amber-100 bg-amber-50/80',
-  teal: 'border-teal-100 bg-teal-50/80',
+  teal: 'border-teal-100 bg-teal-50/70',
   slate: 'border-slate-200 bg-slate-50',
 }
-
-const KPI_VALUE: Record<string, string> = {
+const KPI_VAL: Record<string, string> = {
   rose: 'text-rose-800',
   amber: 'text-amber-800',
   teal: 'text-[#00705a]',
   slate: 'text-slate-800',
 }
+const STATUS_BADGE: Record<string, string> = {
+  Tinggi: 'bg-rose-100 text-rose-800',
+  Sedang: 'bg-amber-100 text-amber-800',
+  Rendah: 'bg-teal-100 text-teal-800',
+  aktif: 'bg-teal-100 text-teal-800',
+  nonaktif: 'bg-slate-100 text-slate-600',
+}
 
-const PRI: Record<string, string> = {
-  tinggi: 'border-rose-200 bg-rose-50',
-  sedang: 'border-amber-200 bg-amber-50',
-  info: 'border-slate-200 bg-slate-50',
+function badgeStatus(s?: string | null) {
+  if (!s) return 'bg-slate-100 text-slate-600'
+  if (/tinggi|rendah|segera|krisis/i.test(s) && /tinggi|segera|krisis/i.test(s)) return 'bg-rose-100 text-rose-800'
+  if (/sedang|waspada|pantau/i.test(s)) return 'bg-amber-100 text-amber-800'
+  if (/rendah|aman|baik|terpantau|memadai/i.test(s)) return 'bg-teal-100 text-teal-800'
+  return STATUS_BADGE[s] || 'bg-slate-100 text-slate-700'
 }
 
 function RangeBtn({ options, value, onChange }: { options: { id: string; label: string }[]; value: string; onChange: (id: string) => void }) {
@@ -90,128 +98,113 @@ function RangeBtn({ options, value, onChange }: { options: { id: string; label: 
   )
 }
 
-function ChartCard({ title, sumber, catatan, actions, empty, pending, children }: { title: string; sumber?: string; catatan?: string | null; actions?: ReactNode; empty?: boolean; pending?: boolean; children?: ReactNode }) {
+function Kpi({ label, value, tone = 'slate', sub }: { label: string; value: ReactNode; tone?: string; sub?: string }) {
   return (
-    <article className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5" data-testid="kejadian-chart-card">
-      <div className="mb-3 flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="text-sm font-bold text-slate-900">{title}</h3>
-          {sumber ? <p className="mt-0.5 text-[10px] leading-relaxed text-slate-400">{sumber}</p> : null}
-        </div>
-        {actions}
-      </div>
-      {pending ? <ApiKosong pending pesan="Sedang mengambil data dari API…" /> : empty ? <ApiKosong pesan="Data belum tersedia dari API" detail={catatan || undefined} /> : <div className="h-56">{children}</div>}
-      {!empty && catatan ? <p className="mt-2 text-[10px] leading-relaxed text-slate-400">{catatan}</p> : null}
-    </article>
+    <div className={`rounded-xl border px-2.5 py-2 ${KPI_BOX[tone] || KPI_BOX.slate}`}>
+      <div className="truncate text-[9.5px] font-black uppercase tracking-wider text-slate-500">{label}</div>
+      <div className={`mt-0.5 text-lg font-black leading-none tabular-nums sm:text-xl ${KPI_VAL[tone] || KPI_VAL.slate}`}>{value}</div>
+      {sub ? <div className="mt-0.5 truncate text-[10px] text-slate-500">{sub}</div> : null}
+    </div>
   )
 }
 
-export function susunNarasi({ k, status, nearby, riwayat, konteks }: { k: any; status?: any; nearby?: any; riwayat?: any; konteks?: any }) {
-  const out: string[] = []
-  const lokasi = [k?.kabupaten, k?.provinsi].filter(Boolean).join(', ')
-  const tgl = k?.tanggal ? tglKejadian(k.tanggal, k.jam) : null
-  out.push(`Telah terjadi ${k?.jenis || 'kejadian'} ${lokasi ? `di ${lokasi}` : 'pada lokasi yang tercatat di API EOC'}${tgl && tgl !== '—' ? ` pada ${tgl}` : ''}.`)
-  if (status?.label) {
-    const hari = status.hari != null ? ` (${status.hari} hari sejak kejadian)` : ''
-    out.push(`Status operasional menurut data EOC: ${status.label}${hari}.`)
-    if (status.catatan) out.push(status.catatan)
-  }
-  const dampak: string[] = []
-  if (k?.meninggal != null) dampak.push(`${fmtAngka(k.meninggal)} meninggal`)
-  if (k?.luka_berat != null) dampak.push(`${fmtAngka(k.luka_berat)} luka berat`)
-  if (k?.luka_ringan != null) dampak.push(`${fmtAngka(k.luka_ringan)} luka ringan`)
-  if (k?.hilang != null) dampak.push(`${fmtAngka(k.hilang)} hilang`)
-  if (k?.pengungsi != null) dampak.push(`${fmtAngka(k.pengungsi)} pengungsi`)
-  if (k?.terdampak != null) dampak.push(`${fmtAngka(k.terdampak)} terdampak`)
-  if (k?.faskes_rusak != null) dampak.push(`${fmtAngka(k.faskes_rusak)} faskes rusak`)
-  if (dampak.length) out.push(`Dampak menurut API EOC: ${dampak.join(', ')}.`)
-  if (k?.koordinat?.lat != null && k?.koordinat?.lon != null) {
-    const lok = k.koordinat.label || 'lokasi'
-    out.push(`Titik yang dipakai peta (${lok}): ${Number(k.koordinat.lat).toFixed(4)}, ${Number(k.koordinat.lon).toFixed(4)}.`)
-  }
-  if (riwayat?.tersedia) {
-    const kab = riwayat.kab
-    const prov = riwayat.prov
-    const bits: string[] = []
-    if (kab?.total != null) bits.push(`${fmtAngka(kab.total)} kejadian di kab/kota yang sama${kab.serupa != null ? ` (termasuk ${fmtAngka(kab.serupa)} sejenis)` : ''}`)
-    if (prov?.total != null) bits.push(`${fmtAngka(prov.total)} di provinsi yang sama`)
-    if (bits.length) out.push(`Dalam 12 bulan terakhir, API EOC mencatat ${bits.join(' dan ')}.`)
-  }
-  const psc0 = nearby?.psc?.tersedia ? nearby.psc.daftar?.[0] : null
-  if (psc0?.nama) {
-    out.push(`PSC terdekat menurut API Pusat Krisis: ${psc0.nama}${psc0.jarak_km != null ? ` (${nf(psc0.jarak_km, 'km')})` : ''}.`)
-  }
-  const cuaca = konteks?.cuaca
-  if (cuaca && !cuaca.kosong && cuaca.saat_ini) {
-    const c = cuaca.saat_ini
-    const bits: string[] = []
-    if (c.kondisi) bits.push(String(c.kondisi))
-    if (c.suhu != null) bits.push(`suhu ${nf(c.suhu, '°C')}`)
-    if (c.hujan_mm != null) bits.push(`hujan ${nf(c.hujan_mm, 'mm')}`)
-    if (c.angin != null) bits.push(`angin ${nf(c.angin, 'km/jam')}`)
-    if (bits.length) out.push(`Cuaca model Open-Meteo di titik kejadian: ${bits.join(', ')}.`)
-  }
-  const udara = konteks?.udara
-  if (udara && !udara.kosong && udara.saat_ini) {
-    const u = udara.saat_ini
-    const bits: string[] = []
-    if (u.pm25 != null) bits.push(`PM2.5 ${nf(u.pm25, 'µg/m³')}`)
-    if (u.us_aqi != null) bits.push(`US AQI ${nf(u.us_aqi, '', 0)}`)
-    if (bits.length) out.push(`Kualitas udara model CAMS (bukan ISPU resmi): ${bits.join(', ')}.`)
-  }
-  const fire = konteks?.karhutla
-  const t24 = fire?.total_24jam
-  const t7 = fire?.total_7hari ?? fire?.total
-  if (k?.kind === 'karhutla' || (typeof t7 === 'number' && t7 > 0) || (typeof t24 === 'number' && t24 > 0)) {
-    if (fire && !fire.kosong && (t7 != null || t24 != null)) {
-      out.push(`NASA FIRMS mencatat ${fmtAngka(t24 ?? 0)} titik panas dalam 24 jam dan ${fmtAngka(t7 ?? 0)} dalam 7 hari, dalam radius ${fire.radius_km || 50} km dari titik kejadian.`)
-    } else if (k?.kind === 'karhutla') {
-      out.push('Tidak ada titik panas NASA FIRMS dalam radius 50 km pada data 7 hari terakhir.')
-    }
-  }
-  const bahaya = konteks?.bahaya
-  if ((k?.kind === 'gempa' || k?.kind === 'erupsi') && bahaya) {
-    const n = bahaya.items?.length
-    if (!bahaya.kosong && n) {
-      out.push(`${bahaya.sumber || 'BMKG/GDACS'} mencatat ${fmtAngka(n)} peristiwa terkait dalam radius ${bahaya.radius_km} km.`)
-    }
-  }
-  return out
+function SectionCard({ id, eyebrow, title, source, kpis, actions, children }: {
+  id: string; eyebrow: string; title: string; source?: string; kpis?: ReactNode; actions?: ReactNode; children?: ReactNode
+}) {
+  return (
+    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white" data-testid={id}>
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 px-4 py-3 sm:px-5">
+        <div className="min-w-0">
+          <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">{eyebrow}</p>
+          <h2 className="text-[15px] font-bold leading-tight text-slate-900 sm:text-base">{title}</h2>
+          {source ? <p className="mt-0.5 text-[10px] text-slate-400">{source}</p> : null}
+        </div>
+        {actions}
+      </div>
+      {kpis ? <div className="grid grid-cols-2 gap-2 px-4 py-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 sm:px-5">{kpis}</div> : null}
+      {children ? <div className={`px-4 pb-4 sm:px-5 sm:pb-5 ${kpis ? '' : 'pt-4'}`}>{children}</div> : null}
+    </section>
+  )
 }
+
+function Empty({ pending }: { pending?: boolean }) {
+  return <ApiKosong compact pending={pending} pesan={pending ? 'Sedang mengambil data dari API…' : 'Data belum tersedia dari API'} />
+}
+
+function Matrix({ columns, rows, rowKey, highlight }: {
+  columns: { key: string; label: string; align?: 'left' | 'right'; fmt?: (v: any, row: any) => ReactNode }[]
+  rows: any[]
+  rowKey: (row: any, i: number) => string
+  highlight?: (row: any) => boolean
+}) {
+  if (!rows.length) return <Empty />
+  return (
+    <div className="overflow-x-auto rounded-xl border border-slate-100">
+      <table className="w-full min-w-[480px] text-left text-[12px]">
+        <thead>
+          <tr className="bg-slate-50 text-[10px] font-black uppercase tracking-wider text-slate-400">
+            {columns.map((c) => (
+              <th key={c.key} className={`whitespace-nowrap px-3 py-2 ${c.align === 'right' ? 'text-right' : 'text-left'}`}>{c.label}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, i) => (
+            <tr key={rowKey(row, i)} className={`border-t border-slate-100 ${highlight?.(row) ? 'bg-teal-50/70' : 'bg-white'}`}>
+              {columns.map((c) => (
+                <td key={c.key} className={`px-3 py-1.5 ${c.align === 'right' ? 'text-right tabular-nums font-semibold text-slate-800' : 'text-slate-700'}`}>
+                  {c.fmt ? c.fmt(row[c.key], row) : (row[c.key] ?? '—')}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function ChartBox({ empty, pending, children }: { empty?: boolean; pending?: boolean; children?: ReactNode }) {
+  if (pending) return <Empty pending />
+  if (empty) return <Empty />
+  return <div className="h-44">{children}</div>
+}
+
+const tipStyle = { fontSize: 11 }
 
 export function KejadianHeaderBand({ k, status, loadingRange }: { k: any; status?: any; loadingRange?: boolean }) {
   const pills: { text: string; tone: string }[] = []
   if (status?.label) pills.push({ text: status.label, tone: status.tone || 'slate' })
-  if (k?.krisis) pills.push({ text: 'Krisis kesehatan', tone: 'rose' })
+  if (k?.krisis) pills.push({ text: 'Krisis', tone: 'rose' })
+  if (status?.hari != null) pills.push({ text: `${status.hari} hari`, tone: 'teal' })
   if (k?.koordinat?.label) pills.push({ text: k.koordinat.label, tone: 'slate' })
-  if (status?.hari != null) pills.push({ text: `${status.hari} hari sejak kejadian`, tone: 'teal' })
+  const ringkas: string[] = []
+  if (k?.terdampak != null) ringkas.push(`${fmtAngka(k.terdampak)} terdampak`)
+  if (k?.meninggal != null) ringkas.push(`${fmtAngka(k.meninggal)} meninggal`)
+  if (k?.pengungsi != null && Number(k.pengungsi) > 0) ringkas.push(`${fmtAngka(k.pengungsi)} pengungsi`)
+  if (status?.label) ringkas.push(status.label)
   return (
     <header className="relative overflow-hidden rounded-2xl border border-teal-100 bg-white" data-testid="kejadian-header-band">
       <div className="absolute inset-y-0 left-0 w-1.5 bg-[#00705a]" />
-      <div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-teal-50" />
-      <div className="pointer-events-none absolute -bottom-16 right-24 h-32 w-32 rounded-full bg-emerald-50/80" />
-      <div className="relative flex flex-col gap-4 px-5 py-5 sm:flex-row sm:items-start sm:justify-between sm:px-6 sm:py-6">
+      <div className="relative flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-6">
         <div className="min-w-0">
-          <Link href={`${PUBLIC_BASE_PATH}/dashboard/spatial-mode`} className="inline-flex items-center gap-1.5 text-xs font-bold text-[#00705a] hover:underline">
-            ← Kembali ke peta
-          </Link>
-          <p className="skdr-eyebrow mt-2">Pusat Krisis Kesehatan · Detail kejadian</p>
-          <div className="mt-2 flex items-start gap-3">
-            {k.icon?.src ? <img alt="" aria-hidden src={k.icon.src} className="mt-0.5 h-11 w-10 shrink-0 object-contain" /> : null}
+          <Link href={`${PUBLIC_BASE_PATH}/dashboard/spatial-mode`} className="inline-flex items-center gap-1.5 text-xs font-bold text-[#00705a] hover:underline">← Kembali ke peta</Link>
+          <p className="mt-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400">Pusat Krisis Kesehatan · Detail kejadian</p>
+          <div className="mt-1.5 flex items-start gap-2.5">
+            {k.icon?.src ? <img alt="" aria-hidden src={k.icon.src} className="mt-0.5 h-9 w-8 shrink-0 object-contain" /> : null}
             <div className="min-w-0">
-              <h1 className="text-xl font-bold leading-tight tracking-tight text-slate-900 sm:text-2xl lg:text-3xl">
+              <h1 className="text-xl font-bold leading-tight tracking-tight text-slate-900 sm:text-2xl">
                 {k.jenis} · {[k.kabupaten, k.provinsi].filter(Boolean).join(', ')}
               </h1>
-              <p className="mt-1 text-sm font-semibold text-slate-600">
+              <p className="mt-0.5 text-sm font-semibold text-slate-600">
                 {tglKejadian(k.tanggal, k.jam)}
-                {loadingRange ? ' · memuat rentang…' : ''}
+                {loadingRange ? ' · memuat…' : ''}
+                {ringkas.length ? ` · ${ringkas.join(' · ')}` : ''}
               </p>
               {pills.length ? (
-                <div className="mt-2 flex flex-wrap gap-1.5">
+                <div className="mt-1.5 flex flex-wrap gap-1">
                   {pills.map((p) => (
-                    <span key={p.text} className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${PILL[p.tone] || PILL.slate}`}>
-                      {p.text}
-                    </span>
+                    <span key={p.text} className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${PILL[p.tone] || PILL.slate}`}>{p.text}</span>
                   ))}
                 </div>
               ) : null}
@@ -219,7 +212,7 @@ export function KejadianHeaderBand({ k, status, loadingRange }: { k: any; status
           </div>
         </div>
         {k.url ? (
-          <a href={k.url} target="_blank" rel="noreferrer" className="inline-flex h-9 shrink-0 items-center gap-1.5 self-start rounded-xl border border-teal-200 bg-teal-50 px-3 text-[11px] font-bold text-teal-800 hover:bg-teal-100">
+          <a href={k.url} target="_blank" rel="noreferrer" className="inline-flex h-8 shrink-0 items-center gap-1.5 self-start rounded-lg border border-teal-200 bg-teal-50 px-2.5 text-[11px] font-bold text-teal-800 hover:bg-teal-100">
             Sumber EOC <ExternalLink className="h-3.5 w-3.5" />
           </a>
         ) : null}
@@ -228,430 +221,611 @@ export function KejadianHeaderBand({ k, status, loadingRange }: { k: any; status
   )
 }
 
-function SituasiKpi({ label, value, tone }: { label: string; value: number | null | undefined; tone: string }) {
+function SecDampak({ k, riwayat }: { k: any; riwayat?: any }) {
+  const [rentang, setRentang] = useState<'30h' | '12bln'>('12bln')
+  const data = useMemo(() => {
+    if (!riwayat?.tersedia) return []
+    const src = rentang === '30h' ? riwayat.korban30 : riwayat.korbanTren
+    return (src || []).map((r: any) => ({
+      label: String(r.bulan || r.tanggal || '').slice(rentang === '30h' ? 5 : 2),
+      meninggal: r.meninggal || 0,
+      luka: r.luka || 0,
+      pengungsi: r.pengungsi || 0,
+    }))
+  }, [riwayat, rentang])
   return (
-    <div className={`rounded-2xl border px-3.5 py-3 ${KPI_TONE[tone] || KPI_TONE.slate}`} data-testid="kejadian-kpi">
-      <div className="truncate text-[10px] font-black uppercase tracking-wider text-slate-500">{label}</div>
-      <div className={`mt-1 text-2xl font-black leading-none tabular-nums sm:text-3xl ${KPI_VALUE[tone] || KPI_VALUE.slate}`}>{fmtAngka(value)}</div>
-    </div>
+    <SectionCard
+      id="kejadian-sec-dampak"
+      eyebrow="Dampak & korban"
+      title="Angka korban kejadian ini"
+      source="API EOC Pusat Krisis"
+      actions={<RangeBtn value={rentang} onChange={(id) => setRentang(id as any)} options={[{ id: '30h', label: '30 hari' }, { id: '12bln', label: '12 bulan' }]} />}
+      kpis={
+        <>
+          <Kpi label="Meninggal" value={fmtAngka(k.meninggal)} tone="rose" />
+          <Kpi label="Luka berat" value={fmtAngka(k.luka_berat)} tone="amber" />
+          <Kpi label="Luka ringan" value={fmtAngka(k.luka_ringan)} tone="amber" />
+          <Kpi label="Hilang" value={fmtAngka(k.hilang)} />
+          <Kpi label="Pengungsi" value={fmtAngka(k.pengungsi)} tone="teal" />
+          <Kpi label="Terdampak" value={fmtAngka(k.terdampak)} tone="teal" />
+          <Kpi label="Faskes rusak" value={fmtAngka(k.faskes_rusak)} />
+        </>
+      }
+    >
+      <p className="mb-2 text-[11px] font-semibold text-slate-500">Tren korban di kab/kota yang sama</p>
+      <ChartBox empty={!data.length}>
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data} margin={{ top: 6, right: 8, left: -18, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+            <XAxis dataKey="label" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
+            <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
+            <Tooltip contentStyle={tipStyle} />
+            <Legend wrapperStyle={{ fontSize: 11 }} />
+            <Bar dataKey="meninggal" name="Meninggal" fill="#be123c" stackId="a" radius={[0, 0, 0, 0]} />
+            <Bar dataKey="luka" name="Luka" fill="#d97706" stackId="a" />
+            <Bar dataKey="pengungsi" name="Pengungsi" fill="#00705a" radius={[3, 3, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </ChartBox>
+    </SectionCard>
   )
 }
 
-export function KejadianRingkasanSituasi({ k, status, nearby, riwayat, konteks }: { k: any; status?: any; nearby?: any; riwayat?: any; konteks?: any }) {
-  const narasi = useMemo(() => susunNarasi({ k, status, nearby, riwayat, konteks }), [k, status, nearby, riwayat, konteks])
+function SecTck({ tck, kabNama }: { tck?: any; kabNama?: string }) {
+  if (!tck?.tersedia) {
+    return (
+      <SectionCard id="kejadian-sec-tck" eyebrow="TCK" title="Tenaga cadangan kesehatan" source="API Tenaga Cadangan, tingkat provinsi">
+        <Empty />
+      </SectionCard>
+    )
+  }
+  const profesiRows = TCK_PROFESI.map((nama) => ({ nama, jumlah: Number(tck.profesi?.[nama] || 0) })).filter((r) => tck.profesi)
+  const showProfesi = Boolean(tck.profesi) && profesiRows.some((r) => r.jumlah > 0)
+  const kabRows = (tck.kab || []).map((r: any) => ({
+    nama: r.nama,
+    n: r.n,
+    nakes: r.nakes,
+    non: Math.max(0, Number(r.n || 0) - Number(r.nakes || 0)),
+  }))
+  const usiaRows = Array.isArray(tck.usia) ? USIA_LABEL.map((nama, i) => ({ nama, jumlah: Number(tck.usia[i] || 0) })) : []
+  const kabKey = String(kabNama || '').toUpperCase().replace(/^(KOTA|KAB\.?|KABUPATEN)\s+/i, '').replace(/[^A-Z0-9]/g, '')
+  const hitKab = (nama: string) => {
+    const n = String(nama || '').toUpperCase().replace(/^(KOTA|KAB\.?|KABUPATEN)\s+/i, '').replace(/[^A-Z0-9]/g, '')
+    return Boolean(kabKey && n && (n === kabKey || n.includes(kabKey) || kabKey.includes(n)))
+  }
   return (
-    <section className="space-y-4" data-testid="kejadian-section-situasi">
-      <div>
-        <p className="skdr-eyebrow">Ringkasan situasi</p>
-        <h2 className="text-lg font-bold text-slate-900 sm:text-xl">Gambaran kejadian dan dampak menurut API</h2>
-      </div>
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 lg:col-span-7">
-          {narasi.length ? (
-            <div className="space-y-3 text-[13.5px] leading-relaxed text-slate-700">
-              {narasi.map((s, i) => <p key={i}>{s}</p>)}
+    <SectionCard
+      id="kejadian-sec-tck"
+      eyebrow="TCK"
+      title={`Tenaga cadangan · ${tck.provinsi || 'Provinsi'}`}
+      source="API Tenaga Cadangan Kesehatan (agregat provinsi)"
+      kpis={
+        <>
+          <Kpi label="Relawan" value={fmtAngka(tck.individu)} tone="teal" />
+          <Kpi label="Nakes" value={fmtAngka(tck.nakes)} />
+          <Kpi label="Non-nakes" value={fmtAngka(tck.non_nakes)} />
+          <Kpi label="Tim" value={fmtAngka(tck.tim)} sub={tck.tim_individu != null ? `${fmtAngka(tck.tim_individu)} anggota` : undefined} />
+          <Kpi label="EMT" value={fmtAngka(tck.emt)} sub={tck.emt_individu != null ? `${fmtAngka(tck.emt_individu)} anggota` : undefined} />
+          <Kpi label="Terhubung tim" value={fmtAngka(tck.terhubung_tim)} />
+        </>
+      }
+    >
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div>
+          <p className="mb-2 text-[11px] font-semibold text-slate-500">Profesi</p>
+          {showProfesi ? (
+            <>
+              <div className="mb-3 h-40">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={profesiRows} layout="vertical" margin={{ top: 0, right: 12, left: 8, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis type="number" tick={{ fontSize: 10 }} allowDecimals={false} />
+                    <YAxis type="category" dataKey="nama" width={128} tick={{ fontSize: 9 }} />
+                    <Tooltip contentStyle={tipStyle} />
+                    <Bar dataKey="jumlah" name="Relawan" fill="#00705a" radius={[0, 3, 3, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+              <Matrix
+                columns={[
+                  { key: 'nama', label: 'Golongan' },
+                  { key: 'jumlah', label: 'Jumlah', align: 'right', fmt: (v) => fmtAngka(v) },
+                ]}
+                rows={profesiRows}
+                rowKey={(r) => r.nama}
+              />
+            </>
+          ) : <Empty />}
+        </div>
+        <div className="space-y-4">
+          <div>
+            <p className="mb-2 text-[11px] font-semibold text-slate-500">Per kab/kota di provinsi ini</p>
+            <Matrix
+              columns={[
+                { key: 'nama', label: 'Kab/kota' },
+                { key: 'n', label: 'Relawan', align: 'right', fmt: (v) => fmtAngka(v) },
+                { key: 'nakes', label: 'Nakes', align: 'right', fmt: (v) => fmtAngka(v) },
+                { key: 'non', label: 'Non-nakes', align: 'right', fmt: (v) => fmtAngka(v) },
+              ]}
+              rows={kabRows}
+              rowKey={(r, i) => `${r.nama}-${i}`}
+              highlight={(r) => hitKab(r.nama)}
+            />
+          </div>
+          {usiaRows.length ? (
+            <div>
+              <p className="mb-2 text-[11px] font-semibold text-slate-500">Usia · jenis kelamin</p>
+              <div className="mb-2 flex flex-wrap gap-3 text-[12px] font-semibold text-slate-700">
+                <span>Perempuan {fmtAngka(tck.perempuan)}</span>
+                <span>Laki-laki {fmtAngka(tck.laki)}</span>
+              </div>
+              <Matrix
+                columns={[
+                  { key: 'nama', label: 'Kelompok usia' },
+                  { key: 'jumlah', label: 'Jumlah', align: 'right', fmt: (v) => fmtAngka(v) },
+                ]}
+                rows={usiaRows}
+                rowKey={(r) => r.nama}
+              />
             </div>
-          ) : (
-            <ApiKosong pesan="Data belum tersedia dari API" />
-          )}
-          {konteks?.fetched_at ? (
-            <p className="mt-4 text-[10px] text-slate-400">Konteks terbuka diambil {konteks.fetched_at}.</p>
-          ) : konteks === null ? (
-            <p className="mt-4 text-[10px] text-slate-400">Sedang mengambil konteks terbuka dari API…</p>
           ) : null}
         </div>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:col-span-5 lg:grid-cols-2" data-testid="kejadian-kpi-strip">
-          <SituasiKpi label="Meninggal" value={k.meninggal} tone="rose" />
-          <SituasiKpi label="Luka berat" value={k.luka_berat} tone="amber" />
-          <SituasiKpi label="Luka ringan" value={k.luka_ringan} tone="amber" />
-          <SituasiKpi label="Hilang" value={k.hilang} tone="slate" />
-          <SituasiKpi label="Pengungsi" value={k.pengungsi} tone="teal" />
-          <SituasiKpi label="Terdampak" value={k.terdampak} tone="teal" />
-          <SituasiKpi label="Faskes rusak" value={k.faskes_rusak} tone="slate" />
+      </div>
+    </SectionCard>
+  )
+}
+
+function SecLogistik({ log }: { log?: any }) {
+  if (!log?.tersedia) {
+    return (
+      <SectionCard id="kejadian-sec-logistik" eyebrow="Logistik" title="Stok logistik regional" source="API Logistik Kesehatan (SIMLOGKES)">
+        <Empty />
+      </SectionCard>
+    )
+  }
+  const kat = log.kategori || []
+  const tren = (log.tren || []).map((r: any) => ({
+    label: String(r.bulan || '').slice(2),
+    masuk: r.penerimaan ?? r.masuk,
+    keluar: r.pengeluaran ?? r.keluar,
+  }))
+  return (
+    <SectionCard
+      id="kejadian-sec-logistik"
+      eyebrow="Logistik"
+      title={`Stok regional · ${log.nama}`}
+      source="API Logistik Kesehatan, agregat regional penanggung provinsi ini"
+      kpis={
+        <>
+          <Kpi label="Stok" value={nf(log.total)} tone="teal" />
+          <Kpi label="Baris barang" value={fmtAngka(log.barang)} />
+          <Kpi label="Masuk" value={nf(log.masuk)} />
+          <Kpi label="Keluar" value={nf(log.keluar)} />
+          <Kpi label="Kedaluwarsa" value={fmtAngka(log.kedaluwarsa)} tone={log.kedaluwarsa ? 'rose' : 'slate'} />
+          <Kpi label="Segera habis masa" value={fmtAngka(log.segera_kedaluwarsa)} tone={log.segera_kedaluwarsa ? 'amber' : 'slate'} />
+        </>
+      }
+    >
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div>
+          <p className="mb-2 text-[11px] font-semibold text-slate-500">Stok per kategori</p>
+          <div className="mb-3 h-40">
+            <ChartBox empty={!kat.some((r: any) => r.stok > 0)}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={kat} margin={{ top: 4, right: 8, left: -18, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="nama" tick={{ fontSize: 9 }} interval={0} />
+                  <YAxis tick={{ fontSize: 10 }} />
+                  <Tooltip contentStyle={tipStyle} />
+                  <Bar dataKey="stok" name="Stok" fill="#00705a" radius={[3, 3, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartBox>
+          </div>
+          <Matrix
+            columns={[
+              { key: 'nama', label: 'Kategori' },
+              { key: 'stok', label: 'Stok', align: 'right', fmt: (v) => nf(v) },
+            ]}
+            rows={kat}
+            rowKey={(r) => r.key}
+          />
+        </div>
+        <div className="space-y-4">
+          {tren.length ? (
+            <div>
+              <p className="mb-2 text-[11px] font-semibold text-slate-500">Pergerakan stok (sampel API)</p>
+              <ChartBox empty={!tren.length}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={tren} margin={{ top: 4, right: 8, left: -18, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="label" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
+                    <YAxis tick={{ fontSize: 10 }} />
+                    <Tooltip contentStyle={tipStyle} />
+                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    <Bar dataKey="masuk" name="Masuk" fill="#00705a" radius={[3, 3, 0, 0]} />
+                    <Bar dataKey="keluar" name="Keluar" fill="#d97706" radius={[3, 3, 0, 0]} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </ChartBox>
+            </div>
+          ) : null}
+          <div>
+            <p className="mb-2 text-[11px] font-semibold text-slate-500">Barang stok teratas di regional ini</p>
+            <Matrix
+              columns={[
+                { key: 'nama', label: 'Barang' },
+                { key: 'kategori', label: 'Kategori' },
+                { key: 'stok', label: 'Stok', align: 'right', fmt: (v) => nf(v) },
+                { key: 'satuan', label: 'Satuan' },
+              ]}
+              rows={log.barang_teratas || []}
+              rowKey={(r, i) => `${r.nama}-${i}`}
+            />
+          </div>
+          {(log.kedaluwarsa_daftar || []).length ? (
+            <div>
+              <p className="mb-2 text-[11px] font-semibold text-slate-500">Mendekati atau sudah kedaluwarsa</p>
+              <Matrix
+                columns={[
+                  { key: 'nama', label: 'Barang' },
+                  { key: 'stok', label: 'Stok', align: 'right', fmt: (v) => nf(v) },
+                  { key: 'expired', label: 'Exp', align: 'right' },
+                  { key: 'lewat', label: 'Status', fmt: (v) => (
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${v ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'}`}>{v ? 'Lewat' : '≤ 90 hari'}</span>
+                  ) },
+                ]}
+                rows={log.kedaluwarsa_daftar}
+                rowKey={(r, i) => `${r.nama}-exp-${i}`}
+              />
+            </div>
+          ) : null}
         </div>
       </div>
-    </section>
+    </SectionCard>
   )
 }
 
-function Indikator({ label, value, sub }: { label: string; value: string; sub?: string }) {
+function SecFaskes({ nearby }: { nearby?: any }) {
+  const psc = nearby?.psc
+  const amb = nearby?.ambulans
+  const rs = nearby?.rs
+  const rows = psc?.tersedia ? (psc.daftar || []) : []
   return (
-    <div className="rounded-xl border border-slate-200 bg-white px-3 py-2.5" data-testid="kejadian-indikator">
-      <div className="truncate text-[9.5px] font-black uppercase tracking-wider text-slate-400">{label}</div>
-      <div className="mt-0.5 text-lg font-black tabular-nums text-slate-900">{value}</div>
-      {sub ? <div className="text-[10px] text-slate-500">{sub}</div> : null}
-    </div>
+    <SectionCard
+      id="kejadian-sec-faskes"
+      eyebrow="Faskes & PSC"
+      title="PSC, ambulans, dan RS dalam 50 km"
+      source="API PSC 119 / Pusat Krisis"
+      kpis={
+        <>
+          <Kpi label="PSC aktif" value={psc?.tersedia ? `${fmtAngka(psc.aktif)}/${fmtAngka(psc.total)}` : '—'} tone="teal" />
+          <Kpi label="Ambulans siap" value={amb?.tersedia ? `${fmtAngka(amb.siap)}/${fmtAngka(amb.total)}` : '—'} tone="amber" />
+          <Kpi label="RS jejaring" value={rs?.tersedia ? fmtAngka(rs.total) : '—'} />
+        </>
+      }
+    >
+      <p className="mb-2 text-[11px] font-semibold text-slate-500">Daftar PSC terdekat</p>
+      <Matrix
+        columns={[
+          { key: 'nama', label: 'PSC' },
+          { key: 'kab', label: 'Kab/kota', fmt: (v) => v || '—' },
+          { key: 'aktif', label: 'Status', fmt: (v) => (
+            <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${v ? STATUS_BADGE.aktif : STATUS_BADGE.nonaktif}`}>{v ? 'Aktif' : 'Nonaktif'}</span>
+          ) },
+          { key: 'ambulans', label: 'Ambulans', align: 'right', fmt: (v) => fmtAngka(v) },
+          { key: 'siap', label: 'Siap', align: 'right', fmt: (v) => fmtAngka(v) },
+          { key: 'jarak_km', label: 'Jarak', align: 'right', fmt: (v) => (v != null ? nf(v, 'km', 1) : '—') },
+        ]}
+        rows={rows}
+        rowKey={(r, i) => `${r.nama}-${i}`}
+      />
+      {rs?.catatan ? <p className="mt-2 text-[10px] text-slate-400">{rs.catatan}</p> : null}
+    </SectionCard>
   )
 }
 
-function indikatorUntuk(k: any, riwayat: any, konteks: any, nearby: any) {
-  const items: { label: string; value: string; sub?: string }[] = []
-  if (riwayat?.tersedia) {
-    items.push({ label: 'Riwayat kab 12 bln', value: fmtAngka(riwayat.kab?.total), sub: riwayat.kab?.serupa != null ? `${fmtAngka(riwayat.kab.serupa)} sejenis` : 'API EOC' })
-  }
-  if (nearby?.psc) {
-    items.push({
-      label: 'PSC dalam 50 km',
-      value: nearby.psc.tersedia ? `${fmtAngka(nearby.psc.aktif)}/${fmtAngka(nearby.psc.total)}` : '—',
-      sub: nearby.psc.tersedia ? 'aktif / tercatat' : 'Data belum tersedia dari API',
-    })
-  }
+function SecRisiko({ risiko, pieKab, piePending, onShowAsis, onShowPie }: {
+  risiko?: any
+  pieKab?: { disease: string; status: string }[] | null
+  piePending?: boolean
+  onShowAsis?: (mode: 'irbi' | 'kapasitas') => void
+  onShowPie?: () => void
+}) {
+  const rows = [risiko?.kab, risiko?.prov].filter(Boolean)
+  const pie = pieKab || []
+  const nT = pie.filter((p) => p.status === 'Tinggi').length
+  const nS = pie.filter((p) => p.status === 'Sedang').length
+  const nR = pie.filter((p) => p.status === 'Rendah').length
+  return (
+    <SectionCard
+      id="kejadian-sec-risiko"
+      eyebrow="Asistensi & risiko"
+      title="Kapasitas, IRBI, dan PIE"
+      source={risiko?.tahun ? `API Asistensi Risiko · PIE tahun ${risiko.tahun}` : 'API Asistensi Risiko · API Peta Risiko PIE'}
+      actions={
+        <div className="flex flex-wrap gap-1">
+          {onShowAsis ? (
+            <>
+              <button type="button" onClick={() => onShowAsis('irbi')} className="rounded-md bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-700 hover:bg-slate-200">Arsiran IRBI</button>
+              <button type="button" onClick={() => onShowAsis('kapasitas')} className="rounded-md bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-700 hover:bg-slate-200">Arsiran kapasitas</button>
+            </>
+          ) : null}
+          {onShowPie ? <button type="button" onClick={onShowPie} className="rounded-md bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-700 hover:bg-slate-200">Arsiran PIE</button> : null}
+        </div>
+      }
+      kpis={
+        <>
+          <Kpi label="Kapasitas" value={risiko?.kapasitas || '—'} tone={/rendah|belum/i.test(String(risiko?.kapasitas || '')) ? 'amber' : 'teal'} />
+          <Kpi label="IRBI" value={risiko?.irbi || '—'} tone={/tinggi/i.test(String(risiko?.irbi || '')) ? 'rose' : 'slate'} />
+          <Kpi label="Poin kapasitas" value={risiko?.poin != null ? `${nf(risiko.poin, '', 0)}%` : '—'} />
+          <Kpi label="PIE tinggi" value={piePending ? '…' : fmtAngka(pie.length ? nT : null)} tone="rose" />
+          <Kpi label="PIE sedang" value={piePending ? '…' : fmtAngka(pie.length ? nS : null)} tone="amber" />
+          <Kpi label="PIE rendah" value={piePending ? '…' : fmtAngka(pie.length ? nR : null)} tone="teal" />
+        </>
+      }
+    >
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div>
+          <p className="mb-2 text-[11px] font-semibold text-slate-500">Asistensi wilayah</p>
+          <Matrix
+            columns={[
+              { key: 'nama', label: 'Wilayah' },
+              { key: 'level', label: 'Level' },
+              { key: 'kapasitas', label: 'Kapasitas', fmt: (v) => v ? <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${badgeStatus(v)}`}>{v}</span> : '—' },
+              { key: 'irbi', label: 'IRBI', fmt: (v) => v ? <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${badgeStatus(v)}`}>{v}</span> : '—' },
+              { key: 'poin', label: 'Poin', align: 'right', fmt: (v) => (v != null ? `${nf(v, '', 0)}%` : '—') },
+            ]}
+            rows={risiko?.tersedia ? rows : []}
+            rowKey={(r) => `${r.level}-${r.nama}`}
+          />
+        </div>
+        <div>
+          <p className="mb-2 text-[11px] font-semibold text-slate-500">PIE kab/kota ini</p>
+          {piePending ? <Empty pending /> : (
+            <Matrix
+              columns={[
+                { key: 'disease', label: 'Penyakit' },
+                { key: 'status', label: 'Status', fmt: (v) => <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${STATUS_BADGE[v] || badgeStatus(v)}`}>{v || '—'}</span> },
+              ]}
+              rows={pie}
+              rowKey={(r, i) => `${r.disease}-${i}`}
+            />
+          )}
+        </div>
+      </div>
+    </SectionCard>
+  )
+}
+
+function SecLingkungan({ k, konteks }: { k: any; konteks?: any }) {
+  const kind = k?.kind
+  const [rentangCuaca, setRentangCuaca] = useState<'7j' | '30h'>('7j')
+  const [rentangUdara, setRentangUdara] = useState<'72j' | 'harian'>('harian')
+  const pending = konteks == null
   const cuaca = konteks?.cuaca
   const hujan24 = sumInWindow(cuaca?.jam, 'hujan_mm', 24)
   const hujan7 = sumInWindow(cuaca?.jam, 'hujan_mm', 24 * 7)
-  const konteksSiap = konteks && konteks.ok !== false
-  if (konteksSiap && cuaca && !cuaca.kosong) {
-    items.push({ label: 'Suhu saat ini', value: nf(cuaca.saat_ini?.suhu, '°C'), sub: 'Open-Meteo' })
-    items.push({ label: 'Hujan 24 jam', value: nf(hujan24, 'mm'), sub: 'Open-Meteo, model' })
-  }
-  const kind = k?.kind
-  if (konteksSiap && (kind === 'banjir' || kind === 'longsor')) {
-    items.push({ label: 'Hujan 7 hari', value: nf(hujan7, 'mm'), sub: 'Open-Meteo, model' })
-    const last = (konteks?.banjir?.harian || []).filter((r: any) => r.debit != null).at(-1)
-    if (konteks?.banjir && !konteks.banjir.kosong) {
-      items.push({ label: 'Debit model', value: last ? nf(last.debit, konteks.banjir.satuan || 'm³/s') : '—', sub: 'GloFAS, bukan peringatan resmi' })
-    }
-  }
-  const fire = konteks?.karhutla
-  if (konteksSiap && (kind === 'karhutla' || (fire && ((fire.total_7hari ?? fire.total ?? 0) > 0)))) {
-    items.push({ label: 'Titik panas 24 jam', value: fmtAngka(fire?.total_24jam), sub: `FIRMS, ${fire?.radius_km || 50} km` })
-    items.push({ label: 'Titik panas 7 hari', value: fmtAngka(fire?.total_7hari ?? fire?.total), sub: 'FIRMS VIIRS' })
-    items.push({ label: 'Keyakinan tinggi', value: fmtAngka(fire?.per_confidence?.tinggi), sub: '7 hari, FIRMS' })
-  }
-  const udara = konteks?.udara
-  if (konteksSiap && udara && !udara.kosong) {
-    items.push({ label: 'PM2.5', value: nf(udara.saat_ini?.pm25, 'µg/m³'), sub: 'CAMS, bukan ISPU resmi' })
-    items.push({ label: 'US AQI', value: nf(udara.saat_ini?.us_aqi, '', 0), sub: 'model CAMS' })
-  }
-  const bahaya = konteks?.bahaya
-  if (konteksSiap && (kind === 'gempa' || kind === 'erupsi') && bahaya) {
-    const itemsB = bahaya.items || []
-    const mags = itemsB.map((r: any) => r.magnitude).filter((n: any) => n != null)
-    items.push({ label: kind === 'gempa' ? 'Gempa/peringatan sekitar' : 'Peringatan sekitar', value: bahaya.kosong ? '0' : fmtAngka(itemsB.length), sub: `${bahaya.radius_km} km · BMKG/GDACS` })
-    if (mags.length) items.push({ label: 'Magnitudo maks', value: `M${nf(Math.max(...mags), '', 1)}`, sub: 'BMKG/GDACS dalam radius' })
-  }
-  return items
-}
-
-export function KejadianAnalisisSection({ k, riwayat, konteks, nearby }: { k: any; riwayat?: any; konteks?: any; nearby?: any }) {
-  const kind = k?.kind
-  const [rentangRiwayat, setRentangRiwayat] = useState<'30h' | '12bln'>('12bln')
-  const [rentangCuaca, setRentangCuaca] = useState<'7j' | '30h'>('7j')
-  const [rentangUdara, setRentangUdara] = useState<'72j' | 'harian'>('harian')
-
-  const indikator = useMemo(() => indikatorUntuk(k, riwayat, konteks, nearby), [k, riwayat, konteks, nearby])
-
-  const riwayatData = useMemo(() => {
-    if (!riwayat?.tersedia) return []
-    if (rentangRiwayat === '30h') return (riwayat.tren30 || []).map((r: any) => ({ ...r, label: String(r.tanggal || '').slice(5) }))
-    return (riwayat.tren || []).map((r: any) => ({ ...r, label: String(r.bulan || '').slice(2) }))
-  }, [riwayat, rentangRiwayat])
-
-  const korbanData = useMemo(() => {
-    if (!riwayat?.tersedia) return []
-    const src = rentangRiwayat === '30h' ? riwayat.korban30 : riwayat.korbanTren
-    return (src || []).map((r: any) => ({ ...r, label: String(r.bulan || r.tanggal || '').slice(rentangRiwayat === '30h' ? 5 : 2) }))
-  }, [riwayat, rentangRiwayat])
-
   const cuacaData = useMemo(() => {
-    const c = konteks?.cuaca
-    if (!c || c.kosong) return []
-    if (rentangCuaca === '7j') return (c.jam || []).map((r: any) => ({ label: String(r.waktu || '').slice(5, 16).replace('T', ' '), hujan: r.hujan_mm, suhu: r.suhu }))
-    return (c.harian30 || c.harian || []).map((r: any) => ({ label: String(r.tanggal || '').slice(5), hujan: r.hujan_mm, suhu: r.suhu_max ?? r.suhu }))
-  }, [konteks, rentangCuaca])
-
+    if (!cuaca || cuaca.kosong) return []
+    if (rentangCuaca === '7j') return (cuaca.jam || []).map((r: any) => ({ label: String(r.waktu || '').slice(5, 16).replace('T', ' '), hujan: r.hujan_mm, suhu: r.suhu }))
+    return (cuaca.harian30 || cuaca.harian || []).map((r: any) => ({ label: String(r.tanggal || '').slice(5), hujan: r.hujan_mm, suhu: r.suhu_max ?? r.suhu }))
+  }, [cuaca, rentangCuaca])
   const udaraData = useMemo(() => {
     const jam = konteks?.udara?.jam
     if (!jam?.length) return []
     if (rentangUdara === '72j') {
       const from = Date.now() - 72 * 3600_000
-      return jam
-        .filter((r: any) => {
-          const ts = Date.parse(r.waktu)
-          return Number.isFinite(ts) && ts >= from
-        })
+      return jam.filter((r: any) => { const ts = Date.parse(r.waktu); return Number.isFinite(ts) && ts >= from })
         .map((r: any) => ({ label: String(r.waktu || '').slice(5, 16).replace('T', ' '), pm25: r.pm25, aqi: r.us_aqi }))
     }
-    const byDay = new Map<string, { n: number; pm25: number; aqi: number; npm: number; naqi: number }>()
+    const byDay = new Map<string, { pm25: number; aqi: number; npm: number; naqi: number }>()
     for (const r of jam) {
       const day = String(r.waktu || '').slice(0, 10)
       if (!day) continue
-      const row = byDay.get(day) || { n: 0, pm25: 0, aqi: 0, npm: 0, naqi: 0 }
-      row.n += 1
+      const row = byDay.get(day) || { pm25: 0, aqi: 0, npm: 0, naqi: 0 }
       if (r.pm25 != null) { row.pm25 += Number(r.pm25); row.npm += 1 }
       if (r.us_aqi != null) { row.aqi += Number(r.us_aqi); row.naqi += 1 }
       byDay.set(day, row)
     }
-    return [...byDay.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([tanggal, r]) => ({
-      label: tanggal.slice(5),
+    return [...byDay.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([t, r]) => ({
+      label: t.slice(5),
       pm25: r.npm ? Math.round((r.pm25 / r.npm) * 10) / 10 : null,
       aqi: r.naqi ? Math.round(r.aqi / r.naqi) : null,
     }))
   }, [konteks, rentangUdara])
-
   const firmsData = useMemo(() => (konteks?.karhutla?.tren || []).map((r: any) => ({
-    label: String(r.tanggal || '').slice(5),
-    n: r.n,
-    tinggi: r.tinggi ?? 0,
-    sedang: r.sedang ?? 0,
-    rendah: r.rendah ?? 0,
+    label: String(r.tanggal || '').slice(5), n: r.n, tinggi: r.tinggi ?? 0, sedang: r.sedang ?? 0, rendah: r.rendah ?? 0,
   })), [konteks])
-
   const debitData = useMemo(() => (konteks?.banjir?.harian || []).map((r: any) => ({
-    label: String(r.tanggal || '').slice(5),
-    debit: r.debit,
-    rerata: r.debit_rerata,
+    label: String(r.tanggal || '').slice(5), debit: r.debit, rerata: r.debit_rerata,
   })), [konteks])
-
   const showFirms = kind === 'karhutla' || firmsData.some((r: any) => r.n > 0)
   const showDebit = kind === 'banjir'
   const showBahaya = kind === 'gempa' || kind === 'erupsi'
-  const bahayaItems = konteks?.bahaya?.items || []
+  const bahaya = konteks?.bahaya?.items || []
+  const udara = konteks?.udara
+  const fire = konteks?.karhutla
 
   return (
-    <section className="space-y-4" data-testid="kejadian-section-analitik">
-      <div>
-        <p className="skdr-eyebrow">Analisis dampak</p>
-        <h2 className="text-lg font-bold text-slate-900 sm:text-xl">Data situasi per indikator</h2>
-        <p className="mt-1 max-w-3xl text-[13px] leading-relaxed text-slate-500">
-          Indikator dan grafik disusun dari API EOC serta sumber terbuka tanpa kunci, dibatasi pada kejadian ini
-          (kab/kota, radius, atau titik koordinat). Bukan angka nasional atau data contoh.
-        </p>
-      </div>
-
-      {indikator.length ? (
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6" data-testid="kejadian-indikator-strip">
-          {indikator.map((it) => <Indikator key={it.label} {...it} />)}
-        </div>
-      ) : (
-        <ApiKosong pesan="Data belum tersedia dari API" />
-      )}
-
+    <SectionCard
+      id="kejadian-sec-lingkungan"
+      eyebrow="Lingkungan"
+      title="Cuaca, udara, dan ancaman di sekitar titik"
+      source="Open-Meteo, NASA FIRMS, BMKG, GDACS · model bukan peringatan resmi"
+      kpis={
+        <>
+          <Kpi label="Suhu" value={pending ? '…' : nf(cuaca?.saat_ini?.suhu, '°C', 1)} />
+          <Kpi label="Hujan 24 jam" value={pending ? '…' : nf(hujan24, 'mm', 1)} tone="teal" />
+          <Kpi label="Hujan 7 hari" value={pending ? '…' : nf(hujan7, 'mm', 1)} />
+          <Kpi label="PM2.5" value={pending ? '…' : nf(udara?.saat_ini?.pm25, 'µg/m³', 1)} sub="CAMS, bukan ISPU" />
+          <Kpi label="US AQI" value={pending ? '…' : nf(udara?.saat_ini?.us_aqi, '', 0)} />
+          {showFirms ? <Kpi label="FIRMS 7 hari" value={pending ? '…' : fmtAngka(fire?.total_7hari ?? fire?.total)} sub={`${fmtAngka(fire?.total_24jam)} / 24 jam`} tone="amber" /> : null}
+          {showBahaya ? <Kpi label="BMKG/GDACS" value={pending ? '…' : fmtAngka(bahaya.length)} sub={`${konteks?.bahaya?.radius_km || '—'} km`} /> : null}
+        </>
+      }
+    >
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <ChartCard
-          title="Riwayat kejadian di wilayah yang sama"
-          sumber="API EOC Pusat Krisis · agregat kab/kota dan kejadian sejenis"
-          actions={<RangeBtn value={rentangRiwayat} onChange={(id) => setRentangRiwayat(id as '30h' | '12bln')} options={[{ id: '30h', label: '30 hari' }, { id: '12bln', label: '12 bulan' }]} />}
-          empty={!riwayatData.length}
-          catatan={riwayat?.tersedia ? `Kab/kota ${fmtAngka(riwayat.kab?.total)} (${fmtAngka(riwayat.kab?.serupa)} sejenis) · Provinsi ${fmtAngka(riwayat.prov?.total)}` : undefined}
-        >
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={riwayatData} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-              <XAxis dataKey="label" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
-              <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
-              <Tooltip />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Bar dataKey="kab" name="Kab/kota" fill="#00705a" radius={[3, 3, 0, 0]} />
-              <Bar dataKey="serupa_kab" name="Sejenis" fill="#0ea5e9" radius={[3, 3, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
-
-        <ChartCard
-          title="Tren korban di kab/kota yang sama"
-          sumber="API EOC Pusat Krisis · jumlah meninggal, luka, dan pengungsi pada kejadian lain di wilayah ini"
-          actions={<RangeBtn value={rentangRiwayat} onChange={(id) => setRentangRiwayat(id as '30h' | '12bln')} options={[{ id: '30h', label: '30 hari' }, { id: '12bln', label: '12 bulan' }]} />}
-          empty={!korbanData.length}
-        >
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={korbanData} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-              <XAxis dataKey="label" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
-              <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
-              <Tooltip />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Bar dataKey="meninggal" name="Meninggal" fill="#be123c" radius={[3, 3, 0, 0]} stackId="a" />
-              <Bar dataKey="luka" name="Luka" fill="#d97706" radius={[3, 3, 0, 0]} stackId="a" />
-              <Bar dataKey="pengungsi" name="Pengungsi" fill="#0f766e" radius={[3, 3, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </ChartCard>
-
-        <ChartCard
-          title="Curah hujan dan suhu di titik kejadian"
-          sumber="Open-Meteo forecast dan arsip · model cuaca global, bukan prakiraan resmi BMKG"
-          actions={<RangeBtn value={rentangCuaca} onChange={(id) => setRentangCuaca(id as '7j' | '30h')} options={[{ id: '7j', label: 'Jam (7 hari)' }, { id: '30h', label: '30 hari' }]} />}
-          pending={konteks == null}
-          empty={!cuacaData.length}
-          catatan={konteks?.cuaca?.error ? `Gagal memuat: ${konteks.cuaca.error}` : undefined}
-        >
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={cuacaData} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-              <XAxis dataKey="label" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
-              <YAxis yAxisId="kiri" tick={{ fontSize: 10 }} />
-              <YAxis yAxisId="kanan" orientation="right" tick={{ fontSize: 10 }} />
-              <Tooltip />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Area yAxisId="kiri" type="monotone" dataKey="hujan" name="Hujan (mm)" stroke="#0284c7" fill="#bae6fd" strokeWidth={1.6} />
-              <Line yAxisId="kanan" type="monotone" dataKey="suhu" name="Suhu (°C)" stroke="#b45309" strokeWidth={1.8} dot={false} />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </ChartCard>
-
-        <ChartCard
-          title="Kualitas udara PM2.5 dan US AQI"
-          sumber="Open-Meteo Air Quality · model CAMS Copernicus, bukan ISPU resmi"
-          actions={<RangeBtn value={rentangUdara} onChange={(id) => setRentangUdara(id as '72j' | 'harian')} options={[{ id: '72j', label: '72 jam' }, { id: 'harian', label: 'Harian' }]} />}
-          pending={konteks == null}
-          empty={!udaraData.length}
-          catatan="Nilai US AQI dan PM2.5 berasal dari model CAMS. Bukan ISPU resmi stasiun KLHK."
-        >
-          <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={udaraData} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-              <XAxis dataKey="label" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
-              <YAxis yAxisId="kiri" tick={{ fontSize: 10 }} />
-              <YAxis yAxisId="kanan" orientation="right" tick={{ fontSize: 10 }} />
-              <Tooltip />
-              <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Area yAxisId="kiri" type="monotone" dataKey="pm25" name="PM2.5 (µg/m³)" stroke="#7c3aed" fill="#ddd6fe" strokeWidth={1.6} />
-              <Line yAxisId="kanan" type="monotone" dataKey="aqi" name="US AQI" stroke="#0f766e" strokeWidth={1.8} dot={false} />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </ChartCard>
-
-        {showFirms ? (
-          <ChartCard
-            title="Titik panas FIRMS di sekitar kejadian"
-            sumber={`NASA FIRMS VIIRS · radius ${konteks?.karhutla?.radius_km || 50} km, 24 jam vs 7 hari menurut keyakinan`}
-            pending={konteks == null}
-            empty={!firmsData.length}
-            catatan={
-              konteks?.karhutla
-                ? `24 jam: ${fmtAngka(konteks.karhutla.total_24jam)} titik · 7 hari: ${fmtAngka(konteks.karhutla.total_7hari ?? konteks.karhutla.total)} titik · keyakinan tinggi ${fmtAngka(konteks.karhutla.per_confidence?.tinggi)}, sedang ${fmtAngka(konteks.karhutla.per_confidence?.sedang)}, rendah ${fmtAngka(konteks.karhutla.per_confidence?.rendah)}.`
-                : undefined
-            }
-          >
+        <div>
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <p className="text-[11px] font-semibold text-slate-500">Hujan & suhu</p>
+            <RangeBtn value={rentangCuaca} onChange={(id) => setRentangCuaca(id as any)} options={[{ id: '7j', label: 'Jam' }, { id: '30h', label: '30 hari' }]} />
+          </div>
+          <ChartBox pending={pending} empty={!cuacaData.length}>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={firmsData} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
+              <ComposedChart data={cuacaData} margin={{ top: 4, right: 8, left: -18, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                 <XAxis dataKey="label" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
-                <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
-                <Tooltip />
+                <YAxis yAxisId="kiri" tick={{ fontSize: 10 }} />
+                <YAxis yAxisId="kanan" orientation="right" tick={{ fontSize: 10 }} />
+                <Tooltip contentStyle={tipStyle} />
                 <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Bar dataKey="tinggi" name="Tinggi" stackId="a" fill="#be123c" radius={[0, 0, 0, 0]} />
-                <Bar dataKey="sedang" name="Sedang" stackId="a" fill="#d97706" />
-                <Bar dataKey="rendah" name="Rendah" stackId="a" fill="#94a3b8" radius={[3, 3, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </ChartCard>
-        ) : null}
-
-        {showDebit ? (
-          <ChartCard
-            title="Debit sungai model di sekitar lokasi"
-            sumber="GloFAS melalui Open-Meteo Flood · model debit global, bukan peringatan resmi BNPB atau BMKG"
-            pending={konteks == null}
-            empty={!debitData.length || !debitData.some((r: any) => r.debit != null)}
-            catatan={konteks?.banjir?.error ? `Gagal memuat: ${konteks.banjir.error}` : 'Ditampilkan hanya jika API model mengembalikan data.'}
-          >
-            <ResponsiveContainer width="100%" height="100%">
-              <ComposedChart data={debitData} margin={{ top: 8, right: 8, left: -18, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                <XAxis dataKey="label" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
-                <YAxis tick={{ fontSize: 10 }} />
-                <Tooltip />
-                <Legend wrapperStyle={{ fontSize: 11 }} />
-                <Area type="monotone" dataKey="debit" name={`Debit (${konteks?.banjir?.satuan || 'm³/s'})`} stroke="#0369a1" fill="#bae6fd" strokeWidth={1.6} />
-                <Line type="monotone" dataKey="rerata" name="Rerata model" stroke="#57534e" strokeWidth={1.4} dot={false} />
+                <Area yAxisId="kiri" type="monotone" dataKey="hujan" name="Hujan (mm)" stroke="#0284c7" fill="#bae6fd" strokeWidth={1.5} />
+                <Line yAxisId="kanan" type="monotone" dataKey="suhu" name="Suhu (°C)" stroke="#b45309" strokeWidth={1.7} dot={false} />
               </ComposedChart>
             </ResponsiveContainer>
-          </ChartCard>
+          </ChartBox>
+        </div>
+        <div>
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <p className="text-[11px] font-semibold text-slate-500">PM2.5 & US AQI</p>
+            <RangeBtn value={rentangUdara} onChange={(id) => setRentangUdara(id as any)} options={[{ id: '72j', label: '72 jam' }, { id: 'harian', label: 'Harian' }]} />
+          </div>
+          <ChartBox pending={pending} empty={!udaraData.length}>
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={udaraData} margin={{ top: 4, right: 8, left: -18, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                <XAxis dataKey="label" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
+                <YAxis yAxisId="kiri" tick={{ fontSize: 10 }} />
+                <YAxis yAxisId="kanan" orientation="right" tick={{ fontSize: 10 }} />
+                <Tooltip contentStyle={tipStyle} />
+                <Legend wrapperStyle={{ fontSize: 11 }} />
+                <Area yAxisId="kiri" type="monotone" dataKey="pm25" name="PM2.5" stroke="#7c3aed" fill="#ddd6fe" strokeWidth={1.5} />
+                <Line yAxisId="kanan" type="monotone" dataKey="aqi" name="US AQI" stroke="#0f766e" strokeWidth={1.7} dot={false} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </ChartBox>
+        </div>
+        {showFirms ? (
+          <div>
+            <p className="mb-2 text-[11px] font-semibold text-slate-500">Titik panas FIRMS (50 km)</p>
+            <ChartBox pending={pending} empty={!firmsData.length}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={firmsData} margin={{ top: 4, right: 8, left: -18, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="label" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
+                  <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
+                  <Tooltip contentStyle={tipStyle} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Bar dataKey="tinggi" name="Tinggi" stackId="a" fill="#be123c" />
+                  <Bar dataKey="sedang" name="Sedang" stackId="a" fill="#d97706" />
+                  <Bar dataKey="rendah" name="Rendah" stackId="a" fill="#94a3b8" radius={[3, 3, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </ChartBox>
+          </div>
         ) : null}
-
+        {showDebit ? (
+          <div>
+            <p className="mb-2 text-[11px] font-semibold text-slate-500">Debit sungai (GloFAS, model)</p>
+            <ChartBox pending={pending} empty={!debitData.length || !debitData.some((r: any) => r.debit != null)}>
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={debitData} margin={{ top: 4, right: 8, left: -18, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="label" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
+                  <YAxis tick={{ fontSize: 10 }} />
+                  <Tooltip contentStyle={tipStyle} />
+                  <Legend wrapperStyle={{ fontSize: 11 }} />
+                  <Area type="monotone" dataKey="debit" name="Debit" stroke="#0369a1" fill="#bae6fd" strokeWidth={1.5} />
+                  <Line type="monotone" dataKey="rerata" name="Rerata" stroke="#57534e" strokeWidth={1.4} dot={false} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </ChartBox>
+          </div>
+        ) : null}
         {showBahaya ? (
-          <article className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5 lg:col-span-2" data-testid="kejadian-bahaya">
-            <h3 className="text-sm font-bold text-slate-900">Gempa dan peringatan di sekitar lokasi</h3>
-            <p className="mt-0.5 text-[10px] text-slate-400">{konteks?.bahaya?.sumber || 'BMKG dan GDACS'} · radius {konteks?.bahaya?.radius_km || '—'} km</p>
-            {konteks == null ? (
-              <div className="mt-3"><ApiKosong pending pesan="Sedang mengambil data dari API…" /></div>
-            ) : bahayaItems.length ? (
-              <div className="mt-3 overflow-x-auto">
-                <table className="w-full min-w-[640px] text-left text-[12px]">
-                  <thead className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                    <tr>
-                      <th className="pb-2 pr-3">Sumber</th>
-                      <th className="pb-2 pr-3">Peristiwa</th>
-                      <th className="pb-2 pr-3">Lokasi</th>
-                      <th className="pb-2 pr-3">Magnitudo</th>
-                      <th className="pb-2 pr-3">Waktu</th>
-                      <th className="pb-2">Jarak</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {bahayaItems.map((row: any, i: number) => (
-                      <tr key={i} className="border-t border-slate-100">
-                        <td className="py-2 pr-3 font-semibold text-slate-600">{row.sumber || '—'}</td>
-                        <td className="py-2 pr-3 font-semibold text-slate-800">{row.title || row.label || '—'}</td>
-                        <td className="py-2 pr-3 text-slate-600">{row.place || '—'}</td>
-                        <td className="py-2 pr-3 tabular-nums">{row.magnitude != null ? `M${nf(row.magnitude, '', 1)}` : '—'}</td>
-                        <td className="py-2 pr-3 text-slate-600">{row.time || '—'}</td>
-                        <td className="py-2 tabular-nums">{row.jarak_km != null ? `${nf(row.jarak_km, 'km')}` : '—'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="mt-3"><ApiKosong pesan="Data belum tersedia dari API" detail={konteks?.magma?.catatan} /></div>
+          <div className="lg:col-span-2">
+            <p className="mb-2 text-[11px] font-semibold text-slate-500">Gempa & peringatan sekitar</p>
+            {pending ? <Empty pending /> : (
+              <Matrix
+                columns={[
+                  { key: 'sumber', label: 'Sumber' },
+                  { key: 'title', label: 'Peristiwa', fmt: (v, r) => v || r.label || '—' },
+                  { key: 'place', label: 'Lokasi' },
+                  { key: 'magnitude', label: 'M', align: 'right', fmt: (v) => (v != null ? `M${nf(v, '', 1)}` : '—') },
+                  { key: 'time', label: 'Waktu' },
+                  { key: 'jarak_km', label: 'Jarak', align: 'right', fmt: (v) => (v != null ? nf(v, 'km', 1) : '—') },
+                ]}
+                rows={bahaya}
+                rowKey={(_, i) => `b-${i}`}
+              />
             )}
-          </article>
+          </div>
         ) : null}
       </div>
-    </section>
+    </SectionCard>
   )
 }
 
-export function KejadianResponSection({ nearby, rekomendasi, risiko, onShowAsis, onShowPie }: {
+function SecRiwayat({ riwayat }: { riwayat?: any }) {
+  const [rentang, setRentang] = useState<'30h' | '12bln'>('12bln')
+  const data = useMemo(() => {
+    if (!riwayat?.tersedia) return []
+    if (rentang === '30h') return (riwayat.tren30 || []).map((r: any) => ({ ...r, label: String(r.tanggal || '').slice(5) }))
+    return (riwayat.tren || []).map((r: any) => ({ ...r, label: String(r.bulan || '').slice(2) }))
+  }, [riwayat, rentang])
+  return (
+    <SectionCard
+      id="kejadian-sec-riwayat"
+      eyebrow="Riwayat"
+      title="Kejadian di wilayah yang sama"
+      source="API EOC Pusat Krisis"
+      actions={<RangeBtn value={rentang} onChange={(id) => setRentang(id as any)} options={[{ id: '30h', label: '30 hari' }, { id: '12bln', label: '12 bulan' }]} />}
+      kpis={
+        <>
+          <Kpi label="Kab 12 bulan" value={fmtAngka(riwayat?.kab?.total)} tone="teal" />
+          <Kpi label="Sejenis di kab" value={fmtAngka(riwayat?.kab?.serupa)} />
+          <Kpi label="Provinsi 12 bulan" value={fmtAngka(riwayat?.prov?.total)} />
+        </>
+      }
+    >
+      <ChartBox empty={!data.length}>
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data} margin={{ top: 6, right: 8, left: -18, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+            <XAxis dataKey="label" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
+            <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
+            <Tooltip contentStyle={tipStyle} />
+            <Legend wrapperStyle={{ fontSize: 11 }} />
+            <Bar dataKey="kab" name="Kab/kota" fill="#00705a" radius={[3, 3, 0, 0]} />
+            <Bar dataKey="serupa_kab" name="Sejenis" fill="#0ea5e9" radius={[3, 3, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </ChartBox>
+    </SectionCard>
+  )
+}
+
+export function KejadianIndikatorSections({ k, nearby, riwayat, konteks, risiko, pieKab, piePending, onShowAsis, onShowPie }: {
+  k: any
   nearby?: any
-  rekomendasi?: { prioritas: 'tinggi' | 'sedang' | 'info'; judul: string; dasar: string }[]
+  riwayat?: any
+  konteks?: any
   risiko?: any
+  pieKab?: { disease: string; status: string }[] | null
+  piePending?: boolean
   onShowAsis?: (mode: 'irbi' | 'kapasitas') => void
   onShowPie?: () => void
 }) {
   return (
-    <section className="space-y-4" data-testid="kejadian-section-respon">
-      <div>
-        <p className="skdr-eyebrow">Kesiapan respons</p>
-        <h2 className="text-lg font-bold text-slate-900 sm:text-xl">Dukungan dan rekomendasi di sekitar lokasi</h2>
-        <p className="mt-1 max-w-3xl text-[13px] leading-relaxed text-slate-500">
-          Data PSC, ambulans, RS, TCK, dan logistik berasal dari API Pusat Krisis dalam radius 50 km.
-          Rekomendasi disusun dari angka yang sama, bukan prosedur operasi resmi.
-        </p>
-      </div>
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <article className="rounded-2xl border border-slate-200 bg-white" data-testid="kejadian-section-kesiapan">
-          <div className="border-b border-slate-100 px-5 pt-4 pb-2">
-            <h3 className="text-sm font-bold text-slate-900">Kesiapan di sekitar lokasi</h3>
-          </div>
-          <KejadianKesiapanDock nearby={nearby} />
-        </article>
-        <article className="rounded-2xl border border-slate-200 bg-white p-5" data-testid="kejadian-section-rekomendasi">
-          <h3 className="text-sm font-bold text-slate-900">Rekomendasi berdasarkan data</h3>
-          {rekomendasi?.length ? (
-            <ul className="mt-3 space-y-2.5">
-              {rekomendasi.map((r, i) => (
-                <li key={i} className={`rounded-xl border px-3 py-2.5 ${PRI[r.prioritas] || PRI.info}`}>
-                  <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">{r.prioritas}</p>
-                  <p className="mt-0.5 text-[13px] font-bold text-slate-900">{r.judul}</p>
-                  <p className="mt-0.5 text-[12px] leading-relaxed text-slate-600">{r.dasar}</p>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <div className="mt-3"><ApiKosong pesan="Data belum tersedia dari API" /></div>
-          )}
-        </article>
-        <article className="rounded-2xl border border-slate-200 bg-white lg:col-span-2" data-testid="kejadian-section-risiko">
-          <div className="border-b border-slate-100 px-5 pt-4 pb-2">
-            <h3 className="text-sm font-bold text-slate-900">Risiko wilayah · Asistensi, IRBI, dan PIE</h3>
-            <p className="text-[11px] text-slate-500">Arsiran dapat ditampilkan di peta kejadian di atas.</p>
-          </div>
-          <KejadianRisikoDock risiko={risiko} onShowAsis={onShowAsis} onShowPie={onShowPie} />
-        </article>
-      </div>
-    </section>
+    <div className="space-y-5">
+      <SecDampak k={k} riwayat={riwayat} />
+      <SecTck tck={nearby?.tck} kabNama={k?.kabupaten} />
+      <SecLogistik log={nearby?.logistik} />
+      <SecFaskes nearby={nearby} />
+      <SecRisiko risiko={risiko} pieKab={pieKab} piePending={piePending} onShowAsis={onShowAsis} onShowPie={onShowPie} />
+      <SecLingkungan k={k} konteks={konteks} />
+      <SecRiwayat riwayat={riwayat} />
+    </div>
   )
 }

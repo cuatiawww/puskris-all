@@ -65,18 +65,63 @@ export function nearbyDetail(data: any, k: any, pos: { lat: number; lon: number 
 
   return {
     radius_km: 50,
-    psc: pscLive ? { tersedia: true, total: psc.length, aktif: psc.filter((p) => p.a === 1).length, daftar: pscList.slice(0, 8) } : { tersedia: false },
+    psc: pscLive ? { tersedia: true, total: psc.length, aktif: psc.filter((p) => p.a === 1).length, daftar: pscList.slice(0, 24) } : { tersedia: false },
     ambulans: pscLive ? { tersedia: true, total: amb.length, siap: amb.filter((a) => a[2] === 1).length } : { tersedia: false },
     rs: pscLive && rsNear != null ? { tersedia: true, total: rsNear, catatan: 'Jumlah titik rumah sakit jejaring berkoordinat dalam radius. Nama faskes tidak dikirim API untuk titik ini.' } : { tersedia: false },
     tck: tckLive && tck ? {
-      tersedia: true, level: 'provinsi', provinsi: tck.nama || k.provinsi,
-      individu: Number(tck.individu || 0), nakes: Number(tck.nakes || 0), non_nakes: Number(tck.non_nakes || 0),
+      tersedia: tck.individu != null || tck.tim != null,
+      level: 'provinsi', provinsi: tck.nama || k.provinsi,
+      individu: tck.individu != null ? Number(tck.individu) : null,
+      nakes: tck.nakes != null ? Number(tck.nakes) : null,
+      non_nakes: tck.non_nakes != null ? Number(tck.non_nakes) : null,
+      perempuan: tck.perempuan != null ? Number(tck.perempuan) : null,
+      laki: tck.laki != null ? Number(tck.laki) : null,
+      terhubung_tim: tck.terhubung_tim != null ? Number(tck.terhubung_tim) : null,
+      usia: Array.isArray(tck.usia) ? tck.usia.map((n: any) => Number(n) || 0) : null,
+      profesi: tck.profesi && typeof tck.profesi === 'object' ? tck.profesi : null,
+      kab: Array.isArray(tck.kab) ? tck.kab : [],
+      tim: tck.tim != null ? Number(tck.tim) : null,
+      tim_individu: tck.tim_individu != null ? Number(tck.tim_individu) : null,
+      emt: tck.emt != null ? Number(tck.emt) : null,
+      emt_standar: tck.emt_standar != null ? Number(tck.emt_standar) : null,
+      emt_sk: tck.emt_sk != null ? Number(tck.emt_sk) : null,
+      emt_individu: tck.emt_individu != null ? Number(tck.emt_individu) : null,
+      emt_respon_24: tck.emt_respon_24 != null ? Number(tck.emt_respon_24) : null,
     } : { tersedia: false },
-    logistik: logLive && logistik ? {
-      tersedia: true, level: 'regional', nama: logistik.nama || logistik.wilayah || 'Regional',
-      total: Number(logistik.total || logistik.stok || 0),
-      catatan: 'Stok agregat regional. Angka kesenjangan kebutuhan vs stok belum tersedia dari API.',
-    } : { tersedia: false },
+    logistik: logLive && logistik ? (() => {
+      const nama = logistik.nama || logistik.wilayah || 'Regional'
+      const namaKey = String(nama).toLowerCase()
+      const matchReg = (r: any) => {
+        const n = String(r?.regional || '').toLowerCase()
+        return n === namaKey || n.startsWith(namaKey) || namaKey.startsWith(n)
+      }
+      const KAT = [
+        { key: 'obat', nama: 'Obat-Obatan' },
+        { key: 'bmhp', nama: 'Bahan Medis Habis Pakai' },
+        { key: 'alkes', nama: 'Alat Kesehatan' },
+        { key: 'sarpras', nama: 'Sarana dan Prasarana' },
+        { key: 'lainnya', nama: 'Logistik Lainnya' },
+      ]
+      return {
+        tersedia: true,
+        level: 'regional' as const,
+        id: logistik.id ?? null,
+        nama,
+        total: Number(logistik.total || logistik.stok || 0),
+        barang: logistik.barang != null ? Number(logistik.barang) : null,
+        masuk: logistik.masuk != null ? Number(logistik.masuk) : null,
+        keluar: logistik.keluar != null ? Number(logistik.keluar) : null,
+        awal: logistik.awal != null ? Number(logistik.awal) : null,
+        kedaluwarsa: logistik.kedaluwarsa != null ? Number(logistik.kedaluwarsa) : null,
+        segera_kedaluwarsa: logistik.segera_kedaluwarsa != null ? Number(logistik.segera_kedaluwarsa) : null,
+        stok_kedaluwarsa: logistik.stok_kedaluwarsa != null ? Number(logistik.stok_kedaluwarsa) : null,
+        stok_negatif: logistik.stok_negatif != null ? Number(logistik.stok_negatif) : null,
+        kategori: KAT.map((k) => ({ ...k, stok: Number(logistik[k.key] || 0) })),
+        barang_teratas: (data?.logistik?.barang_teratas || []).filter(matchReg).slice(0, 15),
+        kedaluwarsa_daftar: (data?.logistik?.kedaluwarsa || []).filter(matchReg).slice(0, 15),
+        tren: (data?.logistik?.pergerakan?.per_regional_bulanan?.[String(logistik.id)] || data?.logistik?.pergerakan?.per_regional_bulanan?.[logistik.id] || []),
+      }
+    })() : { tersedia: false },
   }
 }
 
@@ -91,17 +136,29 @@ export function risikoWilayah(data: any, k: any) {
     ? (data.asistensi.wilayah || []).find((r: any) => String(r.kode_wilayah).padStart(2, '0') === provCode && r.level === 'provinsi')
     : null
   const row = kab || prov
-  if (!live) return { tersedia: false, level: null, kapasitas: null, irbi: null, poin: null, sumber: 'API Asistensi Risiko' }
-  if (!row) return { tersedia: false, level: null, kapasitas: null, irbi: null, poin: null, sumber: 'API Asistensi Risiko', catatan: 'Wilayah ini tidak ada di data Asistensi yang termuat.' }
+  if (!live) return { tersedia: false, level: null, kapasitas: null, irbi: null, poin: null, sumber: 'API Asistensi Risiko', kab: null, prov: null }
+  if (!row) return { tersedia: false, level: null, kapasitas: null, irbi: null, poin: null, sumber: 'API Asistensi Risiko', catatan: 'Wilayah ini tidak ada di data Asistensi yang termuat.', kab: null, prov: null }
+  const pack = (r: any, level: 'kabupaten/kota' | 'provinsi', fallback: string | null) => r ? {
+    level,
+    nama: r.nama || fallback,
+    kapasitas: r.status_kapasitas || null,
+    irbi: r.status_risiko_irbi || r.status_risiko_irbi_2024 || null,
+    poin: typeof r.poin_kapasitas_pct === 'number' ? r.poin_kapasitas_pct : null,
+  } : null
+  const kabRow = pack(kab, 'kabupaten/kota', k.kabupaten || null)
+  const provRow = pack(prov, 'provinsi', k.provinsi || null)
+  const utama = kabRow || provRow
   return {
     tersedia: true,
-    level: kab ? 'kabupaten/kota' : 'provinsi',
-    nama: row.nama || (kab ? k.kabupaten : k.provinsi),
-    kapasitas: row.status_kapasitas || null,
-    irbi: row.status_risiko_irbi || row.status_risiko_irbi_2024 || null,
-    poin: typeof row.poin_kapasitas_pct === 'number' ? row.poin_kapasitas_pct : null,
+    level: utama?.level || null,
+    nama: utama?.nama || null,
+    kapasitas: utama?.kapasitas || null,
+    irbi: utama?.irbi || null,
+    poin: utama?.poin ?? null,
     tahun: data.asistensi?.tahun || null,
     sumber: 'API Asistensi Risiko',
+    kab: kabRow,
+    prov: provRow,
   }
 }
 

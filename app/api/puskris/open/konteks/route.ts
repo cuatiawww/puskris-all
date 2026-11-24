@@ -103,6 +103,10 @@ export async function GET(req: Request) {
     'https://firms.modaps.eosdis.nasa.gov/data/active_fire/noaa-20-viirs-c2/csv/J1_VIIRS_C2_SouthEast_Asia_7d.csv',
     { as: 'text', revalidate: 1800, timeoutMs: 20000 },
   )
+  const udaraP = getUpstream(
+    `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&current=us_aqi,pm2_5,pm10,carbon_monoxide&hourly=us_aqi,pm2_5,pm10,carbon_monoxide&past_days=7&forecast_days=3&timezone=Asia%2FJakarta`,
+    { revalidate: 1800, timeoutMs: 12000 },
+  )
 
   const floodP = (kind === 'banjir')
     ? getUpstream(
@@ -126,7 +130,7 @@ export async function GET(req: Request) {
       ])
     : Promise.resolve(null)
 
-  const [cuacaRes, floodRes, gempaRes, fireRes, arsipRes, gridRes, fireTrenRes] = await Promise.all([cuacaP, floodP, gempaP, fireP, arsipP, gridP, fireTrenP])
+  const [cuacaRes, floodRes, gempaRes, fireRes, arsipRes, gridRes, fireTrenRes, udaraRes] = await Promise.all([cuacaP, floodP, gempaP, fireP, arsipP, gridP, fireTrenP, udaraP])
 
   if (cuacaRes) {
     upstream.push({ nama: 'Open-Meteo cuaca', ok: cuacaRes.ok, status: cuacaRes.status, count: cuacaRes.ok ? 1 : 0, error: cuacaRes.ok ? undefined : cuacaRes.error })
@@ -217,25 +221,88 @@ export async function GET(req: Request) {
     }
   }
 
-  if (fireTrenRes) {
-    const rows = fireTrenRes.ok ? parseFirms(fireTrenRes.data).filter((h) => inIndonesia(h.latitude, h.longitude)) : []
-    const near = rows.map((h) => ({ ...h, jarak_km: Math.round(km({ lat, lon }, { lat: h.latitude, lon: h.longitude }) * 10) / 10 })).filter((h) => h.jarak_km <= 50)
-    const byDay = new Map()
-    for (const h of near) {
-      const day = String(h.acq_date || '').slice(0, 10)
-      if (!day) continue
-      byDay.set(day, (byDay.get(day) || 0) + 1)
+  if (udaraRes) {
+    upstream.push({ nama: 'Open-Meteo kualitas udara (CAMS)', ok: udaraRes.ok, status: udaraRes.status, count: udaraRes.ok ? 1 : 0, error: udaraRes.ok ? undefined : udaraRes.error })
+    if (udaraRes.ok) {
+      const d = udaraRes.data as any
+      const cur = d.current || {}
+      const hourly = d.hourly || {}
+      const jam = (hourly.time || []).map((t: string, i: number) => ({
+        waktu: t,
+        us_aqi: hourly.us_aqi?.[i] ?? null,
+        pm25: hourly.pm2_5?.[i] ?? null,
+        pm10: hourly.pm10?.[i] ?? null,
+        co: hourly.carbon_monoxide?.[i] ?? null,
+      }))
+      out.udara = {
+        sumber: 'Open-Meteo Air Quality (model CAMS Copernicus, bukan ISPU resmi KLHK)',
+        url: 'https://open-meteo.com/en/docs/air-quality-api',
+        catatan: 'US AQI dan PM2.5 dari model CAMS. Bukan ISPU resmi stasiun KLHK.',
+        saat_ini: {
+          us_aqi: cur.us_aqi ?? null,
+          pm25: cur.pm2_5 ?? null,
+          pm10: cur.pm10 ?? null,
+          co: cur.carbon_monoxide ?? null,
+          waktu: cur.time || null,
+        },
+        jam,
+        kosong: jam.length === 0,
+      }
+    } else {
+      out.udara = { kosong: true, sumber: 'Open-Meteo Air Quality (model CAMS, bukan ISPU resmi)', error: udaraRes.error }
     }
-    const tren = [...byDay.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([tanggal, n]) => ({ tanggal, n }))
+  }
+
+  if (fireTrenRes) {
+    const rows = fireTrenRes.ok ? parseFirms(fireTrenRes.data as string).filter((h) => inIndonesia(h.latitude, h.longitude)) : []
+    const near = rows.map((h) => ({ ...h, jarak_km: Math.round(km({ lat, lon }, { lat: h.latitude, lon: h.longitude }) * 10) / 10 })).filter((h) => h.jarak_km <= 50)
+    const now = Date.now()
+    const firmsTs = (h: any) => {
+      const d = String(h.acq_date || '')
+      const t = String(h.acq_time || '').padStart(4, '0')
+      const ts = Date.parse(`${d}T${t.slice(0, 2)}:${t.slice(2, 4)}:00Z`)
+      return Number.isFinite(ts) ? ts : NaN
+    }
+    const near24 = near.filter((h) => {
+      const ts = firmsTs(h)
+      return Number.isFinite(ts) && now - ts <= 24 * 3600_000
+    })
+    const confOf = (c: string) => {
+      const v = String(c || '').toLowerCase()
+      if (v === 'tinggi' || v === 'h' || v === 'high') return 'tinggi'
+      if (v === 'sedang' || v === 'n' || v === 'nominal') return 'sedang'
+      if (v === 'rendah' || v === 'l' || v === 'low') return 'rendah'
+      return 'lain'
+    }
+    const per_confidence = { tinggi: 0, sedang: 0, rendah: 0, lain: 0 }
+    const per24 = { tinggi: 0, sedang: 0, rendah: 0, lain: 0 }
+    const byDay = new Map<string, { n: number; tinggi: number; sedang: number; rendah: number }>()
+    for (const h of near) {
+      const key = confOf(h.confidence)
+      per_confidence[key] = (per_confidence[key] || 0) + 1
+      const day = String(h.acq_date || '').slice(0, 10)
+      if (day) {
+        const row = byDay.get(day) || { n: 0, tinggi: 0, sedang: 0, rendah: 0 }
+        row.n += 1
+        if (key === 'tinggi' || key === 'sedang' || key === 'rendah') row[key] += 1
+        byDay.set(day, row)
+      }
+    }
+    for (const h of near24) per24[confOf(h.confidence)] = (per24[confOf(h.confidence)] || 0) + 1
+    const tren = [...byDay.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([tanggal, r]) => ({ tanggal, n: r.n, tinggi: r.tinggi, sedang: r.sedang, rendah: r.rendah }))
     upstream.push({ nama: 'NASA FIRMS VIIRS 7 hari', ok: fireTrenRes.ok, status: fireTrenRes.status, count: near.length, error: fireTrenRes.ok ? undefined : fireTrenRes.error })
     out.karhutla = {
       ...(out.karhutla || {}),
-      sumber: out.karhutla?.sumber || 'NASA FIRMS (berkas publik 7 hari, tanpa kunci)',
+      sumber: 'NASA FIRMS (berkas publik VIIRS 24 jam / 7 hari, tanpa kunci)',
       url: 'https://firms.modaps.eosdis.nasa.gov/',
-      radius_km: out.karhutla?.radius_km || 50,
-      total: out.karhutla?.total ?? near.length,
-      items: out.karhutla?.items || near.slice(0, 25),
-      kosong: (out.karhutla?.total ?? near.length) === 0,
+      radius_km: 50,
+      total: near.length,
+      total_7hari: near.length,
+      total_24jam: near24.length,
+      per_confidence,
+      per_confidence_24jam: per24,
+      items: (out.karhutla?.items && out.karhutla.items.length ? out.karhutla.items : near.slice(0, 25)),
+      kosong: near.length === 0,
       tren,
       error: fireTrenRes.ok ? undefined : fireTrenRes.error,
     }
@@ -344,14 +411,18 @@ export async function GET(req: Request) {
       seen.add(key)
       uniq.push(s)
     }
+    const prev = out.karhutla || {}
     out.karhutla = {
-      sumber: 'NASA FIRMS (berkas publik 24 jam / 7 hari, tanpa kunci)',
+      ...prev,
+      sumber: 'NASA FIRMS (berkas publik VIIRS 24 jam / 7 hari, tanpa kunci)',
       url: 'https://firms.modaps.eosdis.nasa.gov/',
       radius_km: radius,
-      total: uniq.length,
+      total: prev.total_7hari ?? prev.total ?? uniq.length,
+      total_7hari: prev.total_7hari ?? prev.total ?? uniq.length,
+      total_24jam: uniq.length,
       items: uniq.slice(0, 25),
-      kosong: uniq.length === 0,
-      tren: out.karhutla?.tren || [],
+      kosong: (prev.total_7hari ?? prev.total ?? uniq.length) === 0 && uniq.length === 0,
+      tren: prev.tren || [],
     }
   }
 

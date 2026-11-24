@@ -1,0 +1,9 @@
+Ikon pin jenis bencana ini disalin dari aset resmi SIPKK Pusat Krisis Kesehatan (Kemenkes).
+
+Sumber berkas:
+  C:\laragon\www\sipkk-baru\app_asset\icon\data_bencana\
+
+Dashboard EOC (dashboard-utama) tidak menyimpan ikon di public/. File icon_file datang dari tabel master_dt_bencana, lalu ditampilkan dari:
+  {NEXT_PUBLIC_SIPKK_BACKEND_BASE_URL}/app_asset/icon/data_bencana/{icon_file}
+
+Pemetaan nama file mengikuti kolom icon pada master_dt_bencana (lihat lib/puskris/bencana-icons.ts).

@@ -17,6 +17,7 @@ import { CHORO_OPTIONS, METRIC_PILLS, centroidsFromGeo, toSpasial, type Centroid
 import { toDeriveFilter, type PuskrisUiFilter } from '@/lib/puskris/ui-filter'
 import KejadianTerpaduCard from '@/components/puskris/KejadianTerpaduCard'
 import KejadianTerbaruList from '@/components/puskris/KejadianTerbaruList'
+import PetaAnalitikPanel from '@/components/puskris/PetaAnalitikPanel'
 import InfoHint from '@/components/puskris/InfoHint'
 import KategoriBencanaFilter from '@/components/puskris/KategoriBencanaFilter'
 import { hitungKategori, katOf, type JenisRow, type KategoriId } from '@/lib/puskris/kategori-bencana'
@@ -89,7 +90,7 @@ export default function PuskrisPetaTerpadu({
   const [bnpbLayers, setBnpbLayers] = useState<Partial<Record<BnpbLayerId, boolean>>>({})
   const [bnpbStatus, setBnpbStatus] = useState<Partial<Record<BnpbLayerId, BnpbStatus>>>({})
   const onBnpbStatus = useCallback((id: BnpbLayerId, st: BnpbStatus) => setBnpbStatus((prev) => (prev[id]?.state === st.state && prev[id]?.message === st.message ? prev : { ...prev, [id]: st })), [])
-  const [dockTab, setDockTab] = useState<'analisa' | 'terbaru' | 'terpadu'>('analisa')
+  const [dockTab, setDockTab] = useState<'analisa' | 'terbaru' | 'terpadu' | 'analitik'>('analisa')
   const [terbaruCount, setTerbaruCount] = useState<number | null>(null)
   const [radiusOn, setRadiusOn] = useState(true)
   const [internal, setInternal] = useState<InternalLayerToggles>(DEFAULT_INTERNAL)
@@ -316,7 +317,7 @@ export default function PuskrisPetaTerpadu({
   const leftBody = (
     <>
               <div className="flex shrink-0 gap-1 border-b border-slate-200 bg-white px-2 py-1.5">
-                {([['analisa', 'Analisa'], ['terbaru', `Kejadian Terbaru${terbaruCount ? ` (${terbaruCount})` : ''}`], ['terpadu', 'Terpadu']] as const).map(([k, l]) => (
+                {([['analisa', 'Analisa'], ['analitik', 'Analitik'], ['terbaru', `Terbaru${terbaruCount ? ` (${terbaruCount})` : ''}`], ['terpadu', 'Terpadu']] as const).map(([k, l]) => (
                   <button key={k} type="button" onClick={() => setDockTab(k)}
                     className={`flex-1 rounded-lg px-1.5 py-1 text-[10px] font-bold ${dockTab === k ? 'bg-teal-50 text-teal-800' : 'text-slate-500 hover:bg-slate-100'}`}>
                     {l}
@@ -360,6 +361,9 @@ export default function PuskrisPetaTerpadu({
                     )}
                   </div>
                 )}
+                <div className={dockTab === 'analitik' ? 'h-full overflow-y-auto' : 'hidden'}>
+                  <PetaAnalitikPanel kejadian={kejadianSemuaPeta || kejadianPeta || []} drillProv={drillProv} drillNama={drillNama} />
+                </div>
               </div>
     </>
   )

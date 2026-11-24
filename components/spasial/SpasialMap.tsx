@@ -342,6 +342,7 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
       controls: [],
     })
     map.current = m
+    if (typeof window !== 'undefined') (window as any).__puskrisOlMap = m
     m.on('pointermove', (e) => {
       if (e.dragging) return
       const hit = m.forEachFeatureAtPixel(e.pixel, (f, l) => ({ f, l }), { hitTolerance: 3, layerFilter: (l) => l !== radiusL.current })
@@ -696,12 +697,17 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
           const label = f.get('pLabel') as string | undefined
           const pinSrc = f.get('iconSrc') as string | undefined
           if (pinSrc) {
-            const w = 28, h = 36
-            const key = `pin|${pinSrc}|${label || ''}`
-            return (iconCache[key] ||= new Style({
+            const w = 32, h = 38
+            const key = `pin|${pinSrc}|${dashed}|${label || ''}`
+            const pin = (iconCache[key] ||= new Style({
               image: new Icon({ src: pinSrc, width: w, height: h, anchor: [0.5, 1], anchorXUnits: 'fraction', anchorYUnits: 'fraction' }),
               text: label ? new Text({ text: label, offsetY: 8, font: 'bold 9px Inter, sans-serif', fill: new Fill({ color: '#1e293b' }), stroke: new Stroke({ color: '#ffffff', width: 3 }) }) : undefined,
             }))
+            if (!dashed) return pin
+            const ring = (iconCache[key + '-dash'] ||= new Style({
+              image: new CircleStyle({ radius: 8, fill: new Fill({ color: 'rgba(255,255,255,0.01)' }), stroke: new Stroke({ color: '#1e293b', width: 1.4, lineDash: [3, 2] }) }),
+            }))
+            return [ring, pin]
           }
           if (def.icon) {
             // Ikon bulat berwarna dengan glyph putih (ambulans / telepon / PSC); diameter mengikuti radius titik.
@@ -768,6 +774,38 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
     for (const [id, ref] of extraRefs.current) if (!seen.has(id)) { ref.map.removeLayer(ref.layer); extraRefs.current.delete(id) }
     for (const ref of extraRefs.current.values()) ref.layer.setOpacity(pointOpacity)
   }, [extraLayers, pointOpacity])
+
+  useEffect(() => {
+    const open = (want?: string) => {
+      const m = map.current
+      if (!m) return { ok: false, reason: 'no map' }
+      const needle = String(want || '').toLowerCase()
+      const found: Feature[] = []
+      for (const ref of extraRefs.current.values()) {
+        for (const ft of ref.src.getFeatures()) if (ft.get('href')) found.push(ft)
+      }
+      if (!found.length) return { ok: false, reason: 'no feature' }
+      const f1 = found.find((x) => {
+        const href = String(x.get('href') || '').toLowerCase()
+        const title = String(x.get('title') || '').toLowerCase()
+        return Boolean(needle) && (href.includes(needle) || title.includes(needle))
+      }) || found.find((x) => /banjir/i.test(String(x.get('title') || '')) && !x.get('dashed')) || found[0]
+      const coord = (f1.getGeometry() as Point).getCoordinates()
+      const show = () => {
+        setPopup({
+          kind: 'intel', type: 'internal',
+          badgeText: f1.get('badgeText'), badgeColor: f1.get('badgeColor'),
+          source: f1.get('source'), title: f1.get('title'), subtitle: f1.get('subtitle'),
+          details: f1.get('details') || [], href: f1.get('href') || undefined, link: f1.get('link') || undefined, iconSrc: f1.get('iconSrc') || undefined,
+        })
+        overlay.current?.setPosition(coord)
+      }
+      m.getView().animate({ center: coord, zoom: Math.max(m.getView().getZoom() || 8, 10), duration: 400 }, () => { show() })
+      return { ok: true, title: f1.get('title'), href: f1.get('href') }
+    }
+    if (typeof window !== 'undefined') (window as any).__puskrisOpenEocPopup = open
+    return () => { if (typeof window !== 'undefined' && (window as any).__puskrisOpenEocPopup === open) delete (window as any).__puskrisOpenEocPopup }
+  }, [])
 
   // ── lapisan BNPB InaRISK (ArcGIS REST ImageServer / MapServer, viewport overlay seperti ABVC/kemkes-web) ──
   const bnpbRefs = useRef<Partial<Record<BnpbLayerId, ImageLayer<ImageArcGISRest>>>>({})

@@ -3,7 +3,8 @@ import { loadPuskrisData } from '@/lib/puskris/load-data'
 import { getLiveOverlay, mergeLive, parseRentang, type RentangApi } from '@/lib/server/puskris-live'
 import { eocKejadian } from '@/lib/puskris/derive'
 import { eocIconOf, eocKindOf, eocPinDataUri, LOK_LABEL, resolveEventCoord, type KabRow } from '@/lib/puskris/eoc-markers'
-import { haversineKm } from '@/lib/puskris/integrasi'
+import { bencanaIconOf, kejadianPinSrc } from '@/lib/puskris/bencana-icons'
+import { nearbyDetail, rekomendasiDariData, risikoWilayah, riwayat12Bulan, statusOperasional } from '@/lib/puskris/kejadian-detail'
 import kabIndex from '@/lib/puskris/kabkota-index.json'
 import { centroidsFromGeo } from '@/lib/puskris/to-spasial'
 import { readFile } from 'fs/promises'
@@ -63,7 +64,12 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
   const centroids = await loadCentroids()
   const pos = resolveEventCoord(k, centroids, kabIndex as KabRow[])
   const icon = eocIconOf(k.jenis)
-  const nearby = nearbyAgregat(data, k, pos)
+  const nearby = nearbyDetail(data, k, pos)
+  const risiko = risikoWilayah(data, k)
+  const riwayat = riwayat12Bulan(data, k, regionName)
+  const status = statusOperasional(k)
+  const official = bencanaIconOf(k.jenis)
+  const rekomendasi = rekomendasiDariData(k, nearby, risiko, status)
 
   return NextResponse.json({
     ok: true,
@@ -71,66 +77,14 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string }> }
     kejadian: {
       ...k,
       kind: eocKindOf(k.jenis),
-      icon: { id: icon.id, label: icon.label, color: icon.color, src: eocPinDataUri(icon, { krisis: Boolean(k.krisis), approx: pos?.lok !== 'kejadian' }) },
+      icon: { id: icon.id, label: official?.label || icon.label, color: icon.color, src: official?.src || eocPinDataUri(icon, { krisis: Boolean(k.krisis), approx: pos?.lok !== 'kejadian' }), file: official?.file || null },
       koordinat: pos ? { lat: pos.lat, lon: pos.lon, lok: pos.lok, label: LOK_LABEL[pos.lok] } : { lat: null, lon: null, lok: 'tidak_tersedia', label: LOK_LABEL.tidak_tersedia },
     },
+    status,
     nearby,
+    risiko,
+    riwayat,
+    rekomendasi,
     sumber: 'API EOC Pusat Krisis Kesehatan',
   })
-}
-
-function nearbyAgregat(data: any, k: any, pos: { lat: number; lon: number } | null) {
-  const peta = data?.psc?.peta
-  const pscAll: any[] = peta?.psc || []
-  const ambAll: any[] = peta?.ambulans || []
-  const sameKab = (p: any) => k.kab_code && p.kk && String(p.kk) === String(k.kab_code)
-  const sameProv = (p: any) => k.code && p.p && String(p.p).padStart(2, '0') === String(k.code).padStart(2, '0')
-  const near = (lat: number, lon: number) => pos ? haversineKm(pos, { lat, lon }) <= 50 : false
-
-  const psc = pscAll.filter((p) => p.lat != null && p.lon != null && (sameKab(p) || near(p.lat, p.lon)))
-  const amb = ambAll.filter((a) => {
-    const ps = pscAll[a[7]]
-    if (!ps) return false
-    const lat = a[0], lon = a[1]
-    return (sameKab(ps) || (lat != null && lon != null && near(lat, lon)))
-  })
-  const tck = (data?.tck?.provinsi || []).find((r: any) => String(r.code).padStart(2, '0') === String(k.code || '').padStart(2, '0')) || null
-  const logistikBy = data?.logistik?.provinsi_regional && data?.logistik?.regional
-    ? Object.fromEntries((data.logistik.regional || []).map((r: any) => [r.id, r]))
-    : null
-  const regId = data?.logistik?.provinsi_regional?.[String(k.code || '').padStart(2, '0')]
-  const logistik = regId != null && logistikBy ? logistikBy[regId] : (data?.logistik?.regional || []).find((r: any) => String(r.code) === String(k.code)) || null
-
-  const pscLive = data?.psc?.data_source === 'langsung'
-  const tckLive = data?.tck?.data_source === 'langsung'
-  const logLive = data?.logistik?.data_source === 'langsung'
-
-  return {
-    radius_km: 50,
-    psc: pscLive ? {
-      tersedia: true,
-      total: psc.length,
-      aktif: psc.filter((p) => p.a === 1).length,
-      nama: psc.slice(0, 8).map((p) => p.n).filter(Boolean),
-    } : { tersedia: false },
-    ambulans: pscLive ? {
-      tersedia: true,
-      total: amb.length,
-      siap: amb.filter((a) => a[2] === 1).length,
-    } : { tersedia: false },
-    tck: tckLive && tck ? {
-      tersedia: true,
-      level: 'provinsi',
-      provinsi: tck.nama || k.provinsi,
-      individu: Number(tck.individu || 0),
-      nakes: Number(tck.nakes || 0),
-      non_nakes: Number(tck.non_nakes || 0),
-    } : { tersedia: false },
-    logistik: logLive && logistik ? {
-      tersedia: true,
-      level: 'regional',
-      nama: logistik.nama || logistik.wilayah || 'Regional',
-      total: Number(logistik.total || logistik.stok || 0),
-    } : { tersedia: false },
-  }
 }

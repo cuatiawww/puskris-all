@@ -1,9 +1,10 @@
 import { PUBLIC_BASE_PATH } from '@/lib/public-path'
 import type { ExtraPoint, ExtraPointLayer } from '@/lib/puskris/internal-layers'
 import {
-  eocIconOf, eocPinDataUri, fmtAngka, LOK_LABEL, resolveEventCoord, tglKejadian,
+  eocIconOf, fmtAngka, LOK_LABEL, resolveEventCoord, tglKejadian,
   type KabRow,
 } from '@/lib/puskris/eoc-markers'
+import { kejadianPinSrc } from '@/lib/puskris/bencana-icons'
 import type { Centroids } from '@/lib/puskris/to-spasial'
 import kabIndex from '@/lib/puskris/kabkota-index.json'
 
@@ -40,7 +41,7 @@ export function buildEocEventLayer(
       badgeText: k.krisis ? 'KRISIS KESEHATAN' : 'TERPANTAU',
       badgeColor: k.krisis ? '#be123c' : '#0f766e',
       source: 'API EOC Pusat Krisis Kesehatan',
-      iconSrc: eocPinDataUri(icon, { krisis: Boolean(k.krisis), approx, size: 32 }),
+      iconSrc: kejadianPinSrc(k.jenis, { krisis: Boolean(k.krisis), approx }),
       href: kejadianHref(String(k.uid), k.tanggal),
       link: k.url || undefined,
       details: [
@@ -58,7 +59,7 @@ export function buildEocEventLayer(
       ],
     })
     if (!legendMap.has(icon.id)) {
-      legendMap.set(icon.id, { color: icon.color, label: icon.label, iconSrc: eocPinDataUri(icon, { size: 20 }) })
+      legendMap.set(icon.id, { color: icon.color, label: icon.label, iconSrc: kejadianPinSrc(k.jenis) })
     }
   }
   return {

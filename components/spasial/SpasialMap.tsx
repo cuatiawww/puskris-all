@@ -110,8 +110,10 @@ type Popup =
       source: string
       title: string
       subtitle?: string
-      details: Array<{ label: string; value: string }>
+      details: Array<{ label: string; value: string; href?: string }>
       link?: string
+      href?: string
+      iconSrc?: string
     }
 
 export interface MapHudCtrl {
@@ -395,14 +397,14 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
             setPopup({
               kind: 'intel', type: 'internal', badgeText: `${nf(innerC.length)} ${innerC[0].get('layerUnit') || 'titik'}`, badgeColor: innerC[0].get('badgeColor') || '#0f766e',
               source: innerC[0].get('source') || '', title: 'Beberapa titik di lokasi yang sama', subtitle: innerC[0].get('subtitle'),
-              details: innerC.slice(0, 12).map((x) => ({ label: String(x.get('title') || ''), value: [String(x.get('badgeText') || ''), ...((x.get('details') || []) as Array<{ value: string }>).slice(1, 4).map((d) => d.value)].join(' · ') })).concat(innerC.length > 12 ? [{ label: `+${nf(innerC.length - 12)} lainnya`, value: 'perbesar peta untuk melihat' }] : []),
+              details: innerC.slice(0, 12).map((x) => ({ label: String(x.get('title') || ''), value: [String(x.get('badgeText') || ''), ...((x.get('details') || []) as Array<{ value: string }>).slice(1, 4).map((d) => d.value)].join(' · '), href: x.get('href') || undefined })).concat(innerC.length > 12 ? [{ label: `+${nf(innerC.length - 12)} lainnya`, value: 'perbesar peta untuk melihat', href: undefined }] : []),
             })
             overlay.current?.setPosition(e.coordinate)
           }
           return
         }
         const f1 = innerC[0]
-        setPopup({ kind: 'intel', type: 'internal', badgeText: f1.get('badgeText'), badgeColor: f1.get('badgeColor'), source: f1.get('source'), title: f1.get('title'), subtitle: f1.get('subtitle'), details: f1.get('details') || [] })
+        setPopup({ kind: 'intel', type: 'internal', badgeText: f1.get('badgeText'), badgeColor: f1.get('badgeColor'), source: f1.get('source'), title: f1.get('title'), subtitle: f1.get('subtitle'), details: f1.get('details') || [], href: f1.get('href') || undefined, link: f1.get('link') || undefined, iconSrc: f1.get('iconSrc') || undefined })
         overlay.current?.setPosition((f1.getGeometry() as Point).getCoordinates())
         return
       }
@@ -675,7 +677,7 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
   // ── lapisan titik tambahan (API Internal) ──
   // Catatan: ref menyimpan instance peta. Pada mode dev (React StrictMode) peta dibuat ulang setelah cleanup,
   // jadi lapisan lama yang menempel di peta yang sudah dibuang harus dibuat ulang (penyebab titik PSC/ambulans tidak tampil).
-  const extraRefs = useRef<Map<string, { src: VectorSource; layer: VectorLayer<any>; cluster: boolean; map: OlMap; icon?: string }>>(new Map())
+  const extraRefs = useRef<Map<string, { src: VectorSource; layer: VectorLayer<any>; cluster: boolean; map: OlMap; icon?: string; pin?: boolean }>>(new Map())
   useEffect(() => {
     const m = map.current
     if (!m) return
@@ -683,7 +685,7 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
     for (const def of extraLayers || []) {
       seen.add(def.id)
       let ref = extraRefs.current.get(def.id)
-      if (!ref || ref.cluster !== def.cluster || ref.map !== m || ref.icon !== def.icon) {
+      if (!ref || ref.cluster !== def.cluster || ref.map !== m || ref.icon !== def.icon || ref.pin !== def.pin) {
         if (ref) ref.map.removeLayer(ref.layer)
         const src = new VectorSource()
         const iconCache: Record<string, Style> = {}
@@ -692,6 +694,15 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
           const dashed = Boolean(f.get('dashed'))
           const rad = f.get('pRadius') || 5
           const label = f.get('pLabel') as string | undefined
+          const pinSrc = f.get('iconSrc') as string | undefined
+          if (pinSrc) {
+            const w = 28, h = 36
+            const key = `pin|${pinSrc}|${label || ''}`
+            return (iconCache[key] ||= new Style({
+              image: new Icon({ src: pinSrc, width: w, height: h, anchor: [0.5, 1], anchorXUnits: 'fraction', anchorYUnits: 'fraction' }),
+              text: label ? new Text({ text: label, offsetY: 8, font: 'bold 9px Inter, sans-serif', fill: new Fill({ color: '#1e293b' }), stroke: new Stroke({ color: '#ffffff', width: 3 }) }) : undefined,
+            }))
+          }
           if (def.icon) {
             // Ikon bulat berwarna dengan glyph putih (ambulans / telepon / PSC); diameter mengikuti radius titik.
             const size = Math.round(Math.max(18, rad * 2 + 8))
@@ -726,17 +737,18 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
                   image: new CircleStyle({ radius: rad, fill: new Fill({ color: `${col}e6` }), stroke: new Stroke({ color: '#ffffff', width: 2 }) }),
                   text: new Text({ text: nf(n), font: 'bold 10px Inter, sans-serif', fill: new Fill({ color: '#ffffff' }) }),
                 }))
-                if (!def.icon) return base
-                // lencana ikon kecil di tepi klaster supaya jenis titiknya tetap terbaca saat padat
-                const badge = (cache[`${key}-ic`] ||= new Style({
-                  image: new Icon({ src: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(glyphSvg(def.icon, col, false, 16))}`, width: 16, height: 16, displacement: [rad * 0.75, rad * 0.75] }),
+                const pin0 = fs2[0].get('iconSrc') as string | undefined
+                if (!def.icon && !pin0) return base
+                const badgeSrc = pin0 || `data:image/svg+xml;charset=utf-8,${encodeURIComponent(glyphSvg(def.icon!, col, false, 16))}`
+                const badge = (cache[`${key}-ic-${badgeSrc.slice(-24)}`] ||= new Style({
+                  image: new Icon({ src: badgeSrc, width: pin0 ? 16 : 16, height: pin0 ? 20 : 16, anchor: pin0 ? [0.5, 1] : [0.5, 0.5], displacement: [rad * 0.8, rad * 0.8] }),
                 }))
                 return [base, badge]
               },
             })
           : new VectorLayer({ source: src, zIndex: def.zIndex + 3, style: ptStyle })
         m.addLayer(layer)
-        ref = { src, layer, cluster: def.cluster, map: m, icon: def.icon }
+        ref = { src, layer, cluster: def.cluster, map: m, icon: def.icon, pin: def.pin }
         extraRefs.current.set(def.id, ref)
       }
       ref.src.clear()
@@ -746,6 +758,7 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
           feat.setProperties({
             intelType: 'internal', layerUnit: def.unit, layerColor: def.color, pColor: p.color, pRadius: p.radius, pLabel: p.label, dashed: p.dashed,
             title: p.title, subtitle: p.subtitle, badgeText: p.badgeText, badgeColor: p.badgeColor, source: p.source, details: p.details,
+            iconSrc: p.iconSrc, href: p.href, link: p.link,
           })
           return feat
         }))
@@ -753,7 +766,8 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
       ref.layer.setVisible(def.visible)
     }
     for (const [id, ref] of extraRefs.current) if (!seen.has(id)) { ref.map.removeLayer(ref.layer); extraRefs.current.delete(id) }
-  }, [extraLayers])
+    for (const ref of extraRefs.current.values()) ref.layer.setOpacity(pointOpacity)
+  }, [extraLayers, pointOpacity])
 
   // ── lapisan BNPB InaRISK (ArcGIS REST ImageServer / MapServer, viewport overlay seperti ABVC/kemkes-web) ──
   const bnpbRefs = useRef<Partial<Record<BnpbLayerId, ImageLayer<ImageArcGISRest>>>>({})
@@ -981,7 +995,7 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
           <div className="flex min-h-0 flex-1 items-start justify-between gap-3">
             <div className="flex max-h-full flex-col gap-2 overflow-y-auto pr-0.5">
               {leftDock}
-              {showLegend ? <Legend cat={catChoro || null} metric={metric} label={metricLabel} cls={cls} lvLabel={lvLabel} sumber={sumber} weekly={wi >= 0} points={layers.points !== 'off'} heat={layers.heat} extra={(extraLayers || []).filter((l) => l.visible)} onClose={() => setShowLegend(false)} inline /> : null}
+              {showLegend ? <Legend cat={catChoro || null} metric={metric} label={metricLabel} cls={cls} lvLabel={lvLabel} sumber={sumber} weekly={wi >= 0} points={layers.points !== 'off'} titikCount={titik.length} heat={layers.heat} extra={(extraLayers || []).filter((l) => l.visible)} onClose={() => setShowLegend(false)} inline /> : null}
             </div>
             <div className="flex min-w-0 flex-1 flex-col items-center justify-end self-stretch pb-0.5">
               {drill ? (
@@ -1056,7 +1070,7 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
           ) : null}
 
           {/* legend */}
-          {showLegend && !showLayers ? <Legend cat={catChoro || null} metric={metric} label={metricLabel} cls={cls} lvLabel={lvLabel} sumber={sumber} weekly={wi >= 0} points={layers.points !== 'off'} heat={layers.heat} extra={(extraLayers || []).filter((l) => l.visible)} onClose={() => setShowLegend(false)} /> : null}
+          {showLegend && !showLayers ? <Legend cat={catChoro || null} metric={metric} label={metricLabel} cls={cls} lvLabel={lvLabel} sumber={sumber} weekly={wi >= 0} points={layers.points !== 'off'} titikCount={titik.length} heat={layers.heat} extra={(extraLayers || []).filter((l) => l.visible)} onClose={() => setShowLegend(false)} /> : null}
 
           {/* right panel */}
           {panelOpen ? <div className="absolute bottom-3 right-3 z-30 w-[350px] max-w-[calc(100%-24px)] transition-all duration-200" style={{ top: topOffset ?? 64 }} data-testid="spasial-panel">{rightPanel}</div> : null}
@@ -1082,7 +1096,7 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
           <div className="w-[290px] rounded-xl border border-slate-200 bg-white p-3 text-[11px] text-slate-700 shadow-xl" data-testid="spasial-popup">
             <div className="mb-1.5 flex items-start justify-between gap-2">
               <div className="min-w-0">
-                <p className="truncate text-sm font-black text-slate-900">{popup.kind === 'area' ? popup.area.nama : popup.kind === 'titik' ? popup.t.unit || '(unit tanpa nama)' : popup.kind === 'row' ? popup.row.unit : popup.kind === 'intel' ? popup.title : `${nf(popup.items.length)} unit pelapor`}</p>
+                <p className="flex items-center gap-1.5 truncate text-sm font-black text-slate-900">{popup.kind === 'intel' && popup.iconSrc ? <img alt="" aria-hidden src={popup.iconSrc} className="h-7 w-5 shrink-0 object-contain" /> : null}{popup.kind === 'area' ? popup.area.nama : popup.kind === 'titik' ? popup.t.unit || '(unit tanpa nama)' : popup.kind === 'row' ? popup.row.unit : popup.kind === 'intel' ? popup.title : `${nf(popup.items.length)} unit pelapor`}</p>
                 <p className="text-[10.5px] text-slate-500">{popup.kind === 'area' ? `${level === 'provinsi' ? 'Provinsi' : 'Kab/Kota'} · ${data?.meta?.periode_label}${wi >= 0 ? ` · ${weeks[wi]?.label}` : ''}`
                   : popup.kind === 'titik' ? [popup.t.ju, popup.t.kec ? `Kec. ${popup.t.kec}` : null, popup.t.kab].filter(Boolean).join(' · ')
                   : popup.kind === 'row' ? [popup.row.kecamatan, popup.row.kabkota].filter(Boolean).join(' · ')
@@ -1104,13 +1118,20 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
                 </div>
                 <div className="border-t border-slate-100 pt-1 mt-1 space-y-0.5 max-h-60 overflow-auto">
                   {popup.type === 'internal' && popup.title.startsWith('Beberapa') ? popup.details.map((d, i) => (
-                    <div key={i} className="border-b border-slate-100 py-1 last:border-0"><p className="font-bold text-slate-800">{d.label}</p><p className="text-[10px] text-slate-500">{d.value}</p></div>
+                    <div key={i} className="border-b border-slate-100 py-1 last:border-0">
+                      <p className="font-bold text-slate-800">{d.label}</p>
+                      <p className="text-[10px] text-slate-500">{d.value}</p>
+                      {d.href ? <a href={d.href} className="mt-0.5 inline-block text-[10px] font-bold text-[#00705a] hover:underline">Lihat Detail</a> : null}
+                    </div>
                   )) : popup.details.map((d, i) => (
                     <Row key={i} l={d.label} v={d.value} />
                   ))}
                 </div>
+                {popup.href ? (
+                  <a href={popup.href} className="mt-2 block rounded-lg bg-[#00705a] px-2 py-1.5 text-center text-[11px] font-bold text-white hover:bg-[#005a48]">Lihat Detail</a>
+                ) : null}
                 {popup.link ? (
-                  <a href={popup.link} target="_blank" rel="noreferrer" className="block mt-2 text-center rounded-lg bg-teal-50 px-2 py-1 text-[10px] font-bold text-teal-700 hover:bg-teal-100">Buka Sumber Data ↗</a>
+                  <a href={popup.link} target="_blank" rel="noreferrer" className="mt-1.5 block rounded-lg bg-teal-50 px-2 py-1 text-center text-[10px] font-bold text-teal-700 hover:bg-teal-100">Sumber data EOC ↗</a>
                 ) : null}
               </div>
             ) : null}
@@ -1170,7 +1191,7 @@ function TitikPopup({ t, wi, label, weeks }: { t: Titik; wi: number; label?: str
   )
 }
 
-function Legend({ cat = null, metric, label, cls, lvLabel, sumber, weekly, points, heat, onClose, inline = false, extra = [] }: { cat?: CatChoro | null; metric: Metric; label?: string; cls: MapClass[]; lvLabel: string; sumber: string; weekly: boolean; points: boolean; heat: boolean; onClose: () => void; inline?: boolean; extra?: ExtraPointLayer[] }) {
+function Legend({ cat = null, metric, label, cls, lvLabel, sumber, weekly, points, heat, onClose, inline = false, extra = [], titikCount = 0 }: { cat?: CatChoro | null; metric: Metric; label?: string; cls: MapClass[]; lvLabel: string; sumber: string; weekly: boolean; points: boolean; heat: boolean; onClose: () => void; inline?: boolean; extra?: ExtraPointLayer[]; titikCount?: number }) {
   const [col, setCol] = useState(false)
   const mt = METRICS.find((x) => x.key === metric)!
   return (
@@ -1194,7 +1215,7 @@ function Legend({ cat = null, metric, label, cls, lvLabel, sumber, weekly, point
               <li className="flex items-center gap-1.5"><span className="h-3 w-5 rounded-[2px] border border-slate-300/70" style={{ background: '#e5e7eb' }} />{metric === 'chg_minggu' ? 'Tidak ada pembanding' : metric === 'cfr' ? 'Tidak ada kasus' : 'Tidak ada data'}</li></ul>
             <p className="mt-1 leading-snug text-slate-400">{metric === 'chg_minggu' || metric === 'cfr' ? 'Ambang tetap.' : `Kelas: 0 lalu kuartil wilayah bernilai > 0${weekly ? ' (skala sama untuk semua minggu)' : ''}.`}</p>
           </div>)}
-          {points ? (
+          {points && titikCount > 0 ? (
             <div>
               <p className="font-bold text-slate-700">Titik unit pelapor</p>
               <ul className="mt-1 space-y-0.5">{statusFor(sumber).map((s) => <li key={s} className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full border-2 border-white shadow" style={{ background: STATUS[s].color }} />{STATUS[s].label}</li>)}
@@ -1207,11 +1228,12 @@ function Legend({ cat = null, metric, label, cls, lvLabel, sumber, weekly, point
           {heat ? <div className="flex items-center gap-1.5"><span className="h-2.5 w-10 rounded-sm" style={{ background: 'linear-gradient(90deg,#00f,#0ff,#0f0,#ff0,#f00)' }} />Heatmap: kepadatan kasus</div> : null}
           {extra.length ? (
             <div data-testid="legend-api-internal">
-              <p className="font-bold text-slate-700">API Internal</p>
+              {extra.some((l) => l.pin) ? <p className="font-bold text-slate-700">Kejadian EOC</p> : <p className="font-bold text-slate-700">API Internal</p>}
+              {extra.some((l) => l.pin) && extra.some((l) => !l.pin) ? <p className="mt-2 font-bold text-slate-700">API Internal</p> : null}
               <ul className="mt-1 space-y-0.5">
                 {extra.flatMap((l) => l.legend.filter((g) => !g.dashed).map((g, i) => (
                   <li key={`${l.id}-${i}`} className="flex items-center gap-1.5">
-                    {l.icon ? <img alt="" aria-hidden className="h-4 w-4 shrink-0" src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(glyphSvg(l.icon, g.color, false, 16))}`} /> : <span className="h-2.5 w-2.5 shrink-0 rounded-full border-2 border-white shadow" style={{ background: g.color }} />}{g.label}
+                    {g.iconSrc ? <img alt="" aria-hidden className="h-5 w-4 shrink-0 object-contain" src={g.iconSrc} /> : l.icon ? <img alt="" aria-hidden className="h-4 w-4 shrink-0" src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(glyphSvg(l.icon, g.color, false, 16))}`} /> : <span className="h-2.5 w-2.5 shrink-0 rounded-full border-2 border-white shadow" style={{ background: g.color }} />}{g.label}
                   </li>
                 )))}
                 <li className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 shrink-0 rounded-full border border-dashed border-slate-700 bg-slate-300" />Garis putus-putus: lokasi perkiraan (pusat kab/kota / PSC induk)</li>

@@ -18,6 +18,12 @@ export type ExtraPoint = {
   /** bobot klaster (mis. jumlah panggilan) */
   weight?: number
   label?: string
+  /** Ikon per titik (data URI SVG), menimpa ikon lapisan. */
+  iconSrc?: string
+  /** Tautan internal (halaman detail). */
+  href?: string
+  /** Tautan sumber data eksternal. */
+  link?: string
 }
 
 export type ExtraPointLayer = {
@@ -33,8 +39,10 @@ export type ExtraPointLayer = {
   zIndex: number
   /** ikon titik: ambulans, telepon (panggilan), atau gedung PSC */
   icon?: GlyphId
+  /** pin tetesan per titik (kejadian EOC); pakai iconSrc di masing-masing titik */
+  pin?: boolean
   points: ExtraPoint[]
-  legend: Array<{ color: string; label: string; dashed?: boolean }>
+  legend: Array<{ color: string; label: string; dashed?: boolean; iconSrc?: string }>
 }
 
 export type GlyphId = 'psc' | 'ambulans' | 'panggilan'

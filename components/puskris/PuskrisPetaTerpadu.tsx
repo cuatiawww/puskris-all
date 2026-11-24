@@ -23,6 +23,7 @@ import { hitungKategori, katOf, type JenisRow, type KategoriId } from '@/lib/pus
 import { BNPB_LAYERS, INTEL_LAYER_APIS, type BnpbLayerId, type BnpbStatus, type IntelLayerId } from '@/lib/puskris/open-data'
 import { KORBAN_LABEL } from '@/lib/puskris/labels'
 import { buildInternalLayers, DEFAULT_INTERNAL, type InternalLayerToggles } from '@/lib/puskris/internal-layers'
+import { buildEocEventLayer } from '@/lib/puskris/eoc-event-layer'
 import ApiKosong from '@/components/puskris/ApiKosong'
 import { buildRisikoAsistensi, asistensiTersedia, type RisikoAsisMode, type RisikoAsisLevel } from '@/lib/puskris/risiko-asistensi'
 import { buildRisikoPie, pieDiseaseOptions, PIE_YEARS, PIE_TAHUN_BAWAAN, type PieDiseaseOption, type PiePayload } from '@/lib/puskris/risiko-pie'
@@ -227,7 +228,12 @@ export default function PuskrisPetaTerpadu({
   }, [f, onApply, setSelectedEvent])
 
   const aFilter = useMemo<AFilter>(() => ({ ...defaultFilter(), sumber: 'ebs' }), [])
-  const totalTitik = titik.length
+  const eocLayer = useMemo(
+    () => buildEocEventLayer(kejadianSemuaPeta || kejadianPeta || [], centroids, layers.points !== 'off'),
+    [kejadianSemuaPeta, kejadianPeta, centroids, layers.points],
+  )
+  const totalTitik = eocLayer.points.length
+  const mapExtraLayers = useMemo(() => [...internalPack.layers, eocLayer], [internalPack.layers, eocLayer])
 
   const selectedRow = sel ? derived.rows.find((r) => r.code === sel.code) || null : (f.provinsi ? derived.selected : null)
   const terpadu = useMemo(() => buildTerpadu({
@@ -376,11 +382,14 @@ export default function PuskrisPetaTerpadu({
                       <label className={`block cursor-pointer rounded-xl border p-2.5 transition select-none ${layers.points !== 'off' ? 'border-teal-200 bg-white shadow-2xs' : 'border-slate-100 bg-slate-50'}`}>
                         <div className="flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2">
-                            <span className="flex items-center gap-1">
-                              <span className="h-2 w-2 rounded-full bg-blue-600" title="Titik kejadian" />
-                              <span className="h-2 w-2 rounded-full bg-orange-500" title="Titik krisis" />
+                            <span className="flex items-center gap-0.5">
+                              {eocLayer.legend.slice(0, 6).map((g) => (
+                                g.iconSrc
+                                  ? <img key={g.label} alt="" aria-hidden src={g.iconSrc} className="h-5 w-3.5 object-contain" title={g.label} />
+                                  : <span key={g.label} className="h-2 w-2 rounded-full" style={{ background: g.color }} title={g.label} />
+                              ))}
                             </span>
-                            <span className="text-xs font-bold text-slate-800">Titik kejadian krisis</span>
+                            <span className="text-xs font-bold text-slate-800">Ikon kejadian EOC</span>
                           </div>
                           <div className="flex items-center gap-2">
                             <span className="text-xs font-black tabular-nums text-slate-800">{totalTitik.toLocaleString('id-ID')}</span>
@@ -389,11 +398,11 @@ export default function PuskrisPetaTerpadu({
                               checked={layers.points !== 'off'}
                               onChange={(e) => setLayers({ ...layers, points: e.target.checked ? 'kluster' : 'off' })}
                               className="h-4 w-4 cursor-pointer rounded border-slate-300 text-teal-700 focus:ring-teal-500"
-                              aria-label="Titik kejadian krisis"
+                              aria-label="Ikon kejadian EOC"
                             />
                           </div>
                         </div>
-                        <p className="ml-5 mt-0.5 text-[10px] text-slate-500">Klaster di pusat provinsi · {totalTitik.toLocaleString('id-ID')} kejadian terbaru</p>
+                        <p className="ml-5 mt-0.5 text-[10px] text-slate-500">Ikon sesuai jenis bencana · koordinat kejadian dari API EOC, atau perkiraan pusat kab/kota (garis putus-putus) · {totalTitik.toLocaleString('id-ID')} titik</p>
                         {layers.points !== 'off' && (
                           <div className="ml-5 mt-2 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                             <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Opasitas</span>
@@ -828,7 +837,7 @@ export default function PuskrisPetaTerpadu({
   const renderMap = (extra: Record<string, any>) => (
             <SpasialMap
               data={data}
-              titik={layers.points === 'off' ? [] : titik}
+              titik={[]}
               metric={activeMetric}
               setMetric={(m) => {
                 setMetric(m)
@@ -850,7 +859,7 @@ export default function PuskrisPetaTerpadu({
               fullHeight={true}
               rightPanel={null}
               intelLayers={intelLayers}
-              extraLayers={internalPack.layers}
+              extraLayers={mapExtraLayers}
               onIntelStatus={onIntelStatus as any}
               pointOpacity={pointOpacity}
               showBoundaries={adminBoundaries}

@@ -26,6 +26,7 @@ import { buildInternalLayers, DEFAULT_INTERNAL, type InternalLayerToggles } from
 import ApiKosong from '@/components/puskris/ApiKosong'
 import { buildRisikoAsistensi, asistensiTersedia, type RisikoAsisMode, type RisikoAsisLevel } from '@/lib/puskris/risiko-asistensi'
 import { buildRisikoPie, pieDiseaseOptions, PIE_YEARS, PIE_TAHUN_BAWAAN, type PieDiseaseOption, type PiePayload } from '@/lib/puskris/risiko-pie'
+import { buildKabNumeric, kabNetral } from '@/lib/puskris/kab-drill'
 import { RISIKO_LAYERS } from '@/lib/puskris/risiko-layers'
 import { asistensiWilayah, attachTimEstimate, titikFasilitas, buildTerpadu, countRadius } from '@/lib/puskris/integrasi'
 
@@ -203,6 +204,27 @@ export default function PuskrisPetaTerpadu({
   const data = mapPack.data
   const titik = mapPack.titik
   const activeMetric = mapPack.metric as Metric
+  // ── Telusur provinsi: klik provinsi → zoom, provinsi lain redup, arsiran + batas kab/kota provinsi itu ──
+  const [drillProv, setDrillProv] = useState<string | null>(provKode)
+  useEffect(() => { setDrillProv(provKode) }, [provKode])
+  const drillNama = drillProv ? (derived.rows.find((r: any) => r.code === drillProv)?.nama || (raw?.regions || []).find((r: any) => String(r.code) === drillProv)?.name || drillProv) : ''
+  const kejadianSemuaPeta = useMemo(() => {
+    const all: any[] | null = (derived as any).kejadianSemua || null
+    if (!all) return null
+    return all.filter((k: any) => (!f.jenis || k.jenis === f.jenis) && !katOff.has(katOf(k)) && !jenisOff.has(String(k.jenis || 'Tanpa jenis')))
+  }, [derived, f.jenis, katOff, jenisOff])
+  const drillCat = useMemo(() => {
+    if (!drillProv) return null
+    if (risikoAsis) return buildRisikoAsistensi(raw, risikoAsis, 'kabkota', drillProv) || kabNetral(drillProv, 'Risiko Asistensi', 'Data Asistensi kab/kota belum tersedia dari API.')
+    if (risikoPie) return (pieData && buildRisikoPie(pieData, pieDisease, 'kabkota', drillProv)) || kabNetral(drillProv, 'Risiko Emerging (PIE)', 'Data PIE kab/kota untuk provinsi ini belum tersedia dari API.')
+    return buildKabNumeric({ prov: drillProv, choro, label: choroLabel, metric: activeMetric, cfg: choroCfg, kejadianSemua: kejadianSemuaPeta, kejadianKrisis: kejadianPeta, raw })
+  }, [drillProv, risikoAsis, risikoPie, pieData, pieDisease, raw, choro, choroLabel, activeMetric, choroCfg, kejadianSemuaPeta, kejadianPeta])
+  const keluarDrill = useCallback(() => {
+    setDrillProv(null)
+    setSel(null)
+    setSelectedEvent(null)
+    if (f.provinsi) onApply({ ...f, provinsi: null, kabupaten: null })
+  }, [f, onApply, setSelectedEvent])
 
   const aFilter = useMemo<AFilter>(() => ({ ...defaultFilter(), sumber: 'ebs' }), [])
   const totalTitik = titik.length
@@ -818,7 +840,7 @@ export default function PuskrisPetaTerpadu({
               choroCfg={choroCfg}
               sumber="ebs"
               selectedId={sel?.id ?? null}
-              onSelectArea={(a) => (a ? pickArea(a, true) : setSel(null))}
+              onSelectArea={(a) => { if (a) { pickArea(a, true); if (mapPack.data?.level !== 'kabkota') setDrillProv(String(a.code).padStart(2, '0')) } else setSel(null) }}
               onDrill={onDrill}
               onUp={onUp}
               focus={focus}
@@ -836,7 +858,9 @@ export default function PuskrisPetaTerpadu({
               bnpbLayers={bnpbLayers}
               onBnpbStatus={onBnpbStatus}
               metricLabel={choroLabel}
-              catChoro={catChoro}
+              catChoro={drillCat || catChoro}
+              drill={drillProv ? { prov: drillProv, nama: drillNama, onExit: keluarDrill } : null}
+              drillOnClick
               radiusSupport={{ enabled: radiusOn && Boolean(radiusCenter), center: radiusCenter, ringsKm: [50, 100, 200] }}
               {...extra}
             />

@@ -953,7 +953,7 @@ export default function PuskrisPetaTerpadu({
               catChoro={drillCat || catChoro}
               drill={drillProv ? { prov: drillProv, nama: drillNama, onExit: keluarDrill } : null}
               drillOnClick
-              radiusSupport={{ enabled: radiusOn && Boolean(radiusCenter), center: radiusCenter, ringsKm: [50, 100, 200] }}
+              radiusSupport={{ enabled: radiusOn && Boolean(radiusCenter) && (mode === 'kejadian' || !drillProv), center: radiusCenter, ringsKm: [50, 100, 200] }}
               {...extra}
             />
   )

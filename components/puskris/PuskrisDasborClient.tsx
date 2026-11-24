@@ -40,7 +40,7 @@ export default function PuskrisDasborClient() {
     if (typeof window === 'undefined') return
     const qs = filterQuery(applied, true)
     const next = `${window.location.pathname}${qs}`
-    window.history.replaceState(null, '', next)
+    window.history.replaceState(window.history.state, '', next)
   }
 
   const handleApply = useCallback((applied: PuskrisUiFilter) => {
@@ -69,7 +69,7 @@ export default function PuskrisDasborClient() {
   const count = activeFilterCount({ ...f, pilar: 'semua' })
 
   if (error) return <div className="p-6 text-sm text-red-700">Data dasbor tidak dapat dimuat: {error}</div>
-  if (!raw || !ready) return <div className="p-6 text-sm text-slate-500">Memuat dasbor Pusat Krisis Kesehatan…</div>
+  if (!raw) return <div className="p-6 text-sm text-slate-500">Memuat dasbor Pusat Krisis Kesehatan…</div>
 
   return (
     <PuskrisPageShell

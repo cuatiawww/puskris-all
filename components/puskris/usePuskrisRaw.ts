@@ -10,12 +10,58 @@ import { toDeriveFilter, type PuskrisUiFilter } from '@/lib/puskris/ui-filter'
  * kejadian tahun berjalan, data diambil ulang dengan ?tanggal1&tanggal2 sehingga API EOC & NCC
  * dipanggil untuk rentang itu (bukan disaring dari data tahun ini saja).
  * Data yang belum selesai diambil server dimuat ulang diam-diam (maks. 12 kali, tiap 20 detik).
+ *
+ * Hasil disimpan di memori modul supaya pindah menu sidebar (yang me-remount halaman) tidak
+ * mengosongkan data dan memaksa tunggu API ringkasan sampai 25 detik lagi.
  */
+type Payload = { data: any; pending: boolean }
+
+let baseCache: Payload | null = null
+let baseInflight: Promise<Payload> | null = null
+const rangeCache = new Map<string, Payload>()
+const rangeInflight = new Map<string, Promise<Payload>>()
+
+function ringkasanUrl(query = '') {
+  return `${PUBLIC_BASE_PATH}/api/puskris/ringkasan${query}`
+}
+
+function parsePayload(j: any): Payload {
+  return { data: j.data || j, pending: Boolean(j.pending) }
+}
+
+function loadJson(url: string): Promise<Payload> {
+  return fetch(url, { cache: 'no-store' })
+    .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json() })
+    .then(parsePayload)
+}
+
+function loadBase(force = false): Promise<Payload> {
+  if (!force && baseCache && !baseCache.pending) return Promise.resolve(baseCache)
+  if (baseInflight) return baseInflight
+  baseInflight = loadJson(ringkasanUrl())
+    .then((p) => { baseCache = p; return p })
+    .finally(() => { baseInflight = null })
+  return baseInflight
+}
+
+function loadRange(key: string, force = false): Promise<Payload> {
+  const cached = rangeCache.get(key)
+  if (!force && cached && !cached.pending) return Promise.resolve(cached)
+  const existing = rangeInflight.get(key)
+  if (existing) return existing
+  const [a, b] = key.split('|')
+  const p = loadJson(ringkasanUrl(`?tanggal1=${a}&tanggal2=${b}`))
+    .then((payload) => { rangeCache.set(key, payload); return payload })
+    .finally(() => { rangeInflight.delete(key) })
+  rangeInflight.set(key, p)
+  return p
+}
+
 export function usePuskrisRaw(f: PuskrisUiFilter, ready: boolean) {
-  const [base, setBase] = useState<any>(null)
+  const [base, setBase] = useState<any>(() => baseCache?.data ?? null)
   const [ranged, setRanged] = useState<{ key: string; data: any } | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [pending, setPending] = useState(false)
+  const [pending, setPending] = useState(() => Boolean(baseCache?.pending))
   const [tries, setTries] = useState(0)
   const [loadingRange, setLoadingRange] = useState(false)
 
@@ -25,9 +71,8 @@ export function usePuskrisRaw(f: PuskrisUiFilter, ready: boolean) {
 
   useEffect(() => {
     let on = true
-    fetch(`${PUBLIC_BASE_PATH}/api/puskris/ringkasan`, { cache: 'no-store' })
-      .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json() })
-      .then((j) => { if (on) { setBase(j.data || j); if (!needKey) setPending(Boolean(j.pending)) } })
+    loadBase(tries > 0)
+      .then((p) => { if (on) { setBase(p.data); if (!needKey) setPending(Boolean(p.pending)) } })
       .catch((e) => { if (on) setError((cur) => cur || e.message || 'Gagal memuat data') })
     return () => { on = false }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -35,12 +80,16 @@ export function usePuskrisRaw(f: PuskrisUiFilter, ready: boolean) {
 
   useEffect(() => {
     if (!needKey) { setLoadingRange(false); return }
+    const cached = rangeCache.get(needKey)
+    if (cached?.data) {
+      setRanged({ key: needKey, data: cached.data })
+      setPending(Boolean(cached.pending))
+      if (!cached.pending && tries === 0) { setLoadingRange(false); return }
+    }
     let on = true
-    setLoadingRange(true)
-    const [a, b] = needKey.split('|')
-    fetch(`${PUBLIC_BASE_PATH}/api/puskris/ringkasan?tanggal1=${a}&tanggal2=${b}`, { cache: 'no-store' })
-      .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json() })
-      .then((j) => { if (on) { setRanged({ key: needKey, data: j.data || j }); setPending(Boolean(j.pending)); setLoadingRange(false) } })
+    setLoadingRange(!cached?.data)
+    loadRange(needKey, tries > 0)
+      .then((p) => { if (on) { setRanged({ key: needKey, data: p.data }); setPending(Boolean(p.pending)); setLoadingRange(false) } })
       .catch(() => { if (on) setLoadingRange(false) })
     return () => { on = false }
   }, [needKey, tries])

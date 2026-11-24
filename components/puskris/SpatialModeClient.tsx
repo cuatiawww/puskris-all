@@ -42,7 +42,7 @@ export default function SpatialModeClient() {
   const onApply = useCallback((next: PuskrisUiFilter) => {
     setF(next)
     setSelectedEvent(null)
-    window.history.replaceState(null, '', `${window.location.pathname}${filterQuery(next, true)}`)
+    window.history.replaceState(window.history.state, '', `${window.location.pathname}${filterQuery(next, true)}`)
   }, [])
 
   const derived = useMemo(() => (raw ? applyDerive(raw, toDeriveFilter(f)) : null), [raw, f])
@@ -58,7 +58,7 @@ export default function SpatialModeClient() {
   const wilayahNama = f.provinsi ? (provinces.find((p: any) => p.code === f.provinsi)?.nama || f.provinsi) : 'Seluruh Indonesia'
 
   if (error) return <div className="flex h-screen items-center justify-center p-6 text-sm text-red-700">Data Pusat Krisis Kesehatan tidak dapat dimuat: {error}</div>
-  if (!raw || !ready || !derived || !situasi) return <div className="flex h-screen items-center justify-center text-sm font-bold text-slate-500" data-testid="spatial-mode-loading">Memuat Spatial Mode…</div>
+  if (!raw || !derived || !situasi) return <div className="flex h-screen items-center justify-center text-sm font-bold text-slate-500" data-testid="spatial-mode-loading">Memuat Spatial Mode…</div>
 
   const l = derived.layanan
   const wilayahDipilih = Boolean(f.provinsi || f.kabupaten)

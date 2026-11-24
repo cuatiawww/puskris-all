@@ -109,7 +109,7 @@ export function riwayat12Bulan(data: any, k: any, regionName: Record<string, str
   const uid = String(k.uid)
   const events: any[] = data?.eoc?.events || []
   if (data?.eoc?.data_source !== 'langsung' || !events.length) {
-    return { tersedia: false, dari: null, sampai: null, kab: [], prov: [], tren: [] }
+    return { tersedia: false, dari: null, sampai: null, kab: [], prov: [], tren: [], tren30: [], korbanTren: [], korban30: [], pin: [] }
   }
   const sampai = todayWib()
   const d = new Date(`${sampai}T00:00:00+07:00`)
@@ -146,12 +146,63 @@ export function riwayat12Bulan(data: any, k: any, regionName: Record<string, str
       if (x.jenis && k.jenis && x.jenis === k.jenis) row.serupa_kab += 1
     }
   }
+  const pin = kab
+    .filter((x: any) => x.lat != null && x.lon != null)
+    .map((x: any) => ({
+      uid: x.uid, jenis: x.jenis, tanggal: x.tanggal, jam: x.jam, krisis: Boolean(x.krisis),
+      lat: x.lat, lon: x.lon, meninggal: x.meninggal, pengungsi: x.pengungsi, terdampak: x.terdampak,
+      kabupaten: x.kabupaten, serupa: Boolean(x.jenis && k.jenis && x.jenis === k.jenis),
+    }))
+
+  const d30 = new Date(`${sampai}T00:00:00+07:00`)
+  d30.setDate(d30.getDate() - 30)
+  const dari30 = d30.toISOString().slice(0, 10)
+  const tren30Map = new Map<string, { tanggal: string; kab: number; serupa_kab: number }>()
+  const korban30Map = new Map<string, { tanggal: string; meninggal: number; luka: number; pengungsi: number }>()
+  const korbanMap = new Map<string, { bulan: string; meninggal: number; luka: number; pengungsi: number }>()
+  {
+    const cur = new Date(`${dari30}T00:00:00+07:00`)
+    const end = new Date(`${sampai}T00:00:00+07:00`)
+    while (cur <= end) {
+      const key = cur.toISOString().slice(0, 10)
+      tren30Map.set(key, { tanggal: key, kab: 0, serupa_kab: 0 })
+      korban30Map.set(key, { tanggal: key, meninggal: 0, luka: 0, pengungsi: 0 })
+      cur.setDate(cur.getDate() + 1)
+    }
+  }
+  for (const row of trenMap.values()) korbanMap.set(row.bulan, { bulan: row.bulan, meninggal: 0, luka: 0, pengungsi: 0 })
+  for (const x of kab) {
+    const day = String(x.tanggal || '').slice(0, 10)
+    const month = day.slice(0, 7)
+    const t30 = tren30Map.get(day)
+    if (t30) {
+      t30.kab += 1
+      if (x.jenis && k.jenis && x.jenis === k.jenis) t30.serupa_kab += 1
+    }
+    const c30 = korban30Map.get(day)
+    if (c30) {
+      c30.meninggal += Number(x.meninggal || 0)
+      c30.luka += Number(x.luka_berat || 0) + Number(x.luka_ringan || 0)
+      c30.pengungsi += Number(x.pengungsi || 0)
+    }
+    const cm = korbanMap.get(month)
+    if (cm) {
+      cm.meninggal += Number(x.meninggal || 0)
+      cm.luka += Number(x.luka_berat || 0) + Number(x.luka_ringan || 0)
+      cm.pengungsi += Number(x.pengungsi || 0)
+    }
+  }
+
   return {
     tersedia: true,
     dari, sampai,
     kab: { total: kab.length, serupa: kab.filter((x: any) => x.jenis === k.jenis).length, krisis: kab.filter((x: any) => x.krisis).length },
     prov: { total: prov.length, serupa: prov.filter((x: any) => x.jenis === k.jenis).length, krisis: prov.filter((x: any) => x.krisis).length },
     tren: [...trenMap.values()],
+    tren30: [...tren30Map.values()],
+    korbanTren: [...korbanMap.values()],
+    korban30: [...korban30Map.values()],
+    pin,
   }
 }
 

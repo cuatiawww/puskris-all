@@ -162,7 +162,8 @@ export function KejadianRisikoDock({ risiko, pieKab, onShowAsis, onShowPie }: { 
   )
 }
 
-export function KejadianAnalitikDock({ riwayat, konteks, layers }: { riwayat?: any; konteks?: any; layers?: { fires?: boolean; hujan?: boolean; riwayat?: boolean } }) {
+export function KejadianAnalitikDock({ riwayat, konteks, layers, size = 'dock' }: { riwayat?: any; konteks?: any; layers?: { fires?: boolean; hujan?: boolean; riwayat?: boolean }; size?: 'dock' | 'page' }) {
+  const chartH = size === 'page' ? 'h-52' : 'h-32'
   const [rentangRiwayat, setRentangRiwayat] = useState<'30h' | '12bln'>('12bln')
   const [rentangCuaca, setRentangCuaca] = useState<'7j' | '30h'>('7j')
   const showRiwayat = layers?.riwayat !== false
@@ -198,7 +199,7 @@ export function KejadianAnalitikDock({ riwayat, konteks, layers }: { riwayat?: a
           <RangeBtn value={rentangRiwayat} onChange={(id) => setRentangRiwayat(id as any)} options={[{ id: '30h', label: '30 hari' }, { id: '12bln', label: '12 bulan' }]} />
         </div>
         {showRiwayat && riwayatData.length ? (
-          <div className="h-32">
+          <div className={chartH}>
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={riwayatData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -220,7 +221,7 @@ export function KejadianAnalitikDock({ riwayat, konteks, layers }: { riwayat?: a
       <div>
         <p className="mb-1 text-[10px] font-black uppercase tracking-wider text-slate-400">Tren korban (wilayah yang sama)</p>
         {showRiwayat && korbanData.length ? (
-          <div className="h-32">
+          <div className={chartH}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={korbanData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -243,7 +244,7 @@ export function KejadianAnalitikDock({ riwayat, konteks, layers }: { riwayat?: a
           <RangeBtn value={rentangCuaca} onChange={(id) => setRentangCuaca(id as any)} options={[{ id: '7j', label: '7 hari jam' }, { id: '30h', label: '30 hari' }]} />
         </div>
         {showHujan && cuacaData.length ? (
-          <div className="h-32">
+          <div className={chartH}>
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={cuacaData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />

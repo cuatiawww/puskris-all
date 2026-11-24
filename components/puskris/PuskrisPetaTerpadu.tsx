@@ -53,7 +53,7 @@ export function periodeLabel(f: PuskrisUiFilter) {
 
 export default function PuskrisPetaTerpadu({
   raw, f, onApply, derived, kejadian, selectedEvent, setSelectedEvent, variant = 'card', hudExtra, hudTitle,
-  mode = 'dasbor', fokusKejadian = null, kejadianPaket = null,
+  mode = 'dasbor', fokusKejadian = null, kejadianPaket = null, embed = false, onRisikoControl,
 }: {
   raw: any
   f: PuskrisUiFilter
@@ -72,6 +72,9 @@ export default function PuskrisPetaTerpadu({
   mode?: 'dasbor' | 'kejadian'
   fokusKejadian?: any | null
   kejadianPaket?: { status?: any; nearby?: any; risiko?: any; riwayat?: any; rekomendasi?: any[]; konteks?: any } | null
+  /** Kartu peta di halaman detail: isi wadah induk, tanpa judul kartu dan tanpa dok kiri. */
+  embed?: boolean
+  onRisikoControl?: (ctrl: { showAsis: (mode: 'irbi' | 'kapasitas') => void; showPie: () => void }) => void
 }) {
   const full = variant === 'fullscreen'
   const [centroids, setCentroids] = useState<Centroids>({})
@@ -84,8 +87,8 @@ export default function PuskrisPetaTerpadu({
   const [metric, setMetric] = useState<Metric>('kasus')
   const [choro, setChoro] = useState<ChoroId>('kejadian')
   const [layers, setLayers] = useState<MapLayers>({ ...DEFAULT_LAYERS, base: 'osm' })
-  const [leftDockOpen, setLeftDockOpen] = useState(true)
-  const [rightDockOpen, setRightDockOpen] = useState(true)
+  const [leftDockOpen, setLeftDockOpen] = useState(!embed)
+  const [rightDockOpen, setRightDockOpen] = useState(!embed)
   const [sel, setSel] = useState<SpasialArea | null>(null)
   const [focus, setFocus] = useState<Focus | null>(null)
   const [pointOpacity, setPointOpacity] = useState(1)
@@ -98,7 +101,7 @@ export default function PuskrisPetaTerpadu({
   const [bnpbStatus, setBnpbStatus] = useState<Partial<Record<BnpbLayerId, BnpbStatus>>>({})
   const onBnpbStatus = useCallback((id: BnpbLayerId, st: BnpbStatus) => setBnpbStatus((prev) => (prev[id]?.state === st.state && prev[id]?.message === st.message ? prev : { ...prev, [id]: st })), [])
   const [dockTab, setDockTab] = useState<'analisa' | 'terbaru' | 'terpadu' | 'analitik' | 'situasi' | 'kesiapan' | 'risiko'>(mode === 'kejadian' ? 'situasi' : 'analisa')
-  const [sekitar, setSekitar] = useState<SekitarToggles>(DEFAULT_SEKITAR)
+  const [sekitar, setSekitar] = useState<SekitarToggles>(mode === 'kejadian' ? { ...DEFAULT_SEKITAR, riwayat: false } : DEFAULT_SEKITAR)
   const [terbaruCount, setTerbaruCount] = useState<number | null>(null)
   const [radiusOn, setRadiusOn] = useState(true)
   const [internal, setInternal] = useState<InternalLayerToggles>(DEFAULT_INTERNAL)
@@ -160,6 +163,14 @@ export default function PuskrisPetaTerpadu({
   const pieState = pieByYear[pieYear] || { loading: true }
   const pieData = pieState.data && pieState.data.records.length ? pieState.data : null
   const [risikoLevel, setRisikoLevel] = useState<RisikoAsisLevel>('provinsi')
+  useEffect(() => {
+    if (!onRisikoControl) return
+    onRisikoControl({
+      showAsis: (m) => { setRisikoPie(false); setRisikoAsis(m); setRisikoLevel('provinsi'); setLayers((prev) => ({ ...prev, choro: true })) },
+      showPie: () => { setRisikoAsis(null); setRisikoPie(true); setRisikoLevel('provinsi'); setLayers((prev) => ({ ...prev, choro: true })) },
+    })
+  }, [onRisikoControl])
+
   const asisOk = asistensiTersedia(raw)
   const pieOk = Boolean(pieData)
   const pieOpsi = useMemo(() => pieDiseaseOptions(pieData), [pieData])
@@ -231,15 +242,13 @@ export default function PuskrisPetaTerpadu({
     setRadiusOn(true)
     setInternal((prev) => ({ ...prev, psc: true, ambulans: true }))
     setDockTab('situasi')
-    if (ev.code) setDrillProv(String(ev.code).padStart(2, '0'))
-    setRisikoLevel('kabkota')
     const jenis = String(ev.jenis || '')
     if (/karhutla|kebakaran/i.test(jenis)) setIntelLayers((prev) => ({ ...prev, fires: true }))
     if (/gempa|tsunami|gunung|letusan|banjir/i.test(jenis)) setIntelLayers((prev) => ({ ...prev, hazards: true }))
     setSelectedEvent(ev)
     return () => { clearTimeout(t1); clearTimeout(t2) }
   }, [mode, fokusKejadian?.uid]) // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { setDrillProv(provKode) }, [provKode])
+  useEffect(() => { if (mode !== 'kejadian') setDrillProv(provKode) }, [provKode, mode])
   const drillNama = drillProv ? (derived.rows.find((r: any) => r.code === drillProv)?.nama || (raw?.regions || []).find((r: any) => String(r.code) === drillProv)?.name || drillProv) : ''
   const kejadianSemuaPeta = useMemo(() => {
     const all: any[] | null = (derived as any).kejadianSemua || null
@@ -255,15 +264,16 @@ export default function PuskrisPetaTerpadu({
   const keluarDrill = useCallback(() => {
     setDrillProv(null)
     setSel(null)
+    if (mode === 'kejadian') return
     setSelectedEvent(null)
     if (f.provinsi) onApply({ ...f, provinsi: null, kabupaten: null })
-  }, [f, onApply, setSelectedEvent])
+  }, [f, onApply, setSelectedEvent, mode])
 
   const aFilter = useMemo<AFilter>(() => ({ ...defaultFilter(), sumber: 'ebs' }), [])
-  const eocLayer = useMemo(
-    () => buildEocEventLayer(kejadianSemuaPeta || kejadianPeta || [], centroids, layers.points !== 'off'),
-    [kejadianSemuaPeta, kejadianPeta, centroids, layers.points],
-  )
+  const eocLayer = useMemo(() => {
+    const list = (mode === 'kejadian' && fokusKejadian) ? [fokusKejadian] : (kejadianSemuaPeta || kejadianPeta || [])
+    return buildEocEventLayer(list, centroids, layers.points !== 'off')
+  }, [mode, fokusKejadian, kejadianSemuaPeta, kejadianPeta, centroids, layers.points])
   const totalTitik = eocLayer.points.length
   const kejadianLayers = useMemo(
     () => (mode === 'kejadian' ? buildKejadianMapLayers({ raw, fokus: fokusKejadian, riwayat: kejadianPaket?.riwayat, konteks: kejadianPaket?.konteks, toggles: sekitar }) : []),
@@ -932,7 +942,7 @@ export default function PuskrisPetaTerpadu({
               choroCfg={choroCfg}
               sumber="ebs"
               selectedId={sel?.id ?? null}
-              onSelectArea={(a) => { if (a) { pickArea(a, true); if (mapPack.data?.level !== 'kabkota') setDrillProv(String(a.code).padStart(2, '0')) } else setSel(null) }}
+              onSelectArea={(a) => { if (mode === 'kejadian') { setSel(a || null); return } if (a) { pickArea(a, true); if (mapPack.data?.level !== 'kabkota') setDrillProv(String(a.code).padStart(2, '0')) } else setSel(null) }}
               onDrill={onDrill}
               onUp={onUp}
               focus={focus}
@@ -950,9 +960,9 @@ export default function PuskrisPetaTerpadu({
               bnpbLayers={bnpbLayers}
               onBnpbStatus={onBnpbStatus}
               metricLabel={choroLabel}
-              catChoro={drillCat || catChoro}
+              catChoro={drillCat || catChoro || (mode === 'kejadian' ? { id: 'kejadian-fokus', level: 'provinsi' as const, judul: 'Fokus satu kejadian', sumber: 'Halaman detail', items: {}, legend: [], catatan: 'Arsiran angka nasional dimatikan pada halaman detail. Aktifkan lapisan risiko untuk melihat arsiran wilayah.' } : null)}
               drill={drillProv ? { prov: drillProv, nama: drillNama, onExit: keluarDrill } : null}
-              drillOnClick
+              drillOnClick={mode !== 'kejadian'}
               radiusSupport={{ enabled: radiusOn && Boolean(radiusCenter) && (mode === 'kejadian' || !drillProv), center: radiusCenter, ringsKm: [50, 100, 200] }}
               {...extra}
             />
@@ -1011,8 +1021,8 @@ export default function PuskrisPetaTerpadu({
   }
 
   return (
-      <div className="skdr-card flex w-full flex-col p-4" data-testid="peta-skdr-terpadu">
-        <div className="flex flex-col gap-3 border-b border-slate-100 pb-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className={embed ? 'flex h-full w-full flex-col' : 'skdr-card flex w-full flex-col p-4'} data-testid={embed ? 'peta-kejadian-embed' : 'peta-skdr-terpadu'}>
+        <div className={embed ? 'hidden' : 'flex flex-col gap-3 border-b border-slate-100 pb-3 sm:flex-row sm:items-center sm:justify-between'}>
           <div>
             <div className="skdr-eyebrow flex items-center gap-1.5">
               <MapPin className="h-3.5 w-3.5" /> Peta spasial
@@ -1026,12 +1036,12 @@ export default function PuskrisPetaTerpadu({
           </div>
         </div>
 
-        <div className="relative mt-3 flex h-[500px] w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
-          {leftDockOpen ? (
+        <div className={embed ? 'relative flex min-h-0 w-full flex-1 overflow-hidden rounded-xl border border-slate-200 bg-slate-50' : 'relative mt-3 flex h-[500px] w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-50'}>
+          {!embed && leftDockOpen ? (
             <div className="z-20 flex h-full w-[340px] shrink-0 flex-col overflow-hidden border-r border-slate-200 bg-white transition-all duration-300" data-testid="peta-left-dock">
               {leftBody}
             </div>
-          ) : (
+          ) : !embed ? (
             <aside className="z-20 flex h-full w-10 shrink-0 flex-col border-r border-slate-200 bg-white/95 backdrop-blur transition-all duration-300" data-testid="peta-left-dock-collapsed">
               <button type="button" onClick={() => setLeftDockOpen(true)}
                 className="flex h-full w-full flex-col items-center justify-start gap-3 py-3 text-slate-500 hover:bg-slate-50 hover:text-slate-900"
@@ -1041,7 +1051,7 @@ export default function PuskrisPetaTerpadu({
                 <span className="whitespace-nowrap text-[10px] font-bold uppercase tracking-wider text-slate-600" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>Analisa Wilayah</span>
               </button>
             </aside>
-          )}
+          ) : null}
 
           <div className="relative h-full min-w-0 flex-1">
             {renderMap({})}

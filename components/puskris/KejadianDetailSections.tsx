@@ -20,6 +20,7 @@ import {
 import ApiKosong from '@/components/puskris/ApiKosong'
 import { PUBLIC_BASE_PATH } from '@/lib/public-path'
 import { fmtAngka, tglKejadian } from '@/lib/puskris/eoc-markers'
+import { analisaDariData, type AnalisaItem } from '@/lib/puskris/kejadian-detail'
 
 const TCK_PROFESI = ['Tenaga Medis', 'Tenaga Keperawatan', 'Tenaga Kebidanan', 'Tenaga Kefarmasian', 'Tenaga Kesehatan Masyarakat', 'Tenaga Kesehatan Lingkungan', 'Tenaga Gizi', 'Tenaga Kesehatan Lainnya', 'Non-Kesehatan']
 const USIA_LABEL = ['< 30 th', '30–39 th', '40–49 th', '50+ th', 'Tidak diisi']
@@ -108,12 +109,12 @@ function Kpi({ label, value, tone = 'slate', sub }: { label: string; value: Reac
   )
 }
 
-function SectionCard({ id, eyebrow, title, source, kpis, actions, children }: {
-  id: string; eyebrow: string; title: string; source?: string; kpis?: ReactNode; actions?: ReactNode; children?: ReactNode
+function SectionCard({ id, eyebrow, title, source, kpis, actions, children, kpiClass }: {
+  id: string; eyebrow: string; title: string; source?: string; kpis?: ReactNode; actions?: ReactNode; children?: ReactNode; kpiClass?: string
 }) {
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white" data-testid={id}>
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 px-4 py-3 sm:px-5">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 px-5 py-3">
         <div className="min-w-0">
           <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">{eyebrow}</p>
           <h2 className="text-[15px] font-bold leading-tight text-slate-900 sm:text-base">{title}</h2>
@@ -121,8 +122,8 @@ function SectionCard({ id, eyebrow, title, source, kpis, actions, children }: {
         </div>
         {actions}
       </div>
-      {kpis ? <div className="grid grid-cols-2 gap-2 px-4 py-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 sm:px-5">{kpis}</div> : null}
-      {children ? <div className={`px-4 pb-4 sm:px-5 sm:pb-5 ${kpis ? '' : 'pt-4'}`}>{children}</div> : null}
+      {kpis ? <div className={`grid grid-cols-[repeat(auto-fit,minmax(108px,1fr))] gap-2 px-5 py-3 ${kpiClass || ''}`}>{kpis}</div> : null}
+      {children ? <div className={`px-5 pb-5 ${kpis ? '' : 'pt-4'}`}>{children}</div> : null}
     </section>
   )
 }
@@ -167,7 +168,7 @@ function Matrix({ columns, rows, rowKey, highlight }: {
 function ChartBox({ empty, pending, children }: { empty?: boolean; pending?: boolean; children?: ReactNode }) {
   if (pending) return <Empty pending />
   if (empty) return <Empty />
-  return <div className="h-44">{children}</div>
+  return <div className="h-36">{children}</div>
 }
 
 const tipStyle = { fontSize: 11 }
@@ -182,7 +183,6 @@ export function KejadianHeaderBand({ k, status, loadingRange }: { k: any; status
   if (k?.terdampak != null) ringkas.push(`${fmtAngka(k.terdampak)} terdampak`)
   if (k?.meninggal != null) ringkas.push(`${fmtAngka(k.meninggal)} meninggal`)
   if (k?.pengungsi != null && Number(k.pengungsi) > 0) ringkas.push(`${fmtAngka(k.pengungsi)} pengungsi`)
-  if (status?.label) ringkas.push(status.label)
   return (
     <header className="relative overflow-hidden rounded-2xl border border-teal-100 bg-white" data-testid="kejadian-header-band">
       <div className="absolute inset-y-0 left-0 w-1.5 bg-[#00705a]" />
@@ -218,6 +218,42 @@ export function KejadianHeaderBand({ k, status, loadingRange }: { k: any; status
         ) : null}
       </div>
     </header>
+  )
+}
+
+
+const ANALISA_TONE: Record<string, string> = {
+  tinggi: 'border-rose-200 bg-rose-50 text-rose-900',
+  sedang: 'border-amber-200 bg-amber-50 text-amber-950',
+  info: 'border-slate-200 bg-slate-50 text-slate-800',
+}
+const ANALISA_DOT: Record<string, string> = {
+  tinggi: 'bg-rose-600',
+  sedang: 'bg-amber-500',
+  info: 'bg-slate-500',
+}
+
+function SecAnalisa({ items }: { items: AnalisaItem[] }) {
+  return (
+    <SectionCard
+      id="kejadian-sec-analisa"
+      eyebrow="Analisa & rekomendasi"
+      title="Temuan dari data yang tersedia"
+      source="Dihitung dari EOC, PSC, logistik, Asistensi, dan konteks terbuka. Bukan arahan resmi."
+    >
+      {items.length ? (
+        <ul className="space-y-1.5">
+          {items.map((it) => (
+            <li key={it.id} className={`flex items-start gap-2 rounded-lg border px-2.5 py-1.5 text-[12px] font-semibold leading-snug ${ANALISA_TONE[it.tingkat]}`}>
+              <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${ANALISA_DOT[it.tingkat]}`} aria-hidden />
+              <span>{it.teks}</span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="text-[12px] text-slate-500">Belum ada temuan yang dapat disusun dari data API saat ini.</p>
+      )}
+    </SectionCard>
   )
 }
 
@@ -315,7 +351,7 @@ function SecTck({ tck, kabNama }: { tck?: any; kabNama?: string }) {
           <p className="mb-2 text-[11px] font-semibold text-slate-500">Profesi</p>
           {showProfesi ? (
             <>
-              <div className="mb-3 h-40">
+              <div className="mb-3 h-36">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={profesiRows} layout="vertical" margin={{ top: 0, right: 12, left: 8, bottom: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -806,7 +842,7 @@ function SecRiwayat({ riwayat }: { riwayat?: any }) {
   )
 }
 
-export function KejadianIndikatorSections({ k, nearby, riwayat, konteks, risiko, pieKab, piePending, onShowAsis, onShowPie }: {
+export function KejadianIndikatorSections({ k, nearby, riwayat, konteks, risiko, pieKab, piePending, onShowAsis, onShowPie, status, heroMap }: {
   k: any
   nearby?: any
   riwayat?: any
@@ -816,14 +852,30 @@ export function KejadianIndikatorSections({ k, nearby, riwayat, konteks, risiko,
   piePending?: boolean
   onShowAsis?: (mode: 'irbi' | 'kapasitas') => void
   onShowPie?: () => void
+  status?: any
+  heroMap?: ReactNode
 }) {
+  const temuan = useMemo(
+    () => analisaDariData(k, nearby, risiko, status || null, konteks, pieKab),
+    [k, nearby, risiko, status, konteks, pieKab],
+  )
   return (
-    <div className="space-y-5">
+    <div className="flex flex-col gap-5 lg:gap-6">
+      <div className="grid grid-cols-1 gap-5 xl:grid-cols-12 xl:items-stretch lg:gap-6">
+        <div className="flex min-w-0 flex-col xl:col-span-5">
+          <div className="flex-1 [&>section]:h-full">
+            <SecAnalisa items={temuan} />
+          </div>
+        </div>
+        <div className="min-w-0 xl:col-span-7">{heroMap}</div>
+      </div>
       <SecDampak k={k} riwayat={riwayat} />
       <SecTck tck={nearby?.tck} kabNama={k?.kabupaten} />
       <SecLogistik log={nearby?.logistik} />
-      <SecFaskes nearby={nearby} />
-      <SecRisiko risiko={risiko} pieKab={pieKab} piePending={piePending} onShowAsis={onShowAsis} onShowPie={onShowPie} />
+      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-2 lg:gap-6">
+        <SecFaskes nearby={nearby} />
+        <SecRisiko risiko={risiko} pieKab={pieKab} piePending={piePending} onShowAsis={onShowAsis} onShowPie={onShowPie} />
+      </div>
       <SecLingkungan k={k} konteks={konteks} />
       <SecRiwayat riwayat={riwayat} />
     </div>

@@ -237,8 +237,7 @@ export default function PuskrisPetaTerpadu({
       if (lat != null && lon != null) setFocus({ lat, lon, zoom: 10, nonce: Date.now() })
     }
     applyFocus()
-    const t1 = setTimeout(applyFocus, 600)
-    const t2 = setTimeout(applyFocus, 1800)
+    const timers = [80, 300, 600, 1800].map((ms) => setTimeout(applyFocus, ms))
     setRadiusOn(true)
     setInternal((prev) => ({ ...prev, psc: true, ambulans: true }))
     setDockTab('situasi')
@@ -246,7 +245,7 @@ export default function PuskrisPetaTerpadu({
     if (/karhutla|kebakaran/i.test(jenis)) setIntelLayers((prev) => ({ ...prev, fires: true }))
     if (/gempa|tsunami|gunung|letusan|banjir/i.test(jenis)) setIntelLayers((prev) => ({ ...prev, hazards: true }))
     setSelectedEvent(ev)
-    return () => { clearTimeout(t1); clearTimeout(t2) }
+    return () => { timers.forEach(clearTimeout) }
   }, [mode, fokusKejadian?.uid]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (mode !== 'kejadian') setDrillProv(provKode) }, [provKode, mode])
   const drillNama = drillProv ? (derived.rows.find((r: any) => r.code === drillProv)?.nama || (raw?.regions || []).find((r: any) => String(r.code) === drillProv)?.name || drillProv) : ''
@@ -963,6 +962,7 @@ export default function PuskrisPetaTerpadu({
               catChoro={drillCat || catChoro || (mode === 'kejadian' ? { id: 'kejadian-fokus', level: 'provinsi' as const, judul: 'Fokus satu kejadian', sumber: 'Halaman detail', items: {}, legend: [], catatan: 'Arsiran angka nasional dimatikan pada halaman detail. Aktifkan lapisan risiko untuk melihat arsiran wilayah.' } : null)}
               drill={drillProv ? { prov: drillProv, nama: drillNama, onExit: keluarDrill } : null}
               drillOnClick={mode !== 'kejadian'}
+              skipAutoFit={mode === 'kejadian'}
               radiusSupport={{ enabled: radiusOn && Boolean(radiusCenter) && (mode === 'kejadian' || !drillProv), center: radiusCenter, ringsKm: [50, 100, 200] }}
               {...extra}
             />

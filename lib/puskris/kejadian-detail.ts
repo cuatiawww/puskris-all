@@ -1,6 +1,7 @@
 import { eocKejadian } from '@/lib/puskris/derive'
 import { haversineKm } from '@/lib/puskris/integrasi'
 import { fmtAngka } from '@/lib/puskris/eoc-markers'
+import { pieNamaKey } from '@/lib/puskris/risiko-pie'
 
 const todayWib = () => new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 10)
 
@@ -125,13 +126,44 @@ export function nearbyDetail(data: any, k: any, pos: { lat: number; lon: number 
   }
 }
 
-export function risikoWilayah(data: any, k: any) {
-  const kabCode = k.kab_code ? String(k.kab_code).padStart(4, '0') : null
-  const provCode = k.code ? String(k.code).padStart(2, '0') : null
-  const live = data?.asistensi?.data_source === 'langsung'
-  const kab = live && kabCode
-    ? (data.asistensi.wilayah_kabkota || []).find((r: any) => String(r.kode_wilayah).padStart(4, '0') === kabCode)
+/** Kode kab/kota 4 digit dari berbagai format (1301, 13.01, 01301). */
+export function kodeKab4(raw: unknown): string | null {
+  const d = String(raw ?? '').replace(/\D/g, '')
+  if (!d) return null
+  if (d.length <= 4) return d.padStart(4, '0')
+  if (d.length === 5 && d.startsWith('0')) return d.slice(-4)
+  return d.slice(0, 4)
+}
+
+function namaKabCocok(a?: string | null, b?: string | null) {
+  if (!a || !b) return false
+  return pieNamaKey(String(a)) === pieNamaKey(String(b))
+}
+
+function cariKabAsistensi(list: any[], kabCode: string | null, kabNama: string | null, provCode: string | null) {
+  const want = kabCode ? kodeKab4(kabCode) : null
+  const inProv = provCode
+    ? list.filter((r) => {
+        const prop = String(r.kd_prop || kodeKab4(r.kode_wilayah) || '').replace(/\D/g, '').padStart(2, '0').slice(0, 2)
+        return prop === provCode
+      })
+    : list
+  const byCode = want
+    ? (inProv.find((r) => kodeKab4(r.kode_wilayah) === want) || list.find((r) => kodeKab4(r.kode_wilayah) === want) || null)
     : null
+  const byName = kabNama ? (inProv.find((r) => namaKabCocok(r.nama, kabNama)) || list.find((r) => namaKabCocok(r.nama, kabNama)) || null) : null
+  if (byCode && kabNama && !namaKabCocok(byCode.nama, kabNama)) {
+    // Kode dan nama tidak selaras (mis. 1301 terpasang ke Mentawai): utamakan nama, atau buang baris kab.
+    return byName || null
+  }
+  return byCode || byName || null
+}
+
+export function risikoWilayah(data: any, k: any) {
+  const kabCode = k.kab_code ? kodeKab4(k.kab_code) : null
+  const provCode = k.code ? String(k.code).replace(/\D/g, '').padStart(2, '0').slice(0, 2) : null
+  const live = data?.asistensi?.data_source === 'langsung'
+  const kab = live ? cariKabAsistensi(data.asistensi.wilayah_kabkota || [], kabCode, k.kabupaten || null, provCode) : null
   const prov = live && provCode
     ? (data.asistensi.wilayah || []).find((r: any) => String(r.kode_wilayah).padStart(2, '0') === provCode && r.level === 'provinsi')
     : null
@@ -264,6 +296,130 @@ export function riwayat12Bulan(data: any, k: any, regionName: Record<string, str
 }
 
 export type Rekom = { prioritas: 'tinggi' | 'sedang' | 'info'; judul: string; dasar: string }
+
+export type AnalisaItem = { id: string; tingkat: 'tinggi' | 'sedang' | 'info'; teks: string }
+
+function jumlahJendela(rows: any[] | undefined, field: string, jam: number) {
+  if (!rows?.length) return null
+  const now = Date.now()
+  const from = now - jam * 3600_000
+  let sum = 0
+  let n = 0
+  for (const r of rows) {
+    const ts = Date.parse(String(r.waktu || r.tanggal || ''))
+    if (!Number.isFinite(ts) || ts < from || ts > now) continue
+    const v = r[field]
+    if (v == null || Number.isNaN(Number(v))) continue
+    sum += Number(v)
+    n += 1
+  }
+  return n ? Math.round(sum * 10) / 10 : null
+}
+
+/** Lencana singkat dari angka API saja. Item tanpa data disembunyikan. */
+export function analisaDariData(
+  k: any,
+  nearby: any,
+  risiko: any,
+  status: ReturnType<typeof statusOperasional> | null,
+  konteks?: any,
+  pieKab?: { disease: string; status: string }[] | null,
+): AnalisaItem[] {
+  const out: AnalisaItem[] = []
+  const push = (id: string, tingkat: AnalisaItem['tingkat'], teks: string) => { out.push({ id, tingkat, teks }) }
+
+  if (Number(k?.meninggal || 0) > 0 || Number(k?.luka_berat || 0) > 0) {
+    push('korban', 'tinggi', `Korban EOC: ${fmtAngka(k.meninggal)} meninggal, ${fmtAngka(k.luka_berat)} luka berat.`)
+  }
+  if (Number(k?.faskes_rusak || 0) > 0) {
+    push('faskes-rusak', 'tinggi', `Ada ${fmtAngka(k.faskes_rusak)} faskes rusak (EOC).`)
+  }
+  const amb = nearby?.ambulans
+  if (amb?.tersedia && amb.total != null && amb.siap != null && amb.total > 0) {
+    const rasio = amb.siap / amb.total
+    if (amb.siap === 0) push('amb', 'tinggi', `Tidak ada ambulans siap (${fmtAngka(amb.siap)}/${fmtAngka(amb.total)}) dalam ${nearby.radius_km} km.`)
+    else if (rasio <= 0.2) push('amb', 'sedang', `Ambulans siap rendah (${fmtAngka(amb.siap)}/${fmtAngka(amb.total)}) dalam ${nearby.radius_km} km.`)
+  }
+  const psc = nearby?.psc
+  if (psc?.tersedia && psc.total != null && psc.aktif != null && psc.total > 0) {
+    if (psc.aktif === 0) push('psc', 'sedang', `Tidak ada PSC aktif (${fmtAngka(psc.aktif)}/${fmtAngka(psc.total)}) dalam ${nearby.radius_km} km.`)
+    else if (psc.total - psc.aktif >= psc.aktif) push('psc', 'info', `${fmtAngka(psc.total - psc.aktif)} dari ${fmtAngka(psc.total)} PSC di sekitar tidak aktif.`)
+  }
+  const rs = nearby?.rs
+  if (rs?.tersedia && rs.total === 0) {
+    push('rs', 'info', `Tidak ada RS jejaring berkoordinat dalam ${nearby.radius_km} km.`)
+  }
+  const log = nearby?.logistik
+  if (log?.tersedia) {
+    if (Number(log.kedaluwarsa || 0) > 0) {
+      push('kedaluarsa', 'sedang', `Stok kedaluwarsa ${fmtAngka(log.kedaluwarsa)} item di regional ${log.nama || 'terkait'}.`)
+    }
+    if (Number(log.segera_kedaluwarsa || 0) > 0) {
+      push('segera-kedaluarsa', 'info', `${fmtAngka(log.segera_kedaluwarsa)} item segera kedaluwarsa di regional ${log.nama || 'terkait'}.`)
+    }
+    if (Number(log.stok_negatif || 0) > 0) {
+      push('stok-negatif', 'sedang', `Ada ${fmtAngka(log.stok_negatif)} stok negatif di regional ${log.nama || 'terkait'}.`)
+    }
+  }
+  const irbiRow = risiko?.kab || risiko
+  if (risiko?.tersedia && /tinggi/i.test(String(irbiRow?.irbi || risiko.irbi || ''))) {
+    const nama = irbiRow?.nama || risiko.nama
+    push('irbi', 'sedang', `IRBI ${irbiRow?.irbi || risiko.irbi}${nama ? ` di ${nama}` : ''} (API Asistensi).`)
+  }
+  const kapRow = risiko?.kab || risiko
+  if (risiko?.tersedia && /rendah|belum/i.test(String(kapRow?.kapasitas || risiko.kapasitas || ''))) {
+    const nama = kapRow?.nama || risiko.nama
+    push('kapasitas', 'sedang', `Kapasitas ${kapRow?.kapasitas || risiko.kapasitas}${nama ? ` di ${nama}` : ''} (API Asistensi).`)
+  }
+  if (Number(k?.pengungsi || 0) > 0) {
+    push('pengungsi', 'sedang', `${fmtAngka(k.pengungsi)} pengungsi tercatat di EOC.`)
+  }
+  const tck = nearby?.tck
+  if (tck?.tersedia && tck.individu === 0) {
+    push('tck', 'info', `Belum ada relawan TCK tercatat di ${tck.provinsi || 'provinsi ini'}.`)
+  }
+  const pieTinggi = (pieKab || []).filter((p) => /tinggi/i.test(String(p.status || '')))
+  if (pieTinggi.length) {
+    const nama = pieTinggi.slice(0, 3).map((p) => p.disease).filter(Boolean).join(', ')
+    push('pie', 'sedang', `PIE status tinggi: ${fmtAngka(pieTinggi.length)} penyakit${nama ? ` (${nama})` : ''} di kab/kota ini.`)
+  }
+  if (konteks) {
+    const hujan24 = jumlahJendela(konteks.cuaca?.jam, 'hujan_mm', 24)
+    const hujan7 = jumlahJendela(konteks.cuaca?.jam, 'hujan_mm', 24 * 7)
+    if (hujan24 != null && hujan24 >= 50) {
+      push('hujan', 'sedang', `Hujan 24 jam ${hujan24.toLocaleString('id-ID')} mm (model Open-Meteo, bukan peringatan BMKG).`)
+    } else if (hujan7 != null && hujan7 >= 100) {
+      push('hujan', 'info', `Hujan 7 hari ${hujan7.toLocaleString('id-ID')} mm (model Open-Meteo, bukan peringatan BMKG).`)
+    }
+    const aqi = konteks.udara?.saat_ini?.us_aqi
+    if (aqi != null && Number(aqi) >= 100) {
+      push('udara', 'sedang', `US AQI ${Math.round(Number(aqi))} (model CAMS, bukan ISPU resmi).`)
+    }
+    const fire24 = konteks.karhutla?.total_24jam
+    const fire7 = konteks.karhutla?.total_7hari ?? konteks.karhutla?.total
+    if (fire24 != null && Number(fire24) > 0) {
+      push('firms', 'sedang', `${fmtAngka(fire24)} titik panas FIRMS dalam 24 jam (radius 50 km).`)
+    } else if (fire7 != null && Number(fire7) > 0) {
+      push('firms', 'info', `${fmtAngka(fire7)} titik panas FIRMS dalam 7 hari (radius 50 km).`)
+    }
+    const harian = konteks.banjir?.harian || []
+    const last = [...harian].reverse().find((r: any) => r?.debit != null && r?.debit_rerata != null)
+    if (last && Number(last.debit_rerata) > 0 && Number(last.debit) > Number(last.debit_rerata) * 1.5) {
+      push('debit', 'info', `Debit model GloFAS di atas rerata (${Number(last.debit).toLocaleString('id-ID')} vs ${Number(last.debit_rerata).toLocaleString('id-ID')}).`)
+    }
+    const gempa = (konteks.bahaya?.items || []).filter((it: any) => it.magnitude != null && Number(it.magnitude) >= 5)
+    if (gempa.length) {
+      const maxM = Math.max(...gempa.map((it: any) => Number(it.magnitude)))
+      push('gempa', 'info', `${fmtAngka(gempa.length)} gempa M≥5 di sekitar titik (BMKG/GDACS), terbesar M${maxM.toLocaleString('id-ID', { maximumFractionDigits: 1 })}.`)
+    }
+  }
+  if (status?.hari != null && status.hari > 30 && k?.krisis) {
+    push('umur', 'info', `Krisis sudah ${status.hari} hari (status: ${status.label || 'terpantau'}).`)
+  }
+  const order = { tinggi: 0, sedang: 1, info: 2 }
+  return out.sort((a, b) => order[a.tingkat] - order[b.tingkat]).slice(0, 8)
+}
+
 
 export function rekomendasiDariData(k: any, nearby: any, risiko: any, status: ReturnType<typeof statusOperasional>): Rekom[] {
   const out: Rekom[] = []

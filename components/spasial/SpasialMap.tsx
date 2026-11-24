@@ -126,7 +126,7 @@ export interface MapHudCtrl {
   setShowLayers: (v: boolean) => void
 }
 
-export default function SpasialMap({ data, titik, metric, setMetric, layers, setLayers, choroCfg, sumber, selectedId, onSelectArea, onDrill, onUp, focus, rightPanel, panelOpen, setPanelOpen, height = 680, fullHeight = false, topHud, leftDock, topOffset, hideDefaultToolbar = false, intelLayers, radiusSupport, onIntelStatus, pointOpacity = 1, showBoundaries = true, windFlow = false, metricLabel, bnpbLayers, onBnpbStatus, fitPadding, legendDefaultOpen = true, extraLayers, catChoro, drill = null, drillOnClick = false }: {
+export default function SpasialMap({ data, titik, metric, setMetric, layers, setLayers, choroCfg, sumber, selectedId, onSelectArea, onDrill, onUp, focus, rightPanel, panelOpen, setPanelOpen, height = 680, fullHeight = false, topHud, leftDock, topOffset, hideDefaultToolbar = false, intelLayers, radiusSupport, onIntelStatus, pointOpacity = 1, showBoundaries = true, windFlow = false, metricLabel, bnpbLayers, onBnpbStatus, fitPadding, legendDefaultOpen = true, extraLayers, catChoro, drill = null, drillOnClick = false, skipAutoFit = false }: {
   data: SpasialResp | null; titik: Titik[]; metric: Metric; setMetric: (m: Metric) => void; layers: Layers; setLayers: (l: Layers) => void
   choroCfg: ChoroConfig | null; sumber: string; selectedId: number | null; onSelectArea: (a: Area | null) => void; onDrill: (a: Area) => void; onUp: (() => void) | null
   focus: Focus | null; rightPanel: ReactNode; panelOpen: boolean; setPanelOpen: (v: boolean) => void; height?: number
@@ -154,6 +154,8 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
   drill?: { prov: string; nama: string; onExit: () => void } | null
   /** Klik poligon provinsi memicu telusur (tanpa popup), bukan popup ringkas. */
   drillOnClick?: boolean
+  /** Jangan sesuaikan view ke cakupan nasional/kab ketika fokus titik dikunci (halaman detail kejadian). */
+  skipAutoFit?: boolean
 }) {
   const statusRef = useRef(onIntelStatus)
   statusRef.current = onIntelStatus
@@ -881,7 +883,7 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
   const kabSel = data?.kab?.[0] ?? null
   useEffect(() => {
     const m = map.current
-    if (!m || !geoReady) return
+    if (!m || !geoReady || skipAutoFit) return
     let ext = createEmpty()
     const selA = kabSel ? areas.find((a) => a.id === kabSel) : null
     choroSrc.current.getFeatures().forEach((f) => { if (!selA || f.get('code') === selA.code) extend(ext, f.getGeometry()!.getExtent()) })
@@ -991,6 +993,7 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
   useEffect(() => {
     const m = map.current
     if (!m || !focus) return
+    m.updateSize()
     const c = fromLonLat([focus.lon, focus.lat])
     m.getView().animate({ center: c, zoom: focus.zoom ?? Math.max(m.getView().getZoom() || 5, 12), duration: 450 })
     if (focus.area) setPopup({ kind: 'area', area: focus.area })

@@ -162,7 +162,7 @@ export default function KejadianDetailClient({ id, tahun }: { id: string; tahun?
 
   if (error) {
     return (
-      <div className="space-y-3 py-8 text-sm text-red-700">
+      <div className="space-y-3 px-6 py-8 lg:px-8 text-sm text-red-700">
         <p>Data Pusat Krisis Kesehatan tidak dapat dimuat: {error}</p>
         <Link href={`${PUBLIC_BASE_PATH}/dashboard/spatial-mode`} className="inline-flex items-center gap-1.5 text-xs font-bold text-[#00705a] hover:underline"><ArrowLeft className="h-3.5 w-3.5" /> Kembali ke peta</Link>
       </div>
@@ -170,14 +170,14 @@ export default function KejadianDetailClient({ id, tahun }: { id: string; tahun?
   }
   if (paketSt === 'kosong' || paketSt === 'error') {
     return (
-      <div className="flex flex-col items-start gap-3 py-10">
+      <div className="flex flex-col items-start gap-3 px-6 py-10 lg:px-8">
         <ApiKosong pesan={pesan || 'Data belum tersedia dari API'} detail={pesan} />
         <Link href={`${PUBLIC_BASE_PATH}/dashboard/spatial-mode`} className="inline-flex items-center gap-1.5 text-xs font-bold text-[#00705a] hover:underline"><ArrowLeft className="h-3.5 w-3.5" /> Kembali ke peta</Link>
       </div>
     )
   }
   if (paketSt !== 'ok' || !k || !raw || !derived) {
-    return <div className="py-16 text-sm font-bold text-slate-500" data-testid="kejadian-detail-loading">Memuat detail kejadian…</div>
+    return <div className="px-6 py-16 lg:px-8 text-sm font-bold text-slate-500" data-testid="kejadian-detail-loading">Memuat detail kejadian…</div>
   }
 
   const mapBlock = (
@@ -201,7 +201,7 @@ export default function KejadianDetailClient({ id, tahun }: { id: string; tahun?
   const mapArticle = (
     <article
       data-testid="kejadian-peta-section"
-      className={mapFull ? 'fixed inset-0 z-[200] flex flex-col bg-white' : 'skdr-card flex flex-col p-4 sm:p-5'}
+      className={mapFull ? 'fixed inset-0 z-[200] flex flex-col bg-white' : 'flex h-fit flex-col rounded-2xl border border-slate-200 bg-white p-4 sm:p-5'}
     >
       <div className={`flex shrink-0 items-start justify-between gap-3 ${mapFull ? 'border-b border-slate-200 px-4 py-3' : 'mb-3'}`}>
         <div className="min-w-0">
@@ -220,21 +220,16 @@ export default function KejadianDetailClient({ id, tahun }: { id: string; tahun?
           {mapFull ? 'Kecilkan' : 'Perbesar'}
         </button>
       </div>
-      <div className={mapFull ? 'min-h-0 flex-1 p-3' : 'h-[540px] sm:h-[580px] lg:h-[620px]'} data-testid="kejadian-peta-canvas">
+      <div className={mapFull ? 'min-h-0 flex-1 p-3' : 'h-[280px] sm:h-[320px] lg:h-[360px]'} data-testid="kejadian-peta-canvas">
         {mapBlock}
       </div>
     </article>
   )
 
   return (
-    <div className="space-y-5 pb-8" data-testid="kejadian-detail">
+    <div className="flex flex-col gap-5 px-6 py-5 lg:gap-6 lg:px-8 lg:py-6" data-testid="kejadian-detail">
       <KejadianHeaderBand k={k} status={status} loadingRange={loadingRange || pending} />
-      {mapFull && portalReady ? (
-        <>
-          <div className="h-[540px] sm:h-[580px] lg:h-[620px] rounded-2xl border border-dashed border-slate-200 bg-slate-50" aria-hidden />
-          {createPortal(mapArticle, document.body)}
-        </>
-      ) : mapArticle}
+      {mapFull && portalReady ? createPortal(mapArticle, document.body) : null}
       <KejadianIndikatorSections
         k={k}
         nearby={nearby}
@@ -243,6 +238,8 @@ export default function KejadianDetailClient({ id, tahun }: { id: string; tahun?
         risiko={risiko}
         pieKab={pieKab}
         piePending={piePending}
+        status={status}
+        heroMap={mapFull ? <div className="h-[280px] sm:h-[320px] lg:h-[360px] rounded-2xl border border-dashed border-slate-200 bg-slate-50" aria-hidden /> : mapArticle}
         onShowAsis={(m) => risikoCtrl.current?.showAsis(m)}
         onShowPie={() => risikoCtrl.current?.showPie()}
       />

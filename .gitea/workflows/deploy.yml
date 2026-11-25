@@ -47,4 +47,3 @@ jobs:
           docker rm -f dashboard-puskris 2>/dev/null || true
           docker compose -p dashboard-puskris up -d --build --quiet-pull
           rm -f .env
-          docker image prune -f

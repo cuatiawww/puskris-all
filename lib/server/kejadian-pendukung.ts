@@ -528,7 +528,7 @@ async function fetchGempaSupport(lat: number, lon: number, tanggal?: string | nu
     : []
 
   const bmkgNearby = [...(bmkgAuto ? [bmkgAuto] : []), ...bmkgRasa, ...bmkgKini]
-    .filter((g) => g.distKm != null && g.distKm <= 420)
+    .filter((g) => g.distKm != null && g.distKm <= 380)
     .sort((a, b) => a.dayDiff - b.dayDiff || (a.distKm ?? 9999) - (b.distKm ?? 9999))
 
   const usgsEvents = usgsRes.status === 'fulfilled'
@@ -605,7 +605,7 @@ async function fetchGempaSupport(lat: number, lon: number, tanggal?: string | nu
     : null
 
   const combinedCatalog = [...bmkgNearby, ...usgsEvents].sort((a, b) => b.mag - a.mag).slice(0, 40)
-  const mainBmkg = bmkgNearby.find((b) => b.dayDiff <= 1) || bmkgNearby[0] || null
+  const mainBmkg = bmkgNearby.find((b) => b.dayDiff <= 2) || null
 
   return {
     bmkgAvailable: Boolean(bmkgAuto || bmkgKini.length || bmkgRasa.length),

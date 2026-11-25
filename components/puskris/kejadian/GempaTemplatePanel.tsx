@@ -73,7 +73,7 @@ export default function GempaTemplatePanel({
               </div>
             ) : (
               <div className="space-y-1.5 rounded-xl border border-slate-200 bg-slate-50/70 p-3 text-xs">
-                <p className="font-bold text-slate-800">Parameter dari Kronologis EOC ({kejadian.uid})</p>
+                <p className="font-bold text-slate-800">Parameter dari Kronologis</p>
                 <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-700">
                   <div>Magnitudo: <b>{facts?.magnitudo ? `M ${facts.magnitudo}` : '—'}</b></div>
                   <div>Kedalaman: <b>{facts?.kedalamanKm ? `${facts.kedalamanKm} km` : '—'}</b></div>

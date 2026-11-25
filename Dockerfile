@@ -1,22 +1,15 @@
 # syntax=docker/dockerfile:1.7
 
 # -----------------------------------------------------------------------------
-# Stage 1: Install dependencies
+# Stage 1: Install dependencies & build Next.js standalone bundle
 # -----------------------------------------------------------------------------
-FROM node:22-alpine AS deps
+FROM node:22-alpine AS builder
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 COPY package.json package-lock.json ./
 RUN npm ci
 
-# -----------------------------------------------------------------------------
-# Stage 2: Build Next.js standalone bundle
-# -----------------------------------------------------------------------------
-FROM node:22-alpine AS builder
-WORKDIR /app
-
-COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # HANYA variabel publik (non-secret) yang dibutuhkan Next.js saat build-time.

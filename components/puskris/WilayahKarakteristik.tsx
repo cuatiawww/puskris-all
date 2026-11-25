@@ -2,80 +2,84 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useMemo, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, ChevronRight as ChevronGo, LayoutGrid, LayoutList } from 'lucide-react'
+import { ChevronLeft, ChevronRight, LayoutGrid, LayoutList, Layers } from 'lucide-react'
 import { karakteristikJenis, type KarakteristikKartu } from '@/lib/puskris/wilayah-detail'
-import { dmy } from '@/lib/puskris/jenis-meta'
+import { eocIconOf } from '@/lib/puskris/eoc-markers'
 
-const ORANGE = '#EA580C'
-const TEAL = '#0F766E'
+const BRAND = '#047D78'
+const BULAN = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
 
 function nf(n: number | null | undefined) {
   if (n == null || Number.isNaN(Number(n))) return '—'
   return Number(n).toLocaleString('id-ID')
 }
 
-function Spark({ values, color }: { values: number[]; color: string }) {
-  const series = values.length ? values : [0]
-  const max = Math.max(1, ...series)
-  const w = 96
-  const h = 24
-  const pts = series
-    .map((v, i) => `${((i / Math.max(1, series.length - 1)) * w).toFixed(1)},${(h - 2 - (v / max) * (h - 4)).toFixed(1)}`)
-    .join(' ')
-  return (
-    <svg width="100%" height={h} viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" aria-hidden className="block">
-      <polyline points={pts} fill="none" stroke={color} strokeWidth={1.8} strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-    </svg>
-  )
+function compact(n: number) {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toLocaleString('id-ID', { maximumFractionDigits: 1 })} jt`
+  if (n >= 10_000) return `${Math.round(n / 1000).toLocaleString('id-ID')} rb`
+  if (n >= 1_000) return `${(n / 1000).toLocaleString('id-ID', { maximumFractionDigits: 1 })} rb`
+  return nf(n)
 }
 
-function MoM({ value }: { value: number | null }) {
-  if (value == null) return <span className="text-[10.5px] font-bold text-slate-400">bln —</span>
-  const cls = value > 0 ? 'text-red-600' : value < 0 ? 'text-emerald-700' : 'text-slate-500'
+function accentOf(jenis: string | null) {
+  if (!jenis) return BRAND
+  return eocIconOf(jenis).color
+}
+
+function JenisMark({ jenis }: { jenis: string | null }) {
+  if (!jenis) {
+    return (
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white" style={{ background: BRAND }} aria-hidden>
+        <Layers className="h-4 w-4" />
+      </span>
+    )
+  }
+  const icon = eocIconOf(jenis)
   return (
-    <span className={`text-[10.5px] font-bold ${cls}`} title="Selisih bulan ini terhadap bulan sebelumnya">
-      bln {value > 0 ? '+' : ''}{nf(value)}
+    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" style={{ background: icon.color }} aria-hidden>
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <g dangerouslySetInnerHTML={{ __html: icon.glyph }} />
+      </svg>
     </span>
   )
 }
 
-function Metric({
-  label, value, spark, color, delta, mark,
-}: {
-  label: string
-  value: number
-  spark: number[]
-  color: string
-  delta: number | null
-  mark: 'dot' | 'diamond'
-}) {
+function MiniBars({ values, color }: { values: number[]; color: string }) {
+  const series = values.length ? values : Array.from({ length: 12 }, () => 0)
+  const max = Math.max(1, ...series)
   return (
-    <div className="rounded-lg bg-page px-2 py-1.5 min-w-0">
-      <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-        {mark === 'diamond' ? (
-          <span className="inline-block h-1.5 w-1.5 rotate-45" style={{ background: color }} aria-hidden />
-        ) : (
-          <span className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: color }} aria-hidden />
-        )}
-        {label}
-      </div>
-      <div className="mt-1 flex items-center gap-2">
-        <span className="text-lg font-black leading-none tabular-nums text-slate-900">{nf(value)}</span>
-        <div className="min-w-0 flex-1"><Spark values={spark} color={color} /></div>
-      </div>
-      <div className="mt-0.5"><MoM value={delta} /></div>
+    <div className="flex h-7 items-end gap-px" aria-hidden>
+      {series.map((v, i) => (
+        <span
+          key={i}
+          title={`${BULAN[i] || i + 1}: ${nf(v)}`}
+          className="min-w-0 flex-1 rounded-sm"
+          style={{
+            height: `${Math.max(8, Math.round((v / max) * 100))}%`,
+            background: color,
+            opacity: v > 0 ? 0.95 : 0.18,
+          }}
+        />
+      ))}
     </div>
   )
 }
 
 function Kartu({
-  card, selected, onSelect, fill,
+  card, selected, onSelect, fill, total,
 }: {
   card: KarakteristikKartu
   selected: boolean
   onSelect: (id: string | null) => void
   fill?: boolean
+  total: number
 }) {
+  const color = accentOf(card.id)
+  const share = total > 0 ? (card.kejadian / total) * 100 : 0
+  const chips: { key: string; text: string }[] = []
+  if (card.terdampak > 0) chips.push({ key: 'td', text: `${compact(card.terdampak)} terdampak` })
+  chips.push({ key: 'kab', text: `${nf(card.kab)} kab/kota` })
+
   return (
     <button
       type="button"
@@ -84,37 +88,41 @@ function Kartu({
       data-jenis={card.id ?? 'semua'}
       aria-pressed={selected}
       onClick={() => onSelect(card.id)}
-      className={`skdr-card group flex h-full flex-col p-3 text-left transition-colors hover:border-brand-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#047D78] ${fill ? 'w-full' : 'w-[16.5rem] shrink-0 snap-start sm:w-[17.5rem]'} ${selected ? 'border-[#047D78] ring-2 ring-[#047D78]/25' : ''}`}
+      className={`group relative flex flex-col overflow-hidden rounded-xl border bg-white p-3 text-left shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-all hover:-translate-y-px hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#047D78] ${fill ? 'w-full' : 'w-[12.75rem] shrink-0 snap-start sm:w-[13rem]'} ${selected ? 'ring-2' : 'border-slate-200 hover:border-slate-300'}`}
+      style={selected ? { borderColor: color, boxShadow: `0 0 0 2px ${color}33` } : undefined}
     >
-      <div className="flex items-start justify-between gap-2">
+      <span className="absolute inset-y-0 left-0 w-[3px]" style={{ background: color }} aria-hidden />
+      <div className="flex items-center gap-2 pl-1">
+        <JenisMark jenis={card.id} />
+        <div className="min-w-0 truncate text-[13px] font-bold leading-tight text-slate-900 group-hover:text-[#047D78]">
+          {card.nama}
+        </div>
+      </div>
+
+      <div className="mt-2.5 flex items-end justify-between gap-2 pl-1">
         <div className="min-w-0">
-          <div className="truncate text-sm font-black text-slate-900 group-hover:text-[#047D78]">{card.nama}</div>
-          {card.category ? (
-            <div className="truncate text-[10.5px] font-semibold uppercase tracking-wide text-slate-500">{card.category}</div>
-          ) : null}
+          <div className="text-[22px] font-black leading-none tabular-nums text-slate-900">{nf(card.kejadian)}</div>
+          <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">kejadian</div>
         </div>
-        <ChevronGo className="h-4 w-4 shrink-0 text-slate-300 group-hover:text-[#047D78]" aria-hidden />
+        <div className="mb-0.5 shrink-0 text-right text-[11px] font-bold tabular-nums text-slate-500">
+          {share >= 10 ? `${Math.round(share)}%` : `${share.toLocaleString('id-ID', { maximumFractionDigits: 1 })}%`}
+        </div>
       </div>
-      <div className="mt-3 flex flex-col gap-2">
-        <Metric label="Kejadian" value={card.kejadian} spark={card.sparkKejadian} color={ORANGE} delta={card.deltaKejadian} mark="dot" />
-        <Metric label="Penduduk terdampak" value={card.terdampak} spark={card.sparkTerdampak} color={TEAL} delta={card.deltaTerdampak} mark="diamond" />
+
+      <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-slate-100 pl-0" title={`${share.toLocaleString('id-ID', { maximumFractionDigits: 1 })}% dari kejadian di wilayah ini`}>
+        <div className="h-full rounded-full" style={{ width: `${Math.min(100, Math.max(share > 0 ? 4 : 0, share))}%`, background: color }} />
       </div>
-      <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-[11px]">
-        <div className="flex justify-between gap-1">
-          <dt className="text-slate-500">Meninggal</dt>
-          <dd className="font-bold tabular-nums text-slate-800">{nf(card.meninggal)}</dd>
-        </div>
-        <div className="flex justify-between gap-1">
-          <dt className="text-slate-500">Krisis</dt>
-          <dd className="font-bold tabular-nums text-slate-800">{nf(card.krisis)}</dd>
-        </div>
-        <div className="col-span-2 flex justify-between gap-1">
-          <dt className="text-slate-500">Kab/kota terdampak</dt>
-          <dd className="font-bold tabular-nums text-slate-800">{nf(card.kab)}</dd>
-        </div>
-      </dl>
-      <div className="mt-auto pt-2 text-[10.5px] text-slate-500">
-        Data terakhir: <span className="font-semibold text-slate-700">{card.lastDate ? dmy(card.lastDate) : 'Data belum tersedia dari API'}</span>
+
+      <div className="mt-2 pl-1">
+        <MiniBars values={card.sparkKejadian} color={color} />
+      </div>
+
+      <div className="mt-2 flex flex-wrap gap-1 pl-1">
+        {chips.map((c) => (
+          <span key={c.key} className="rounded-full bg-slate-50 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-slate-600">
+            {c.text}
+          </span>
+        ))}
       </div>
     </button>
   )
@@ -129,6 +137,7 @@ export default function WilayahKarakteristik({
   tahun: number
 }) {
   const cards = useMemo(() => karakteristikJenis(list || [], tahun), [list, tahun])
+  const total = cards.find((c) => c.id == null)?.kejadian || cards.reduce((s, c) => s + (c.id ? c.kejadian : 0), 0)
   const track = useRef<HTMLDivElement>(null)
   const drag = useRef<{ x: number; left: number; moved: boolean } | null>(null)
   const [grid, setGrid] = useState(false)
@@ -137,18 +146,18 @@ export default function WilayahKarakteristik({
     const el = track.current
     if (!el) return
     const card = el.querySelector<HTMLElement>('[data-slide]')
-    const w = card ? card.offsetWidth + 12 : 280
+    const w = card ? card.offsetWidth + 10 : 220
     el.scrollBy({ left: dir * w, behavior: 'smooth' })
   }
 
   if (!cards.length || (cards.length === 1 && cards[0].kejadian === 0)) {
     return (
-      <section data-testid="wilayah-karakteristik" className="skdr-section min-w-0">
-        <div className="skdr-section-head">
-          <div className="skdr-eyebrow">Karakteristik kejadian</div>
-          <h2 className="skdr-section-title">Ringkasan per jenis kejadian</h2>
+      <section data-testid="wilayah-karakteristik" className="min-w-0">
+        <div className="mb-2">
+          <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#047D78]">Karakteristik kejadian</div>
+          <h2 className="mt-0.5 text-lg font-black text-slate-900 sm:text-xl">Ringkasan per jenis kejadian</h2>
         </div>
-        <div className="flex min-h-[140px] items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-center text-xs font-semibold text-slate-500">
+        <div className="flex min-h-[120px] items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-center text-xs font-semibold text-slate-500">
           Data belum tersedia dari API
         </div>
       </section>
@@ -156,11 +165,11 @@ export default function WilayahKarakteristik({
   }
 
   return (
-    <section data-testid="wilayah-karakteristik" className="skdr-section min-w-0" aria-roledescription="carousel" aria-label="Ringkasan per jenis kejadian">
-      <div className="skdr-section-head flex items-end justify-between gap-2">
+    <section data-testid="wilayah-karakteristik" className="min-w-0" aria-roledescription="carousel" aria-label="Ringkasan per jenis kejadian">
+      <div className="mb-2 flex items-end justify-between gap-2">
         <div className="min-w-0">
-          <div className="skdr-eyebrow">Karakteristik kejadian</div>
-          <h2 className="skdr-section-title">Ringkasan per jenis kejadian</h2>
+          <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#047D78]">Karakteristik kejadian</div>
+          <h2 className="mt-0.5 text-lg font-black text-slate-900 sm:text-xl">Ringkasan per jenis kejadian</h2>
         </div>
         <div className="flex shrink-0 items-center gap-1">
           <button
@@ -200,9 +209,9 @@ export default function WilayahKarakteristik({
       </div>
 
       {grid ? (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4" data-testid="karakteristik-grid-view">
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5" data-testid="karakteristik-grid-view">
           {cards.map((c) => (
-            <Kartu key={c.id ?? 'semua'} card={c} selected={selected === c.id} onSelect={onSelect} fill />
+            <Kartu key={c.id ?? 'semua'} card={c} selected={selected === c.id} onSelect={onSelect} fill total={total} />
           ))}
         </div>
       ) : (
@@ -210,7 +219,7 @@ export default function WilayahKarakteristik({
           ref={track}
           tabIndex={0}
           data-testid="karakteristik-track"
-          className="flex cursor-grab snap-x snap-mandatory gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden active:cursor-grabbing select-none"
+          className="flex cursor-grab snap-x snap-mandatory gap-2.5 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden active:cursor-grabbing select-none"
           onPointerDown={(e) => {
             if (e.pointerType !== 'mouse' || !track.current) return
             drag.current = { x: e.clientX, left: track.current.scrollLeft, moved: false }
@@ -232,7 +241,7 @@ export default function WilayahKarakteristik({
           }}
         >
           {cards.map((c) => (
-            <Kartu key={c.id ?? 'semua'} card={c} selected={selected === c.id} onSelect={onSelect} />
+            <Kartu key={c.id ?? 'semua'} card={c} selected={selected === c.id} onSelect={onSelect} total={total} />
           ))}
         </div>
       )}

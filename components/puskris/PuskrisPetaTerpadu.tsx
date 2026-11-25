@@ -26,7 +26,7 @@ import { hitungKategori, katOf, type JenisRow, type KategoriId } from '@/lib/pus
 import { BNPB_LAYERS, INTEL_LAYER_APIS, type BnpbLayerId, type BnpbStatus, type IntelLayerId } from '@/lib/puskris/open-data'
 import { KORBAN_LABEL } from '@/lib/puskris/labels'
 import { buildInternalLayers, DEFAULT_INTERNAL, type InternalLayerToggles } from '@/lib/puskris/internal-layers'
-import { buildEocEventLayer } from '@/lib/puskris/eoc-event-layer'
+import { buildEocEventLayer, kejadianHref, wilayahHref } from '@/lib/puskris/eoc-event-layer'
 import ApiKosong from '@/components/puskris/ApiKosong'
 import { buildRisikoAsistensi, asistensiTersedia, type RisikoAsisMode, type RisikoAsisLevel } from '@/lib/puskris/risiko-asistensi'
 import { buildRisikoPie, pieDiseaseOptions, pieNamaKey, PIE_YEARS, PIE_TAHUN_BAWAAN, type PieDiseaseOption, type PiePayload } from '@/lib/puskris/risiko-pie'
@@ -53,7 +53,7 @@ export function periodeLabel(f: PuskrisUiFilter) {
 
 export default function PuskrisPetaTerpadu({
   raw, f, onApply, derived, kejadian, selectedEvent, setSelectedEvent, variant = 'card', hudExtra, hudTitle,
-  mode = 'dasbor', fokusKejadian = null, kejadianPaket = null, embed = false, onRisikoControl,
+  mode = 'dasbor', fokusKejadian = null, fokusWilayah = null, kejadianPaket = null, embed = false, onRisikoControl,
 }: {
   raw: any
   f: PuskrisUiFilter
@@ -68,9 +68,10 @@ export default function PuskrisPetaTerpadu({
   hudExtra?: ReactNode
   /** Judul + navigasi di kiri bilah atas mode layar penuh. */
   hudTitle?: ReactNode
-  /** "kejadian" = halaman detail: peta terfokus ke satu kejadian, dok kiri menampilkan situasinya. */
-  mode?: 'dasbor' | 'kejadian'
+  /** "kejadian" = halaman detail: peta terfokus ke satu kejadian, dok kiri menampilkan situasinya. "wilayah" = hanya kejadian di satu provinsi/kab. */
+  mode?: 'dasbor' | 'kejadian' | 'wilayah'
   fokusKejadian?: any | null
+  fokusWilayah?: { code: string; nama?: string; kab?: string | null } | null
   kejadianPaket?: { status?: any; nearby?: any; risiko?: any; riwayat?: any; rekomendasi?: any[]; konteks?: any } | null
   /** Kartu peta di halaman detail: isi wadah induk, tanpa judul kartu dan tanpa dok kiri. */
   embed?: boolean
@@ -247,7 +248,13 @@ export default function PuskrisPetaTerpadu({
     setSelectedEvent(ev)
     return () => { timers.forEach(clearTimeout) }
   }, [mode, fokusKejadian?.uid]) // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { if (mode !== 'kejadian') setDrillProv(provKode) }, [provKode, mode])
+  useEffect(() => { if (mode !== 'kejadian' && mode !== 'wilayah') setDrillProv(provKode) }, [provKode, mode])
+  useEffect(() => {
+    if (mode !== 'wilayah' || !fokusWilayah?.code) return
+    setDrillProv(String(fokusWilayah.code).replace(/\D/g, '').padStart(2, '0').slice(0, 2))
+    setRadiusOn(false)
+    setDockTab('analitik')
+  }, [mode, fokusWilayah?.code])
   const drillNama = drillProv ? (derived.rows.find((r: any) => r.code === drillProv)?.nama || (raw?.regions || []).find((r: any) => String(r.code) === drillProv)?.name || drillProv) : ''
   const kejadianSemuaPeta = useMemo(() => {
     const all: any[] | null = (derived as any).kejadianSemua || null
@@ -263,16 +270,25 @@ export default function PuskrisPetaTerpadu({
   const keluarDrill = useCallback(() => {
     setDrillProv(null)
     setSel(null)
-    if (mode === 'kejadian') return
+    if (mode === 'kejadian' || mode === 'wilayah') return
     setSelectedEvent(null)
     if (f.provinsi) onApply({ ...f, provinsi: null, kabupaten: null })
   }, [f, onApply, setSelectedEvent, mode])
 
   const aFilter = useMemo<AFilter>(() => ({ ...defaultFilter(), sumber: 'ebs' }), [])
   const eocLayer = useMemo(() => {
-    const list = (mode === 'kejadian' && fokusKejadian) ? [fokusKejadian] : (kejadianSemuaPeta || kejadianPeta || [])
+    let list = (mode === 'kejadian' && fokusKejadian) ? [fokusKejadian] : (kejadianSemuaPeta || kejadianPeta || [])
+    if (mode === 'wilayah' && fokusWilayah?.code) {
+      const prov = String(fokusWilayah.code).replace(/\D/g, '').padStart(2, '0').slice(0, 2)
+      const kab = fokusWilayah.kab ? String(fokusWilayah.kab).replace(/\D/g, '').padStart(4, '0').slice(0, 4) : ''
+      list = list.filter((k: any) => {
+        if (String(k.code || '').replace(/\D/g, '').padStart(2, '0').slice(0, 2) !== prov) return false
+        if (!kab) return true
+        return String(k.kab_code || '').replace(/\D/g, '').padStart(4, '0').slice(0, 4) === kab
+      })
+    }
     return buildEocEventLayer(list, centroids, layers.points !== 'off')
-  }, [mode, fokusKejadian, kejadianSemuaPeta, kejadianPeta, centroids, layers.points])
+  }, [mode, fokusKejadian, fokusWilayah, kejadianSemuaPeta, kejadianPeta, centroids, layers.points])
   const totalTitik = eocLayer.points.length
   const kejadianLayers = useMemo(
     () => (mode === 'kejadian' ? buildKejadianMapLayers({ raw, fokus: fokusKejadian, riwayat: kejadianPaket?.riwayat, konteks: kejadianPaket?.konteks, toggles: sekitar }) : []),
@@ -384,6 +400,17 @@ export default function PuskrisPetaTerpadu({
                   </button>
                 ))}
               </div>
+              {mode === 'dasbor' && drillProv ? (
+                <div className="shrink-0 border-b border-slate-100 px-3 py-2" data-testid="peta-cta-wilayah">
+                  <p className="truncate text-[12px] font-bold text-slate-800">{drillNama || `Prov. ${drillProv}`}</p>
+                  <div className="mt-1.5 flex flex-col gap-1">
+                    <Link href={wilayahHref(drillProv, { tahun: f.tahun })} className="block rounded-lg bg-[#00705a] px-2 py-1.5 text-center text-[11px] font-bold text-white hover:bg-[#005a48]">Lihat detail wilayah</Link>
+                    {(kejadianSemuaPeta || kejadianPeta || []).filter((k: any) => String(k.code || '').replace(/\D/g, '').padStart(2, '0').slice(0, 2) === String(drillProv).padStart(2, '0')).sort((a: any, b: any) => String(b.tanggal || '').localeCompare(String(a.tanggal || ''))).slice(0, 1).map((k: any) => (
+                      <Link key={k.uid} href={kejadianHref(String(k.uid), k.tanggal)} className="block rounded-lg border border-teal-200 bg-teal-50 px-2 py-1.5 text-center text-[11px] font-bold text-teal-800 hover:bg-teal-100">Lihat detail kejadian</Link>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
               <div className="min-h-0 flex-1 overflow-y-auto">
                 {dockTab === 'analisa' && (
                   <SpasialPanel
@@ -960,9 +987,14 @@ export default function PuskrisPetaTerpadu({
               onBnpbStatus={onBnpbStatus}
               metricLabel={choroLabel}
               catChoro={drillCat || catChoro || (mode === 'kejadian' ? { id: 'kejadian-fokus', level: 'provinsi' as const, judul: 'Fokus satu kejadian', sumber: 'Halaman detail', items: {}, legend: [], catatan: 'Arsiran angka nasional dimatikan pada halaman detail. Aktifkan lapisan risiko untuk melihat arsiran wilayah.' } : null)}
-              drill={drillProv ? { prov: drillProv, nama: drillNama, onExit: keluarDrill } : null}
-              drillOnClick={mode !== 'kejadian'}
-              skipAutoFit={mode === 'kejadian'}
+              drill={drillProv ? { prov: drillProv, nama: drillNama, onExit: mode === 'wilayah' ? undefined : keluarDrill } : null}
+              drillOnClick={mode === 'dasbor'}
+              skipAutoFit={mode === 'kejadian' || mode === 'wilayah'}
+              areaExtra={(a) => a?.code ? (
+                <div className="mt-2 flex flex-col gap-1">
+                  <a href={wilayahHref(String(a.code), { tahun: f.tahun })} className="block rounded-lg bg-[#00705a] px-2 py-1.5 text-center text-[11px] font-bold text-white hover:bg-[#005a48]" data-testid="peta-link-detail-wilayah">Lihat detail wilayah</a>
+                </div>
+              ) : null}
               radiusSupport={{ enabled: radiusOn && Boolean(radiusCenter) && (mode === 'kejadian' || !drillProv), center: radiusCenter, ringsKm: [50, 100, 200] }}
               {...extra}
             />

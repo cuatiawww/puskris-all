@@ -16,6 +16,19 @@ export function kejadianHref(uid: string, tanggal?: string | null) {
   return `${PUBLIC_BASE_PATH}/kejadian/${encodeURIComponent(uid)}${q}`
 }
 
+export function wilayahHref(kode: string, opts?: { tahun?: string | number | null; kab?: string | null }) {
+  const digits = String(kode || '').replace(/\D/g, '')
+  if (!digits) return `${PUBLIC_BASE_PATH}/dashboard/spatial-mode`
+  const code = digits.length <= 2 ? digits.padStart(2, '0') : digits.padStart(4, '0').slice(0, 4)
+  const q = new URLSearchParams()
+  const tahun = String(opts?.tahun || '').slice(0, 4)
+  if (/^\d{4}$/.test(tahun)) q.set('tahun', tahun)
+  const kab = opts?.kab ? String(opts.kab).replace(/\D/g, '').padStart(4, '0').slice(0, 4) : ''
+  if (kab.length === 4 && code.length === 2) q.set('kab', kab)
+  const qs = q.toString()
+  return `${PUBLIC_BASE_PATH}/dashboard/wilayah/${encodeURIComponent(code)}${qs ? `?${qs}` : ''}`
+}
+
 /** Lapisan ikon kejadian EOC: koordinat asli bila ada, kalau tidak pusat kab/kota atau provinsi. */
 export function buildEocEventLayer(
   list: any[] | null | undefined,
@@ -43,6 +56,9 @@ export function buildEocEventLayer(
       source: 'API EOC Pusat Krisis Kesehatan',
       iconSrc: kejadianPinSrc(k.jenis, { krisis: Boolean(k.krisis), approx }),
       href: kejadianHref(String(k.uid), k.tanggal),
+      hrefLabel: 'Lihat detail kejadian',
+      hrefSecondary: k.code ? wilayahHref(String(k.code), { tahun: k.tanggal, kab: k.kab_code || null }) : undefined,
+      hrefSecondaryLabel: 'Lihat detail wilayah',
       link: k.url || undefined,
       details: [
         { label: 'Tanggal', value: tglKejadian(k.tanggal, k.jam) },

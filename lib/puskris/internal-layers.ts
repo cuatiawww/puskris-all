@@ -22,6 +22,10 @@ export type ExtraPoint = {
   iconSrc?: string
   /** Tautan internal (halaman detail). */
   href?: string
+  hrefLabel?: string
+  /** Tautan kedua (mis. detail wilayah). */
+  hrefSecondary?: string
+  hrefSecondaryLabel?: string
   /** Tautan sumber data eksternal. */
   link?: string
 }

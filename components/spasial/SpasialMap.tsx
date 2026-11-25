@@ -113,6 +113,9 @@ type Popup =
       details: Array<{ label: string; value: string; href?: string }>
       link?: string
       href?: string
+      hrefLabel?: string
+      hrefSecondary?: string
+      hrefSecondaryLabel?: string
       iconSrc?: string
     }
 
@@ -126,7 +129,7 @@ export interface MapHudCtrl {
   setShowLayers: (v: boolean) => void
 }
 
-export default function SpasialMap({ data, titik, metric, setMetric, layers, setLayers, choroCfg, sumber, selectedId, onSelectArea, onDrill, onUp, focus, rightPanel, panelOpen, setPanelOpen, height = 680, fullHeight = false, topHud, leftDock, topOffset, hideDefaultToolbar = false, intelLayers, radiusSupport, onIntelStatus, pointOpacity = 1, showBoundaries = true, windFlow = false, metricLabel, bnpbLayers, onBnpbStatus, fitPadding, legendDefaultOpen = true, extraLayers, catChoro, drill = null, drillOnClick = false, skipAutoFit = false }: {
+export default function SpasialMap({ data, titik, metric, setMetric, layers, setLayers, choroCfg, sumber, selectedId, onSelectArea, onDrill, onUp, focus, rightPanel, panelOpen, setPanelOpen, height = 680, fullHeight = false, topHud, leftDock, topOffset, hideDefaultToolbar = false, intelLayers, radiusSupport, onIntelStatus, pointOpacity = 1, showBoundaries = true, windFlow = false, metricLabel, bnpbLayers, onBnpbStatus, fitPadding, legendDefaultOpen = true, extraLayers, catChoro, drill = null, drillOnClick = false, skipAutoFit = false, areaExtra }: {
   data: SpasialResp | null; titik: Titik[]; metric: Metric; setMetric: (m: Metric) => void; layers: Layers; setLayers: (l: Layers) => void
   choroCfg: ChoroConfig | null; sumber: string; selectedId: number | null; onSelectArea: (a: Area | null) => void; onDrill: (a: Area) => void; onUp: (() => void) | null
   focus: Focus | null; rightPanel: ReactNode; panelOpen: boolean; setPanelOpen: (v: boolean) => void; height?: number
@@ -151,11 +154,13 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
   /** Arsiran kategorikal; bila aktif menggantikan arsiran angka. */
   catChoro?: CatChoro | null
   /** Mode telusur provinsi: provinsi lain diredupkan & tak bisa diklik, ada tombol kembali ke nasional. */
-  drill?: { prov: string; nama: string; onExit: () => void } | null
+  drill?: { prov: string; nama: string; onExit?: () => void } | null
   /** Klik poligon provinsi memicu telusur (tanpa popup), bukan popup ringkas. */
   drillOnClick?: boolean
   /** Jangan sesuaikan view ke cakupan nasional/kab ketika fokus titik dikunci (halaman detail kejadian). */
   skipAutoFit?: boolean
+  /** Tautan tambahan pada popup poligon wilayah (mis. halaman detail wilayah). */
+  areaExtra?: (a: Area) => ReactNode
 }) {
   const statusRef = useRef(onIntelStatus)
   statusRef.current = onIntelStatus
@@ -407,7 +412,7 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
           return
         }
         const f1 = innerC[0]
-        setPopup({ kind: 'intel', type: 'internal', badgeText: f1.get('badgeText'), badgeColor: f1.get('badgeColor'), source: f1.get('source'), title: f1.get('title'), subtitle: f1.get('subtitle'), details: f1.get('details') || [], href: f1.get('href') || undefined, link: f1.get('link') || undefined, iconSrc: f1.get('iconSrc') || undefined })
+        setPopup({ kind: 'intel', type: 'internal', badgeText: f1.get('badgeText'), badgeColor: f1.get('badgeColor'), source: f1.get('source'), title: f1.get('title'), subtitle: f1.get('subtitle'), details: f1.get('details') || [], href: f1.get('href') || undefined, hrefLabel: f1.get('hrefLabel') || undefined, hrefSecondary: f1.get('hrefSecondary') || undefined, hrefSecondaryLabel: f1.get('hrefSecondaryLabel') || undefined, link: f1.get('link') || undefined, iconSrc: f1.get('iconSrc') || undefined })
         overlay.current?.setPosition((f1.getGeometry() as Point).getCoordinates())
         return
       }
@@ -767,7 +772,7 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
           feat.setProperties({
             intelType: 'internal', layerUnit: def.unit, layerColor: def.color, pColor: p.color, pRadius: p.radius, pLabel: p.label, dashed: p.dashed,
             title: p.title, subtitle: p.subtitle, badgeText: p.badgeText, badgeColor: p.badgeColor, source: p.source, details: p.details,
-            iconSrc: p.iconSrc, href: p.href, link: p.link,
+            iconSrc: p.iconSrc, href: p.href, hrefLabel: p.hrefLabel, hrefSecondary: p.hrefSecondary, hrefSecondaryLabel: p.hrefSecondaryLabel, link: p.link,
           })
           return feat
         }))
@@ -799,7 +804,7 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
           kind: 'intel', type: 'internal',
           badgeText: f1.get('badgeText'), badgeColor: f1.get('badgeColor'),
           source: f1.get('source'), title: f1.get('title'), subtitle: f1.get('subtitle'),
-          details: f1.get('details') || [], href: f1.get('href') || undefined, link: f1.get('link') || undefined, iconSrc: f1.get('iconSrc') || undefined,
+          details: f1.get('details') || [], href: f1.get('href') || undefined, hrefLabel: f1.get('hrefLabel') || undefined, hrefSecondary: f1.get('hrefSecondary') || undefined, hrefSecondaryLabel: f1.get('hrefSecondaryLabel') || undefined, link: f1.get('link') || undefined, iconSrc: f1.get('iconSrc') || undefined,
         })
         overlay.current?.setPosition(coord)
       }
@@ -1020,9 +1025,9 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
       {windErr ? <div className="absolute left-1/2 top-28 z-30 -translate-x-1/2 rounded-lg bg-amber-50 px-3 py-1.5 text-[11px] font-bold text-amber-800">{windErr}</div> : null}
       {!fullHeight && drill ? <div className="absolute left-1/2 top-3 z-30 -translate-x-1/2">{drill ? (
                 <div className="pointer-events-auto flex items-center gap-2 rounded-xl border border-slate-200 bg-white/95 px-2 py-1.5 shadow-lg backdrop-blur" data-testid="drill-bar">
-                  <button type="button" onClick={drill.onExit} data-testid="drill-kembali" className="flex items-center gap-1 rounded-lg bg-[#00705a] px-2.5 py-1 text-[11px] font-bold text-white shadow-sm hover:bg-[#005a48]">← Kembali ke Nasional</button>
+                  {drill.onExit ? <button type="button" onClick={drill.onExit} data-testid="drill-kembali" className="flex items-center gap-1 rounded-lg bg-[#00705a] px-2.5 py-1 text-[11px] font-bold text-white shadow-sm hover:bg-[#005a48]">← Kembali ke Nasional</button> : null}
                   <span className="text-[11px] font-semibold text-slate-500">Indonesia <span className="text-slate-300">›</span> <b className="text-slate-800">{drill.nama}</b></span>
-                  <span className="hidden text-[10px] text-slate-400 sm:inline">· Esc</span>
+                  {drill.onExit ? <span className="hidden text-[10px] text-slate-400 sm:inline">· Esc</span> : null}
                 </div>
               ) : null}</div> : null}
       {geoErr ? <div className="absolute left-1/2 top-20 z-30 -translate-x-1/2 rounded-lg bg-red-50 px-3 py-2 text-xs font-bold text-red-700">Batas wilayah gagal dimuat; titik tetap ditampilkan.</div> : null}
@@ -1042,9 +1047,9 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
             <div className="flex min-w-0 flex-1 flex-col items-center justify-end self-stretch pb-0.5">
               {drill ? (
                 <div className="pointer-events-auto mb-auto flex items-center gap-2 rounded-xl border border-slate-200 bg-white/95 px-2 py-1.5 shadow-lg backdrop-blur" data-testid="drill-bar">
-                  <button type="button" onClick={drill.onExit} data-testid="drill-kembali" className="flex items-center gap-1 rounded-lg bg-[#00705a] px-2.5 py-1 text-[11px] font-bold text-white shadow-sm hover:bg-[#005a48]">← Kembali ke Nasional</button>
+                  {drill.onExit ? <button type="button" onClick={drill.onExit} data-testid="drill-kembali" className="flex items-center gap-1 rounded-lg bg-[#00705a] px-2.5 py-1 text-[11px] font-bold text-white shadow-sm hover:bg-[#005a48]">← Kembali ke Nasional</button> : null}
                   <span className="text-[11px] font-semibold text-slate-500">Indonesia <span className="text-slate-300">›</span> <b className="text-slate-800">{drill.nama}</b></span>
-                  <span className="hidden text-[10px] text-slate-400 sm:inline">· Esc</span>
+                  {drill.onExit ? <span className="hidden text-[10px] text-slate-400 sm:inline">· Esc</span> : null}
                 </div>
               ) : null}
               {weeks.length > 1 ? (
@@ -1146,7 +1151,7 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
               </div>
               <button type="button" onClick={closePop} className="rounded p-0.5 text-slate-400 hover:bg-slate-100" aria-label="Tutup"><X className="h-3.5 w-3.5" /></button>
             </div>
-            {popup.kind === 'area' ? <AreaPopup a={popup.area} wi={wi} weeks={weeks} data={data!} onDrill={level === 'provinsi' || !popup.area.dipilih ? () => { closePop(); onDrill(popup.area) } : null} sumber={sumber} /> : null}
+            {popup.kind === 'area' ? <AreaPopup a={popup.area} wi={wi} weeks={weeks} data={data!} onDrill={level === 'provinsi' || !popup.area.dipilih ? () => { closePop(); onDrill(popup.area) } : null} sumber={sumber} extra={areaExtra?.(popup.area)} /> : null}
             {popup.kind === 'titik' ? <TitikPopup t={popup.t} wi={wi} label={data?.lokasi_label?.[popup.t.lokasi]} weeks={weeks} /> : null}
             {popup.kind === 'row' ? <div className="space-y-0.5"><p><b>{popup.row.penyakit}</b> · {popup.row.minggu_label}</p><p>Kasus {nf(popup.row.kasus)} · Kematian {nf(popup.row.kematian)}</p>{popup.row.klb ? <p>KLB: {popup.row.klb} · Verifikasi: {popup.row.verif || '–'} · Respons: {popup.row.respon || '–'}</p> : null}</div> : null}
             {popup.kind === 'cluster' ? <ul className="max-h-48 space-y-1 overflow-auto">{[...popup.items].sort((a, b) => b.k - a.k).slice(0, 30).map((t) => (
@@ -1170,7 +1175,10 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
                   ))}
                 </div>
                 {popup.href ? (
-                  <a href={popup.href} className="mt-2 block rounded-lg bg-[#00705a] px-2 py-1.5 text-center text-[11px] font-bold text-white hover:bg-[#005a48]">Lihat Detail</a>
+                  <a href={popup.href} className="mt-2 block rounded-lg bg-[#00705a] px-2 py-1.5 text-center text-[11px] font-bold text-white hover:bg-[#005a48]">{popup.hrefLabel || 'Lihat Detail'}</a>
+                ) : null}
+                {popup.hrefSecondary ? (
+                  <a href={popup.hrefSecondary} className="mt-1.5 block rounded-lg border border-teal-200 bg-teal-50 px-2 py-1.5 text-center text-[11px] font-bold text-teal-800 hover:bg-teal-100">{popup.hrefSecondaryLabel || 'Lihat detail wilayah'}</a>
                 ) : null}
                 {popup.link ? (
                   <a href={popup.link} target="_blank" rel="noreferrer" className="mt-1.5 block rounded-lg bg-teal-50 px-2 py-1 text-center text-[10px] font-bold text-teal-700 hover:bg-teal-100">Sumber data EOC ↗</a>
@@ -1191,7 +1199,7 @@ function Row({ l, v, tone }: { l: string; v: ReactNode; tone?: string }) {
 }
 const chgTone = (v: number | null) => (v === null ? 'text-slate-400' : v > 0 ? 'text-red-600' : v < 0 ? 'text-emerald-600' : 'text-slate-600')
 
-function AreaPopup({ a, wi, weeks, data, onDrill, sumber }: { a: Area; wi: number; weeks: { label: string }[]; data: SpasialResp; onDrill: (() => void) | null; sumber: string }) {
+function AreaPopup({ a, wi, weeks, data, onDrill, sumber, extra }: { a: Area; wi: number; weeks: { label: string }[]; data: SpasialResp; onDrill: (() => void) | null; sumber: string; extra?: ReactNode }) {
   const w = wi >= 0 && a.seri
   const k = w ? a.seri!.k[wi] : a.kasus, m = w ? a.seri!.m[wi] : a.kematian
   const cur = w ? a.seri!.k[wi] : a.minggu_ini
@@ -1210,6 +1218,7 @@ function AreaPopup({ a, wi, weeks, data, onDrill, sumber }: { a: Area; wi: numbe
       {!w ? <Row l="Unit pelapor" v={nf(a.unit)} /> : null}
       {!w && a.porsi !== null ? <Row l="Porsi kasus dari total" v={fmtPct(a.porsi)} /> : null}
       {onDrill ? <button type="button" onClick={onDrill} className="mt-2 w-full rounded-lg bg-teal-700 px-2 py-1.5 text-[11px] font-bold text-white hover:bg-teal-800" data-testid="spasial-drill">{data.level === 'provinsi' ? 'Perbesar ke kab/kota provinsi ini' : 'Fokus ke kab/kota ini'}</button> : null}
+      {extra}
     </div>
   )
 }

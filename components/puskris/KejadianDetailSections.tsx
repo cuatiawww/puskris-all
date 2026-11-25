@@ -19,6 +19,7 @@ import {
 } from 'recharts'
 import ApiKosong from '@/components/puskris/ApiKosong'
 import { PUBLIC_BASE_PATH } from '@/lib/public-path'
+import { wilayahHref } from '@/lib/puskris/eoc-event-layer'
 import { fmtAngka, tglKejadian } from '@/lib/puskris/eoc-markers'
 import { analisaDariData, type AnalisaItem } from '@/lib/puskris/kejadian-detail'
 
@@ -211,11 +212,18 @@ export function KejadianHeaderBand({ k, status, loadingRange }: { k: any; status
             </div>
           </div>
         </div>
-        {k.url ? (
-          <a href={k.url} target="_blank" rel="noreferrer" className="inline-flex h-8 shrink-0 items-center gap-1.5 self-start rounded-lg border border-teal-200 bg-teal-50 px-2.5 text-[11px] font-bold text-teal-800 hover:bg-teal-100">
-            Sumber EOC <ExternalLink className="h-3.5 w-3.5" />
-          </a>
-        ) : null}
+        <div className="flex shrink-0 flex-col items-stretch gap-1.5 self-start">
+          {k.code ? (
+            <Link href={wilayahHref(String(k.code), { tahun: k.tanggal })} className="inline-flex h-8 items-center justify-center rounded-lg bg-[#00705a] px-2.5 text-[11px] font-bold text-white hover:bg-[#005a48]">
+              Lihat detail wilayah
+            </Link>
+          ) : null}
+          {k.url ? (
+            <a href={k.url} target="_blank" rel="noreferrer" className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-teal-200 bg-teal-50 px-2.5 text-[11px] font-bold text-teal-800 hover:bg-teal-100">
+              Sumber EOC <ExternalLink className="h-3.5 w-3.5" />
+            </a>
+          ) : null}
+        </div>
       </div>
     </header>
   )

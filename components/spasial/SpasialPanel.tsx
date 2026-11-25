@@ -8,6 +8,7 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import { apiQuery, fetchAnalisa, nf, type AFilter } from '@/lib/analisa-api'
 import { areaVal, fmtPct, METRICS, STATUS, type Area, type Metric, type SpasialResp, type Titik } from '@/lib/spasial-api'
 import { InfoTip, Seg } from '@/components/analisa/ui'
+import { wilayahHref } from '@/lib/puskris/eoc-event-layer'
 
 type Tab = 'ringkasan' | 'hotspot' | 'detail'
 
@@ -145,6 +146,7 @@ export default function SpasialPanel({ f, data, titik, metric, selected, onPickA
                 {detLoading ? <p className="mt-2 flex items-center gap-2 text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Memuat detail…</p> : null}
                 {det?.kurva ? <div className="mt-2"><Curve rows={det.kurva} h={110} /></div> : null}
                 <Link href={matriksHref} className="mt-2 block rounded-lg border border-teal-200 bg-teal-50 px-2 py-1.5 text-center text-[11px] font-bold text-teal-800 hover:bg-teal-100">Buka wilayah ini di Matriks Analisa</Link>
+                {selected?.code ? <Link href={wilayahHref(String(selected.code))} className="mt-1.5 block rounded-lg bg-[#00705a] px-2 py-1.5 text-center text-[11px] font-bold text-white hover:bg-[#005a48]" data-testid="spasial-link-detail-wilayah">Lihat detail wilayah</Link> : null}
               </section>
               {det?.penyakit ? <Mini title="Penyakit teratas" rows={det.penyakit} /> : null}
               {det?.sub ? <Mini title={`${det.sub_label} teratas`} rows={det.sub} /> : null}

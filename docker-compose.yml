@@ -9,6 +9,7 @@ services:
       args:
         NEXT_PUBLIC_BYPASS_AUTH: ${NEXT_PUBLIC_BYPASS_AUTH:-true}
         NEXT_PUBLIC_BASE_PATH: ${NEXT_PUBLIC_BASE_PATH:-}
+        NEXT_PUBLIC_ASSET_PREFIX: ${NEXT_PUBLIC_ASSET_PREFIX:-}
         NEXT_PUBLIC_DEFAULT_LOCALE: ${NEXT_PUBLIC_DEFAULT_LOCALE:-id}
     image: dashboard-puskris:latest
     restart: unless-stopped

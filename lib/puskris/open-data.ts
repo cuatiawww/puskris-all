@@ -3,7 +3,7 @@
  * dan halaman Open Data. Semua dipanggil lewat proxy GET di /api/v1/map-layers/* (server Next.js),
  * sehingga browser tidak terkena CORS dan tidak ada data pribadi yang disimpan.
  */
-export type IntelLayerId = 'flights' | 'fires' | 'hazards' | 'wildlife' | 'vectors'
+export type IntelLayerId = 'fires' | 'hazards'
 
 export type UpstreamApi = {
   nama: string
@@ -83,50 +83,6 @@ export const OPEN_DATA_APIS: OpenDataApi[] = [
       { nama: 'VIIRS Suomi NPP Asia Tenggara 24 jam', penyedia: 'NASA FIRMS', url: 'https://firms.modaps.eosdis.nasa.gov/data/active_fire/suomi-npp-viirs-c2/csv/SUOMI_VIIRS_C2_SouthEast_Asia_24h.csv', format: 'CSV' },
     ],
     pembaruan: 'Tiap 30 menit (cache proxy)',
-  },
-  {
-    id: 'flights',
-    nama: 'Penerbangan Domestik',
-    icon: '✈️',
-    kategori: 'Lapisan peta intelijen',
-    deskripsi: 'Bandara utama Indonesia dan posisi pesawat yang sedang terbang di atas Indonesia (sinyal ADS-B terbuka).',
-    manfaat: 'Konteks mobilitas antarwilayah dan akses udara untuk pengiriman tim dan logistik.',
-    proxy: '/api/v1/map-layers/flights',
-    itemKey: 'flights',
-    upstream: [
-      { nama: 'Posisi pesawat ADS-B (radius 250 mil laut per titik)', penyedia: 'adsb.lol (komunitas, ODbL)', url: 'https://api.adsb.lol/v2/lat/-6.2/lon/106.8/dist/250', format: 'JSON' },
-      { nama: 'Posisi pesawat ADS-B (cadangan)', penyedia: 'adsb.fi Open Data', url: 'https://opendata.adsb.fi/api/v2/lat/-6.2/lon/106.8/dist/250', format: 'JSON' },
-      { nama: 'Daftar bandara utama', penyedia: 'Pusat Krisis Kesehatan (statis)', url: '/api/v1/map-layers/flight-airports', format: 'JSON' },
-    ],
-    pembaruan: 'Tiap 1 menit (cache proxy)',
-  },
-  {
-    id: 'wildlife',
-    nama: 'Satwa Liar / Burung (GBIF)',
-    icon: '🦅',
-    kategori: 'Lapisan peta intelijen',
-    deskripsi: 'Catatan pengamatan burung liar (kelas Aves) terbaru di Indonesia dari Global Biodiversity Information Facility.',
-    manfaat: 'Konteks pemantauan risiko flu burung (Avian Influenza) di sekitar wilayah krisis.',
-    proxy: '/api/v1/map-layers/wildlife',
-    itemKey: 'results',
-    upstream: [
-      { nama: 'Occurrence search, Aves, Indonesia', penyedia: 'GBIF', url: 'https://api.gbif.org/v1/occurrence/search?country=ID&classKey=212&hasCoordinate=true&limit=300', format: 'JSON' },
-    ],
-    pembaruan: 'Tiap 6 jam (cache proxy)',
-  },
-  {
-    id: 'vectors',
-    nama: 'Vektor Nyamuk (iNaturalist)',
-    icon: '🦟',
-    kategori: 'Lapisan peta intelijen',
-    deskripsi: 'Pengamatan nyamuk (famili Culicidae, termasuk Aedes dan Anopheles) terbaru di Indonesia dari iNaturalist.',
-    manfaat: 'Konteks risiko penyakit tular vektor (demam berdarah, malaria) di lokasi pengungsian.',
-    proxy: '/api/v1/map-layers/vectors',
-    itemKey: 'sightings',
-    upstream: [
-      { nama: 'Observations, Culicidae, Indonesia', penyedia: 'iNaturalist', url: 'https://api.inaturalist.org/v1/observations?place_id=6966&taxon_id=52134&geo=true&per_page=200&order_by=observed_on', format: 'JSON' },
-    ],
-    pembaruan: 'Tiap 6 jam (cache proxy)',
   },
   {
     id: 'wind',

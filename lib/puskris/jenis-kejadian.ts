@@ -36,6 +36,16 @@ export function jenisKejadianHref(
   return `${PUBLIC_BASE_PATH}/dashboard/jenis-kejadian/${encodeURIComponent(slug)}${qs ? `?${qs}` : ''}`
 }
 
+export function jenisKejadianIndexHref(opts?: { tahun?: string | number | null; prov?: string | null }) {
+  const q = new URLSearchParams()
+  const tahun = String(opts?.tahun || '').slice(0, 4)
+  if (/^\d{4}$/.test(tahun)) q.set('tahun', tahun)
+  const prov = opts?.prov ? String(opts.prov).replace(/\D/g, '').padStart(2, '0').slice(0, 2) : ''
+  if (prov.length === 2 && prov !== '00') q.set('prov', prov)
+  const qs = q.toString()
+  return `${PUBLIC_BASE_PATH}/dashboard/jenis-kejadian${qs ? `?${qs}` : ''}`
+}
+
 export function tahunPilihan(current: number): number[] {
   const y = Number.isFinite(current) ? current : new Date().getFullYear()
   const years: number[] = []
@@ -117,13 +127,55 @@ function sumField(rows: any[], key: string) {
   return rows.reduce((s, r) => s + (r[key] != null && Number.isFinite(Number(r[key])) ? Number(r[key]) : 0), 0)
 }
 
-export function konteksNasional(raw: any) {
+/** Kapasitas PSC/TCK/logistik di provinsi terdampak. Bukan penugasan per jenis — API tidak menautkan deployment ke jenis kejadian. */
+export function konteksJenis(raw: any, provRows: { code: string; nama?: string; kejadian?: number }[] = []) {
   const livePsc = raw?.psc?.data_source === 'langsung'
   const liveTck = raw?.tck?.data_source === 'langsung'
   const liveLog = raw?.logistik?.data_source === 'langsung'
-  const pscRows = livePsc ? (raw?.psc?.provinsi || []) : []
-  const tckRows = liveTck ? (raw?.tck?.provinsi || []) : []
-  const logRows = liveLog ? (raw?.logistik?.regional || []) : []
+  const codes = (provRows || []).map((r) => padProv(r.code)).filter((c) => c && c !== '00')
+  const codeSet = new Set(codes)
+  const namaBy = Object.fromEntries((provRows || []).map((r) => [padProv(r.code), r.nama || `Provinsi ${r.code}`]))
+  const kejadianBy = Object.fromEntries((provRows || []).map((r) => [padProv(r.code), Number(r.kejadian || 0)]))
+
+  const pscAll = livePsc ? (raw?.psc?.provinsi || []) : []
+  const tckAll = liveTck ? (raw?.tck?.provinsi || []) : []
+  const pscRows = pscAll.filter((p: any) => codeSet.has(padProv(p.code)))
+  const tckRows = tckAll.filter((p: any) => codeSet.has(padProv(p.code)))
+
+  const logById = Object.fromEntries((raw?.logistik?.regional || []).map((r: any) => [r.id, r]))
+  const logMap = raw?.logistik?.provinsi_regional || {}
+  const seenGudang = new Set<string | number>()
+  const gudangUnik: any[] = []
+  const rows = codes.map((code) => {
+    const psc = pscRows.find((p: any) => padProv(p.code) === code)
+    const tck = tckRows.find((p: any) => padProv(p.code) === code)
+    const regId = logMap[code]
+    const gudang = liveLog
+      ? (regId != null ? logById[regId] : (raw?.logistik?.regional || []).find((r: any) => padProv(r.code) === code)) || null
+      : null
+    if (gudang) {
+      const key = gudang.id ?? gudang.nama ?? padProv(gudang.code)
+      if (!seenGudang.has(key)) {
+        seenGudang.add(key)
+        gudangUnik.push(gudang)
+      }
+    }
+    return {
+      code,
+      nama: psc?.nama || tck?.nama || namaBy[code] || `Provinsi ${code}`,
+      kejadian: kejadianBy[code] || 0,
+      psc_total: psc?.psc_total != null ? Number(psc.psc_total) : null,
+      psc_aktif: psc?.psc_aktif != null ? Number(psc.psc_aktif) : null,
+      ambulans: psc?.ambulans != null ? Number(psc.ambulans) : null,
+      ambulans_baik: psc?.ambulans_baik != null ? Number(psc.ambulans_baik) : null,
+      tck_individu: tck?.individu != null ? Number(tck.individu) : null,
+      tck_tim: tck?.tim != null ? Number(tck.tim) : null,
+      tck_nakes: tck?.nakes != null ? Number(tck.nakes) : null,
+      logistik: gudang ? Number(gudang.total || gudang.stok || 0) : null,
+      gudang: gudang?.nama || gudang?.wilayah || null,
+    }
+  }).sort((a, b) => b.kejadian - a.kejadian || String(a.nama).localeCompare(String(b.nama), 'id'))
+
   const psc = livePsc && pscRows.length ? {
     tersedia: true as const,
     psc_total: sumField(pscRows, 'psc_total'),
@@ -131,6 +183,7 @@ export function konteksNasional(raw: any) {
     ambulans: sumField(pscRows, 'ambulans'),
     ambulans_baik: sumField(pscRows, 'ambulans_baik'),
     panggilan: sumField(pscRows, 'panggilan'),
+    provinsi: pscRows.length,
   } : { tersedia: false as const }
   const tck = liveTck && tckRows.length ? {
     tersedia: true as const,
@@ -138,15 +191,21 @@ export function konteksNasional(raw: any) {
     nakes: sumField(tckRows, 'nakes'),
     tim: sumField(tckRows, 'tim'),
     emt: sumField(tckRows, 'emt'),
+    provinsi: tckRows.length,
   } : { tersedia: false as const }
-  const logistik = liveLog && logRows.length ? {
+  const logistik = liveLog && gudangUnik.length ? {
     tersedia: true as const,
-    total: sumField(logRows, 'total') || sumField(logRows, 'stok'),
-    gudang: logRows.length,
+    total: sumField(gudangUnik, 'total') || sumField(gudangUnik, 'stok'),
+    gudang: gudangUnik.length,
   } : { tersedia: false as const }
-  return { psc, tck, logistik }
+
+  return { psc, tck, logistik, rows, provCount: codes.length, scope: 'provinsi_terdampak' as const }
 }
 
+export function konteksNasional(raw: any) {
+  const regions = (raw?.regions || []).map((r: any) => ({ code: String(r.code), nama: r.name }))
+  return konteksJenis(raw, regions)
+}
 
 export function copyJenisDashboard(jenis: string | null): string {
   if (!jenis) return 'Pilih satu jenis kejadian untuk melihat sebaran nasional, peta, chart, dan data pendukung dari API EOC.'
@@ -215,7 +274,7 @@ export function packJenisKejadian(raw: any, jenisNama: string, tahun: number, pr
   const kabRows = breakdownKab(list)
   const tren = trendBulanan(list)
   const panasProv = heatmapProvBulan(list, regionName)
-  const ctx = konteksNasional(raw)
+  const ctx = konteksJenis(raw, provRows)
   const opsiJenis = jenisOptions((raw?.eoc?.events || []).map((e: any) => eocKejadian(e, regionName)))
   const regions = (raw?.regions || []).map((r: any) => ({ code: String(r.code).padStart(2, '0').slice(0, 2), nama: r.name })).sort((a: any, b: any) => String(a.nama).localeCompare(String(b.nama), 'id'))
   return {

@@ -17,6 +17,12 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
+  ComposedChart,
+  Legend,
+  Line,
+  Pie,
+  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -388,47 +394,37 @@ export function JenisKejadianSections({
         <>
           <div data-testid="jenis-analisis-head">
             <h3 className="text-xl font-black text-slate-900 sm:text-2xl">Analisis Dampak {jenis} - {nf(provRows.length)} Provinsi Terdampak</h3>
-            <p className="mt-1 text-sm text-slate-600">Visualisasi indikator dari API EOC untuk jenis ini pada tahun {tahun}{prov ? ` di ${wilayahLabel}` : ''}.</p>
+            <p className="mt-1 text-sm text-slate-600">Visualisasi tren, sebaran, komposisi korban, dan perbandingan dari API EOC untuk jenis ini pada tahun {tahun}{prov ? ` di ${wilayahLabel}` : ''}.</p>
           </div>
 
-          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_4px_12px_rgba(0,0,0,0.02)] sm:p-5" data-testid="jenis-sec-indikator">
-            <h3 className="text-xl font-black text-slate-900">Data Situasi {jenis} per Indikator</h3>
-            <p className="mt-1 text-sm text-slate-600">Seluruh angka dihitung dari rekaman EOC jenis ini pada tahun {tahun}{prov ? ' di provinsi terpilih' : ' di seluruh Indonesia'}.</p>
-            <div className="mt-3 flex flex-wrap gap-3">
-              <KpiTile label="Kejadian" value={nf(rekap.terpantau)} sub={`${nf(rekap.berdampak_krisis)} krisis`} tone="teal" />
-              <KpiTile label="Provinsi terdampak" value={nf(provRows.length)} sub={`${nf(kabRows.length)} kab/kota`} tone="violet" />
-              <KpiTile label="Meninggal" value={nf(rekap.meninggal)} tone="red" />
-              <KpiTile label="Luka-luka" value={nf(rekap.luka)} sub={`Berat ${nf(rekap.luka_berat)} · ringan ${nf(rekap.luka_ringan)}`} tone="amber" />
-              <KpiTile label="Hilang" value={nf(rekap.hilang)} tone="orange" />
-              <KpiTile label="Pengungsi" value={nf(rekap.pengungsi)} tone="orange" />
-              <KpiTile label="Penduduk terdampak" value={nf(rekap.terdampak)} tone="violet" />
-              <KpiTile label="Faskes rusak" value={nf(rekap.faskes_rusak)} tone="slate" />
-            </div>
-            <p className="m-0 mt-3 border-t border-slate-100 pt-2 text-[10.5px] leading-snug text-slate-500">{sumberEoc}{updated}</p>
-          </div>
+          <Card title={`Tren kejadian dan korban per bulan · ${tahun}`} icon={BarChart3} source={`${sumberEoc}${updated}`} className="">
+            {adaTren ? (
+              <div className="h-[340px]" data-testid="jenis-chart-tren">
+                <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={tren} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="bulan" tick={{ fontSize: 11 }} />
+                    <YAxis yAxisId="kiri" allowDecimals={false} tick={{ fontSize: 11 }} width={40} />
+                    <YAxis yAxisId="kanan" orientation="right" allowDecimals={false} tick={{ fontSize: 11 }} width={44} />
+                    <Tooltip contentStyle={tipStyle} />
+                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    <Bar yAxisId="kiri" dataKey="kejadian" name="Kejadian" fill="#0F766E" radius={[4, 4, 0, 0]} />
+                    <Bar yAxisId="kiri" dataKey="krisis" name="Krisis" fill="#E11D48" radius={[4, 4, 0, 0]} />
+                    <Line yAxisId="kiri" type="monotone" dataKey="meninggal" name="Meninggal" stroke="#BE123C" strokeWidth={2} dot={false} />
+                    <Line yAxisId="kiri" type="monotone" dataKey="luka" name="Luka-luka" stroke="#D97706" strokeWidth={2} dot={false} />
+                    <Line yAxisId="kanan" type="monotone" dataKey="pengungsi" name="Pengungsi" stroke="#EA580C" strokeWidth={2} dot={false} />
+                    <Line yAxisId="kanan" type="monotone" dataKey="terdampak" name="Terdampak" stroke="#7C3AED" strokeWidth={2} dot={false} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+            ) : <Empty />}
+          </Card>
 
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-            <Card title={`Tren kejadian dan korban per bulan · ${tahun}`} icon={BarChart3} source={`${sumberEoc}${updated}`}>
-              {adaTren ? (
-                <div className="h-[260px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={tren} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis dataKey="bulan" tick={{ fontSize: 11 }} />
-                      <YAxis allowDecimals={false} tick={{ fontSize: 11 }} width={36} />
-                      <Tooltip contentStyle={tipStyle} />
-                      <Bar dataKey="kejadian" name="Kejadian" fill="#0F766E" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="meninggal" name="Meninggal" fill="#E11D48" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="pengungsi" name="Pengungsi" fill="#EA580C" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              ) : <Empty />}
-            </Card>
 
             <Card title="Provinsi dengan kejadian terbanyak" icon={MapPin} source={`${sumberEoc}${updated}`}>
               {provChart.length ? (
-                <div className="h-[260px]">
+                <div className="h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={provChart} layout="vertical" margin={{ top: 0, right: 16, left: 4, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
@@ -444,7 +440,7 @@ export function JenisKejadianSections({
 
             <Card title="Kab/kota dengan kejadian terbanyak" icon={Users} source={`${sumberEoc}${updated}`}>
               {kabChart.length ? (
-                <div className="h-[260px]">
+                <div className="h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={kabChart} layout="vertical" margin={{ top: 0, right: 16, left: 4, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
@@ -460,7 +456,7 @@ export function JenisKejadianSections({
 
             <Card title="Komposisi dampak (korban)" icon={Activity} source={`${sumberEoc}${updated}`}>
               {dampakChart.length ? (
-                <div className="h-[260px]">
+                <div className="h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={dampakChart} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -473,7 +469,6 @@ export function JenisKejadianSections({
                 </div>
               ) : <Empty />}
             </Card>
-          </div>
 
           <Card title={`Heatmap provinsi × bulan · ${jenis} ${tahun}`} icon={BarChart3} source={`${sumberEoc}${updated}`}>
             {panas && panas.prov.length && panas.max > 0 ? (
@@ -524,7 +519,7 @@ export function JenisKejadianSections({
                     {prevRekap.tahun}: {nf(prevRekap.rekap.terpantau)} kejadian
                   </p>
                 ) : null}
-                <div className="h-[260px]">
+                <div className="h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={yoyChart} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -539,6 +534,64 @@ export function JenisKejadianSections({
               </>
             ) : <Empty />}
           </Card>
+
+          <Card title="Sebaran status krisis" icon={Activity} source={`${sumberEoc}${updated}`}>
+            {rekap.terpantau ? (
+              <div className="flex h-[300px] items-center gap-4" data-testid="jenis-chart-krisis">
+                <div className="h-full min-w-0 flex-1">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={[
+                          { name: 'Krisis', value: rekap.berdampak_krisis },
+                          { name: 'Terpantau', value: Math.max(0, rekap.terpantau - rekap.berdampak_krisis) },
+                        ]}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={54}
+                        outerRadius={90}
+                        paddingAngle={2}
+                      >
+                        <Cell fill="#E11D48" />
+                        <Cell fill="#0F766E" />
+                      </Pie>
+                      <Tooltip contentStyle={tipStyle} formatter={(v: any, n: any) => [nf(Number(v)), n]} />
+                      <Legend wrapperStyle={{ fontSize: 11 }} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="w-40 shrink-0 space-y-2 text-sm">
+                  <div className="rounded-xl bg-rose-50 px-3 py-2">
+                    <div className="text-[10px] font-black uppercase tracking-wider text-rose-700">Krisis</div>
+                    <div className="text-lg font-black tabular-nums text-rose-900">{nf(rekap.berdampak_krisis)}</div>
+                  </div>
+                  <div className="rounded-xl bg-teal-50 px-3 py-2">
+                    <div className="text-[10px] font-black uppercase tracking-wider text-teal-700">Terpantau</div>
+                    <div className="text-lg font-black tabular-nums text-teal-900">{nf(Math.max(0, rekap.terpantau - rekap.berdampak_krisis))}</div>
+                  </div>
+                </div>
+              </div>
+            ) : <Empty />}
+          </Card>
+          </div>
+
+          <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_4px_12px_rgba(0,0,0,0.02)] sm:p-5" data-testid="jenis-sec-indikator">
+            <h3 className="text-xl font-black text-slate-900">Data Situasi {jenis} per Indikator</h3>
+            <p className="mt-1 text-sm text-slate-600">Seluruh angka dihitung dari rekaman EOC jenis ini pada tahun {tahun}{prov ? ' di provinsi terpilih' : ' di seluruh Indonesia'}.</p>
+            <div className="mt-3 flex flex-wrap gap-3">
+              <KpiTile label="Kejadian" value={nf(rekap.terpantau)} sub={`${nf(rekap.berdampak_krisis)} krisis`} tone="teal" />
+              <KpiTile label="Provinsi terdampak" value={nf(provRows.length)} sub={`${nf(kabRows.length)} kab/kota`} tone="violet" />
+              <KpiTile label="Meninggal" value={nf(rekap.meninggal)} tone="red" />
+              <KpiTile label="Luka-luka" value={nf(rekap.luka)} sub={`Berat ${nf(rekap.luka_berat)} · ringan ${nf(rekap.luka_ringan)}`} tone="amber" />
+              <KpiTile label="Hilang" value={nf(rekap.hilang)} tone="orange" />
+              <KpiTile label="Pengungsi" value={nf(rekap.pengungsi)} tone="orange" />
+              <KpiTile label="Penduduk terdampak" value={nf(rekap.terdampak)} tone="violet" />
+              <KpiTile label="Faskes rusak" value={nf(rekap.faskes_rusak)} tone="slate" />
+            </div>
+            <p className="m-0 mt-3 border-t border-slate-100 pt-2 text-[10.5px] leading-snug text-slate-500">{sumberEoc}{updated}</p>
+          </div>
 
           <Card title={`Karakteristik ${jenis}`} icon={Activity} source="Hanya menampilkan metrik yang ada di API EOC. Magnitudo, kedalaman, tinggi air, atau titik panas tidak ditampilkan sebagai angka jika tidak ada di payload.">
             {eocKindOf(jenis) === 'gempa' ? (
@@ -591,13 +644,52 @@ export function JenisKejadianSections({
             )}
           </Card>
 
-          <Card title="Kesiapan & respons (agregat nasional)" icon={Activity} source="Sumber: API PSC, TCK, dan Logistik bila statusnya langsung. Ini gambaran kapasitas nasional, bukan khusus jenis kejadian ini.">
+          <Card
+            title={`Kesiapan & respons di provinsi terdampak`}
+            icon={Activity}
+            source="Sumber: API PSC, TCK, dan Logistik (hanya jika statusnya langsung). Angka ini adalah kapasitas berdiri di provinsi yang terdampak jenis ini, bukan penugasan atau respons yang dikaitkan ke jenis kejadian — API tidak menyediakan tautan itu."
+          >
             {ctx?.psc?.tersedia || ctx?.tck?.tersedia || ctx?.logistik?.tersedia ? (
-              <div className="mt-1 flex flex-wrap gap-3">
-                <KpiTile label="PSC aktif" value={ctx.psc.tersedia ? `${nf(ctx.psc.psc_aktif)}/${nf(ctx.psc.psc_total)}` : '—'} tone={ctx.psc.tersedia ? 'dark' : 'slate'} />
-                <KpiTile label="Ambulans" value={ctx.psc.tersedia ? nf(ctx.psc.ambulans) : '—'} sub={ctx.psc.tersedia ? `Baik ${nf(ctx.psc.ambulans_baik)}` : undefined} tone="teal" />
-                <KpiTile label="Relawan TCK" value={ctx.tck.tersedia ? nf(ctx.tck.individu) : '—'} sub={ctx.tck.tersedia ? `${nf(ctx.tck.tim)} tim` : undefined} tone="teal" />
-                <KpiTile label="Stok logistik regional" value={ctx.logistik.tersedia ? nf(ctx.logistik.total) : '—'} sub={ctx.logistik.tersedia ? `${nf(ctx.logistik.gudang)} gudang` : undefined} tone="slate" />
+              <div className="space-y-4" data-testid="jenis-kesiapan">
+                <p className="text-sm text-slate-600">Kapasitas di {nf(ctx.provCount || provRows.length)} provinsi terdampak {jenis}{prov ? ` (filter ${wilayahLabel})` : ''}.</p>
+                <div className="flex flex-wrap gap-3">
+                  <KpiTile label="PSC aktif" value={ctx.psc.tersedia ? `${nf(ctx.psc.psc_aktif)}/${nf(ctx.psc.psc_total)}` : '—'} sub={ctx.psc.tersedia ? `${nf((ctx.psc as any).provinsi)} provinsi` : undefined} tone={ctx.psc.tersedia ? 'dark' : 'slate'} />
+                  <KpiTile label="Ambulans" value={ctx.psc.tersedia ? nf(ctx.psc.ambulans) : '—'} sub={ctx.psc.tersedia ? `Baik ${nf(ctx.psc.ambulans_baik)}` : undefined} tone="teal" />
+                  <KpiTile label="Relawan TCK" value={ctx.tck.tersedia ? nf(ctx.tck.individu) : '—'} sub={ctx.tck.tersedia ? `${nf(ctx.tck.tim)} tim` : undefined} tone="teal" />
+                  <KpiTile label="Stok logistik regional" value={ctx.logistik.tersedia ? nf(ctx.logistik.total) : '—'} sub={ctx.logistik.tersedia ? `${nf(ctx.logistik.gudang)} gudang (unik, tanpa dihitung ganda)` : undefined} tone="slate" />
+                </div>
+                {ctx.rows?.length ? (
+                  <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+                    <div>
+                      <h5 className="mb-2 text-xs font-black uppercase tracking-wider text-slate-500">Relawan TCK per provinsi terdampak</h5>
+                      <div className="h-[300px]" data-testid="jenis-chart-tck">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={ctx.rows.filter((r: any) => r.tck_individu != null).slice(0, 12).map((r: any) => ({ ...r, nama: shortNama(r.nama, 16) }))} layout="vertical" margin={{ top: 0, right: 16, left: 4, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
+                            <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
+                            <YAxis type="category" dataKey="nama" width={96} tick={{ fontSize: 10 }} />
+                            <Tooltip contentStyle={tipStyle} formatter={(v: any, _n: any, p: any) => [nf(Number(v)), p?.payload?.nama]} />
+                            <Bar dataKey="tck_individu" name="Relawan TCK" fill="#0F766E" radius={[0, 4, 4, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                    <div>
+                      <h5 className="mb-2 text-xs font-black uppercase tracking-wider text-slate-500">PSC aktif per provinsi terdampak</h5>
+                      <div className="h-[300px]" data-testid="jenis-chart-psc">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={ctx.rows.filter((r: any) => r.psc_aktif != null).slice(0, 12).map((r: any) => ({ ...r, nama: shortNama(r.nama, 16) }))} layout="vertical" margin={{ top: 0, right: 16, left: 4, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={false} />
+                            <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} />
+                            <YAxis type="category" dataKey="nama" width={96} tick={{ fontSize: 10 }} />
+                            <Tooltip contentStyle={tipStyle} formatter={(v: any, _n: any, p: any) => [nf(Number(v)), p?.payload?.nama]} />
+                            <Bar dataKey="psc_aktif" name="PSC aktif" fill="#0369A1" radius={[0, 4, 4, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
               </div>
             ) : <Empty />}
           </Card>

@@ -400,6 +400,29 @@ export const FORM_PE_SUB_ITEMS: SidebarSubItemConfig[] = [
   { id: 'sub_pe_ai', label: 'Flu Burung', href: '/pe/ai', icon: 'FileText', order: 5, enabled: true, description: 'Formulir PE Flu Burung / Avian Influenza' },
 ]
 
+
+/** Pastikan item Jenis Kejadian ada di menu Dasbor, termasuk jika navigasi disimpan di database. */
+export function ensureJenisKejadianMenu(config: SidebarGroupConfig[]): SidebarGroupConfig[] {
+  const has = (config || []).some((g) =>
+    (g.items || []).some((it) =>
+      (it.href || '').includes('/dashboard/jenis-kejadian')
+      || (it.subItems || []).some((s) => (s.href || '').includes('/dashboard/jenis-kejadian')),
+    ),
+  )
+  if (has) return config
+  const item = it('mod_jenis_kejadian', 'Jenis Kejadian', '/dashboard/jenis-kejadian', 'Layers', 2.5, {
+    description: 'Dashboard nasional per jenis kejadian: peta, dampak, chart, dan kesiapan di provinsi terdampak',
+  })
+  return (config || []).map((g) => {
+    if (g.id !== 'grp_dasbor' && g.area !== 'dashboard') return g
+    const items = [...(g.items || [])]
+    const after = items.findIndex((i) => i.id === 'mod_situasi_krisis' || i.href === '/dashboard/situasi-krisis')
+    if (after >= 0) items.splice(after + 1, 0, item)
+    else items.push(item)
+    return { ...g, items }
+  })
+}
+
 export const DEFAULT_NAVIGATION_CONFIG: SidebarGroupConfig[] = [
   { id: 'grp_dasbor', title: 'Dasbor', order: 1, enabled: true, area: 'dashboard', items: [
     it('mod_ringkasan', 'Ringkasan', '/dashboard/ringkasan', 'LayoutDashboard', 1, {
@@ -407,6 +430,9 @@ export const DEFAULT_NAVIGATION_CONFIG: SidebarGroupConfig[] = [
     }),
     it('mod_situasi_krisis', 'Pantauan Krisis', '/dashboard/situasi-krisis', 'AlertTriangle', 2, {
       description: 'Kejadian bencana, korban, pengungsi, dan tren dari Pantauan Bencana / EOC',
+    }),
+    it('mod_jenis_kejadian', 'Jenis Kejadian', '/dashboard/jenis-kejadian', 'Layers', 2.5, {
+      description: 'Dashboard nasional per jenis kejadian: peta, dampak, chart, dan kesiapan di provinsi terdampak',
     }),
     it('mod_layanan', 'Layanan Gawat Darurat', '/dashboard/layanan-gawat-darurat', 'PhoneCall', 3, {
       description: 'PSC, ambulans, dan panggilan 119',

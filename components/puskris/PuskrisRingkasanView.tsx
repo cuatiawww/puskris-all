@@ -18,7 +18,7 @@ import DampakPendudukStrip from '@/components/puskris/DampakPendudukStrip'
 import { EMT_LABEL, NCC_LABEL } from '@/lib/puskris/labels'
 import { NASIONAL_NOTE, withQuery } from '@/lib/puskris/pages'
 import { jenisTrendSeries } from '@/lib/puskris/analisis-charts'
-import { jenisKejadianHref } from '@/lib/puskris/jenis-kejadian'
+import { jenisKejadianHref, jenisKejadianIndexHref } from '@/lib/puskris/jenis-kejadian'
 import { Area, AreaChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { buildTimeline } from '@/lib/puskris/integrasi'
 import ApiKosong from '@/components/puskris/ApiKosong'
@@ -30,13 +30,15 @@ function JenisBars({ items, selected, onSelect, tahun }: {
   tahun?: number
 }) {
   const max = Math.max(1, ...items.map((i) => i.kejadian))
+  const indexHref = `${jenisKejadianHref(items[0]?.nama || 'banjir', { tahun }).replace(/\/dashboard\/jenis-kejadian\/[^?]+/, '/dashboard/jenis-kejadian')}`
   return (
     <div className="skdr-card flex h-full flex-col p-3" data-testid="jenis-bars">
       <div className="mb-1.5 flex items-center justify-between gap-2">
         <h3 className="text-[11px] font-black uppercase tracking-wider text-slate-700">Jenis kejadian</h3>
         <div className="flex items-center gap-2">
+          <Link href={jenisKejadianIndexHref({ tahun })} data-testid="jenis-bars-lihat-semua" className="text-[10px] font-bold text-primary hover:underline">Lihat per jenis kejadian</Link>
           {selected ? (
-            <Link href={jenisKejadianHref(selected, { tahun })} data-testid="jenis-bars-lihat-nasional" className="text-[10px] font-bold text-primary hover:underline">Lihat nasional</Link>
+            <Link href={jenisKejadianHref(selected, { tahun })} data-testid="jenis-bars-lihat-nasional" className="text-[10px] font-bold text-primary hover:underline">Lihat {selected}</Link>
           ) : null}
           {selected ? (
             <button type="button" onClick={() => onSelect(null)} className="text-[10px] font-bold text-primary hover:underline">Hapus filter</button>
@@ -48,11 +50,12 @@ function JenisBars({ items, selected, onSelect, tahun }: {
         {items.slice(0, 8).map((c) => {
           const on = selected === c.nama
           return (
-            <li key={c.nama}>
+            <li key={c.nama} className={`flex items-center gap-1 rounded-lg px-1 py-0.5 ${on ? "bg-primary/10" : "hover:bg-slate-50"}`}>
               <button
                 type="button"
                 onClick={() => onSelect(on ? null : c.nama)}
-                className={`flex w-full items-center gap-2 rounded-lg px-1 py-0.5 text-left ${on ? "bg-primary/10" : "hover:bg-slate-50"}`}
+                className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                title="Saring ringkasan ke jenis ini"
               >
                 <span className="w-[46%] truncate text-[11px] font-semibold text-slate-700">{c.nama}</span>
                 <span className="h-2 flex-1 overflow-hidden rounded-full bg-slate-100">
@@ -60,6 +63,15 @@ function JenisBars({ items, selected, onSelect, tahun }: {
                 </span>
                 <span className="w-9 text-right text-[11px] font-bold tabular-nums text-slate-800">{c.kejadian.toLocaleString("id-ID")}</span>
               </button>
+              <Link
+                href={jenisKejadianHref(c.nama, { tahun })}
+                data-testid="jenis-bars-row-link"
+                onClick={(e) => e.stopPropagation()}
+                className="shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-bold text-[#047D78] hover:bg-[#047D78]/10 hover:underline"
+                title={`Buka dashboard ${c.nama}`}
+              >
+                Lihat
+              </Link>
             </li>
           )
         })}
@@ -696,6 +708,15 @@ export default function PuskrisRingkasanView({
 
       {tab === 'ringkasan' ? (
         <>
+          <div className="flex flex-col gap-2 rounded-2xl border border-teal-200 bg-teal-50/60 px-4 py-3 sm:flex-row sm:items-center sm:justify-between" data-testid="jenis-kejadian-cta">
+            <div className="min-w-0">
+              <p className="text-sm font-black text-slate-900">Dashboard per jenis kejadian</p>
+              <p className="text-[11px] font-medium text-slate-600">Buka peta, chart, dampak, dan kesiapan di provinsi terdampak untuk satu jenis — Banjir, Gempa Bumi, Karhutla, dan lainnya.</p>
+            </div>
+            <Link href={jenisKejadianIndexHref({ tahun: f.tahun, prov: f.provinsi })} className="inline-flex shrink-0 items-center justify-center rounded-lg bg-[#047D78] px-3 py-1.5 text-[11px] font-bold text-white hover:bg-[#036661]" data-testid="jenis-kejadian-cta-link">
+              Lihat per jenis kejadian
+            </Link>
+          </div>
           <section className="grid gap-3 lg:grid-cols-3" aria-label="Rekap ringkas">
             <JenisBars items={jenisCards} selected={f.jenis} tahun={f.tahun} onSelect={(nama) => onApply({ ...f, jenis: nama })} />
             <TrenJenisCard kejadian={derived.kejadianSemua} f={f} />
@@ -703,6 +724,8 @@ export default function PuskrisRingkasanView({
           </section>
           <p className="text-[11px] text-slate-500">
             Detail pilar ada di{' '}
+            <Link href={jenisKejadianIndexHref({ tahun: f.tahun, prov: f.provinsi })} className="font-bold text-primary hover:underline">Jenis Kejadian</Link>
+            {', '}
             <Link href={withQuery('/dashboard/situasi-krisis', f)} className="font-bold text-primary hover:underline">Pantauan Krisis</Link>
             {', '}
             <Link href={withQuery('/dashboard/layanan-gawat-darurat', f)} className="font-bold text-primary hover:underline">Layanan Gawat Darurat</Link>

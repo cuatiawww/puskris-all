@@ -1,0 +1,43 @@
+name: Build & Deploy Dashboard Puskris
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install git & docker-cli
+        run: apk add --no-cache git docker-cli docker-cli-compose
+
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Siapkan .env runtime dari Gitea Secrets
+        env:
+          PUSKRIS_TTOKEN: ${{ secrets.PUSKRIS_TTOKEN }}
+          PUSKRIS_EOC_AUTH: ${{ secrets.PUSKRIS_EOC_AUTH }}
+          PUSKRIS_NCC_URL: ${{ secrets.PUSKRIS_NCC_URL }}
+          PUSKRIS_NCC_KEY: ${{ secrets.PUSKRIS_NCC_KEY }}
+          PUSKRIS_NCC_SHEET_URL: ${{ secrets.PUSKRIS_NCC_SHEET_URL }}
+        run: |
+          cat <<EOF > .env
+          NEXT_PUBLIC_BYPASS_AUTH=true
+          NEXT_PUBLIC_BASE_PATH=
+          NEXT_PUBLIC_DEFAULT_LOCALE=id
+          NEXT_TELEMETRY_DISABLED=1
+          PUSKRIS_TTOKEN=${PUSKRIS_TTOKEN}
+          PUSKRIS_EOC_AUTH=${PUSKRIS_EOC_AUTH}
+          PUSKRIS_NCC_URL=${PUSKRIS_NCC_URL}
+          PUSKRIS_NCC_KEY=${PUSKRIS_NCC_KEY}
+          PUSKRIS_NCC_SHEET_URL=${PUSKRIS_NCC_SHEET_URL}
+          EOF
+
+      - name: Build & jalankan container via Docker socket
+        run: |
+          docker compose -p dashboard-puskris up -d --build
+          rm -f .env
+          docker image prune -f

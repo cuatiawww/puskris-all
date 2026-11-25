@@ -40,7 +40,9 @@ jobs:
           EOF
 
       - name: Build & jalankan container via Docker socket
+        env:
+          BUILDKIT_PROGRESS: plain
         run: |
-          docker compose -p dashboard-puskris up -d --build
+          docker compose -p dashboard-puskris up -d --build --quiet-pull
           rm -f .env
           docker image prune -f

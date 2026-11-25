@@ -2,7 +2,7 @@
 // PR 017 / PR 070: DB-driven navigation (app_settings.navigation_menu) tanpa hardcoded override.
 import { useMemo } from 'react'
 import { usePathname } from 'next/navigation'
-import { convertConfigToSidebarGroups, DEFAULT_NAVIGATION_CONFIG, ensureJenisKejadianMenu, type SidebarGroup, type SidebarItem } from '@/lib/menu'
+import { convertConfigToSidebarGroups, DEFAULT_NAVIGATION_CONFIG, ensureJenisKejadianMenu, ensureModeSpasialMenu, type SidebarGroup, type SidebarItem } from '@/lib/menu'
 import { useSettings } from '@/lib/settings-context'
 import { useTranslation } from '@/lib/i18n/LanguageContext'
 
@@ -18,10 +18,12 @@ export function useNavGroups(): SidebarGroup[] {
   const { t } = useTranslation()
 
   return useMemo(() => {
-    const rawConfig = ensureJenisKejadianMenu(
-      settings.navigation_menu && settings.navigation_menu.length > 0
-        ? settings.navigation_menu
-        : DEFAULT_NAVIGATION_CONFIG,
+    const rawConfig = ensureModeSpasialMenu(
+      ensureJenisKejadianMenu(
+        settings.navigation_menu && settings.navigation_menu.length > 0
+          ? settings.navigation_menu
+          : DEFAULT_NAVIGATION_CONFIG,
+      ),
     )
 
     const groups = convertConfigToSidebarGroups(rawConfig)

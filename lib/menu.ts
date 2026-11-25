@@ -423,6 +423,27 @@ export function ensureJenisKejadianMenu(config: SidebarGroupConfig[]): SidebarGr
   })
 }
 
+/** Pastikan item Mode Spasial memakai label "Mode Spasial" dan berada tepat di bawah Pantauan Krisis. */
+export function ensureModeSpasialMenu(config: SidebarGroupConfig[]): SidebarGroupConfig[] {
+  return (config || []).map((g) => {
+    if (g.id !== 'grp_dasbor' && g.area !== 'dashboard') return g
+    const items = [...(g.items || [])]
+    const idx = items.findIndex((i) => i.id === 'mod_spatial' || i.href === '/dashboard/spatial-mode')
+    const after = items.findIndex((i) => i.id === 'mod_situasi_krisis' || i.href === '/dashboard/situasi-krisis')
+    const targetOrder = after >= 0 ? (items[after].order || 2) + 0.2 : 2.2
+    const existing = idx >= 0 ? items.splice(idx, 1)[0] : null
+    const updated = existing
+      ? { ...existing, label: 'Mode Spasial', order: targetOrder }
+      : it('mod_spatial', 'Mode Spasial', '/dashboard/spatial-mode', 'Globe2', targetOrder, {
+          description: 'Tampilan peta layar penuh dengan variabel Pusat Krisis Kesehatan',
+        })
+    const insertIdx = items.findIndex((i) => i.id === 'mod_situasi_krisis' || i.href === '/dashboard/situasi-krisis')
+    if (insertIdx >= 0) items.splice(insertIdx + 1, 0, updated)
+    else items.push(updated)
+    return { ...g, items }
+  })
+}
+
 export const DEFAULT_NAVIGATION_CONFIG: SidebarGroupConfig[] = [
   { id: 'grp_dasbor', title: 'Dasbor', order: 1, enabled: true, area: 'dashboard', items: [
     it('mod_ringkasan', 'Ringkasan', '/dashboard/ringkasan', 'LayoutDashboard', 1, {
@@ -430,6 +451,9 @@ export const DEFAULT_NAVIGATION_CONFIG: SidebarGroupConfig[] = [
     }),
     it('mod_situasi_krisis', 'Pantauan Krisis', '/dashboard/situasi-krisis', 'AlertTriangle', 2, {
       description: 'Kejadian bencana, korban, pengungsi, dan tren dari Pantauan Bencana / EOC',
+    }),
+    it('mod_spatial', 'Mode Spasial', '/dashboard/spatial-mode', 'Globe2', 2.2, {
+      description: 'Tampilan peta layar penuh dengan variabel Pusat Krisis Kesehatan',
     }),
     it('mod_jenis_kejadian', 'Jenis Kejadian', '/dashboard/jenis-kejadian', 'Layers', 2.5, {
       description: 'Dashboard nasional per jenis kejadian: peta, dampak, chart, dan kesiapan di provinsi terdampak',
@@ -476,7 +500,6 @@ export const DEFAULT_NAVIGATION_CONFIG: SidebarGroupConfig[] = [
     it('mod_open_data', 'Open Data', '/dashboard/open-data', 'Database', 7.5, {
       description: 'Daftar API luar (API Intelijen) yang dipakai peta, lengkap dengan status langsung',
     }),
-    it('mod_spatial', 'Spatial Mode', '/dashboard/spatial-mode', 'Globe2', 8, { description: 'Tampilan peta layar penuh dengan variabel Pusat Krisis Kesehatan' }),
   ] },
 ]
 

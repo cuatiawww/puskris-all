@@ -10,10 +10,10 @@ import {
   Flame,
   MapPin,
   Package,
-  ShieldAlert,
   Stethoscope,
   Users,
 } from 'lucide-react'
+import WilayahKarakteristik from '@/components/puskris/WilayahKarakteristik'
 import {
   Bar,
   BarChart,
@@ -27,8 +27,6 @@ import { PUBLIC_BASE_PATH } from '@/lib/public-path'
 import { fmtAngka, tglKejadian } from '@/lib/puskris/eoc-markers'
 import { kejadianHref, wilayahHref } from '@/lib/puskris/eoc-event-layer'
 
-const THEME = 'bg-gradient-to-br from-cyan-900/10 via-teal-700/10 to-blue-600/15 border-cyan-300/80'
-const BULLETIN = 'bg-gradient-to-r from-orange-50 via-red-50/60 to-amber-50 border-orange-200/80'
 const CHART = ['#0F766E', '#EA580C', '#7C3AED', '#2563EB', '#DB2777', '#CA8A04', '#16A34A']
 
 function nf(n: number | null | undefined) {
@@ -77,30 +75,6 @@ function KpiTile({ label, value, sub, tone = 'slate' }: { label: string; value: 
       <div className="text-[10px] font-black uppercase tracking-wider opacity-70">{label}</div>
       <div className="mt-1 text-xl font-black leading-tight sm:text-2xl">{value}</div>
       {sub ? <div className="mt-0.5 text-[10.5px] font-semibold opacity-75">{sub}</div> : null}
-    </div>
-  )
-}
-
-function HeroStat({ label, value, unit, subs }: {
-  label: string; value: ReactNode; unit?: string; subs: { value: ReactNode; label: string; tone?: string }[]
-}) {
-  return (
-    <div className={`flex min-h-[220px] flex-col justify-between overflow-hidden rounded-2xl border p-3.5 shadow-[0_4px_12px_rgba(0,0,0,0.02)] ${THEME}`}>
-      <div className="flex flex-1 flex-col items-center justify-center text-center">
-        <span className="block text-[11px] font-black uppercase tracking-wider text-slate-600 sm:text-xs">{label}</span>
-        <div className="mt-2 flex min-w-0 items-baseline justify-center gap-1">
-          <span className="truncate text-2xl font-black leading-none text-slate-900 sm:text-3xl lg:text-4xl">{value}</span>
-          {unit ? <span className="text-xs font-bold text-slate-500">{unit}</span> : null}
-        </div>
-      </div>
-      <div className={`mt-auto shrink-0 border-t border-slate-300/40 pt-2.5 text-center ${subs.length > 1 ? 'grid grid-cols-2 gap-1' : ''}`}>
-        {subs.map((s) => (
-          <div key={s.label} className={subs.length > 1 ? 'px-0.5' : ''}>
-            <span className={`block text-base font-black leading-none sm:text-lg ${s.tone || 'text-slate-900'}`}>{s.value}</span>
-            <span className="mt-1 block text-[10px] font-black uppercase leading-tight text-slate-600">{s.label}</span>
-          </div>
-        ))}
-      </div>
     </div>
   )
 }
@@ -171,35 +145,6 @@ function shortNama(s: string, n = 22) {
   return s.length > n ? `${s.slice(0, n - 1)}…` : s
 }
 
-function buildKronologis(packed: any, tahun: number) {
-  const rekap = packed.rekap
-  const kab = packed.kabRows || []
-  const jenis = packed.jenisRows || []
-  const nama = packed.nama?.nama || 'wilayah ini'
-  const parts = [
-    `Di ${nama} tercatat ${nf(rekap.terpantau)} kejadian EOC pada tahun ${tahun}${rekap.berdampak_krisis ? `, ${nf(rekap.berdampak_krisis)} berdampak krisis kesehatan` : ''}, di ${nf(kab.length)} kab/kota.`,
-  ]
-  if (jenis[0]) parts.push(`Jenis terbanyak: ${jenis[0].jenis} (${nf(jenis[0].kejadian)} kejadian).`)
-  if (kab[0] && kab.length > 1) parts.push(`Kab/kota dengan kejadian terbanyak: ${kab[0].nama} (${nf(kab[0].kejadian)}).`)
-  const dampak: string[] = []
-  if (rekap.terdampak) dampak.push(`${nf(rekap.terdampak)} penduduk terdampak`)
-  if (rekap.meninggal) dampak.push(`${nf(rekap.meninggal)} meninggal`)
-  if (rekap.pengungsi) dampak.push(`${nf(rekap.pengungsi)} pengungsi`)
-  if (rekap.faskes_rusak) dampak.push(`${nf(rekap.faskes_rusak)} faskes rusak`)
-  if (dampak.length) parts.push(`Tercatat ${dampak.join(', ')}.`)
-  const ctx = packed.ctx
-  if (ctx?.psc?.tersedia && ctx.psc.psc_total != null) {
-    parts.push(`PSC aktif ${nf(ctx.psc.psc_aktif)} dari ${nf(ctx.psc.psc_total)} di provinsi ini.`)
-  }
-  if (ctx?.tck?.tersedia && ctx.tck.individu != null) {
-    parts.push(`Tenaga cadangan tercatat ${nf(ctx.tck.individu)} relawan${ctx.tck.tim != null ? ` (${nf(ctx.tck.tim)} tim)` : ''}.`)
-  }
-  if (ctx?.risiko?.tersedia && (ctx.risiko.kapasitas || ctx.risiko.irbi)) {
-    parts.push(`Asistensi wilayah: ${[ctx.risiko.kapasitas, ctx.risiko.irbi ? `IRBI ${ctx.risiko.irbi}` : null].filter(Boolean).join(' · ')}.`)
-  }
-  return parts.join(' ')
-}
-
 const tipStyle = { fontSize: 11 }
 
 export function WilayahIndikatorSections({
@@ -215,7 +160,6 @@ export function WilayahIndikatorSections({
   const [lihat, setLihat] = useState(25)
   const list: any[] = packed.filtered || []
   const rekap = packed.rekap
-  const opsi: { id: string; n: number }[] = packed.opsiJenis || []
   const tren = packed.tren || []
   const adaTren = tren.some((r: any) => r.kejadian > 0)
   const panas = packed.panasJenis
@@ -224,7 +168,6 @@ export function WilayahIndikatorSections({
   const jenisRows = packed.jenisRows || []
   const ctx = packed.ctx
   const more = Math.max(0, list.length - lihat)
-  const kronologis = useMemo(() => buildKronologis(packed, tahun), [packed, tahun])
   const sumberEoc = 'Sumber: API EOC Pusat Krisis Kesehatan, agregat kejadian di wilayah dan periode ini'
   const updated = packed.updatedAt ? ` | Pembaruan: ${packed.updatedAt}` : ''
 
@@ -264,101 +207,24 @@ export function WilayahIndikatorSections({
         </p>
       </div>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div className="min-w-0">
-          <h2 className="truncate text-[18px] font-black uppercase tracking-wide text-slate-900 sm:text-[20px]">
-            Ringkasan situasi - {jenis || 'semua jenis kejadian'}
-          </h2>
-          <p className="mt-0.5 line-clamp-1 text-xs text-slate-500">
-            Pemantauan kejadian, dampak korban, sebaran kab/kota, dan kesiapan respons di {levelLabel.toLowerCase()} ini.
-          </p>
-        </div>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between" data-testid="wilayah-ringkas-baris">
+        <p className="min-w-0 text-sm leading-relaxed text-slate-700">
+          <span className="font-black tabular-nums text-slate-900">{nf(rekap.terpantau)}</span> kejadian
+          <span className="mx-1.5 text-slate-300">·</span>
+          <span className="font-black tabular-nums text-slate-900">{nf(rekap.terdampak)}</span> penduduk terdampak
+          <span className="mx-1.5 text-slate-300">·</span>
+          <span className="font-black tabular-nums text-slate-900">{nf(kabRows.length)}</span> kab/kota
+          <span className="mx-1.5 text-slate-300">·</span>
+          <span className="font-black tabular-nums text-slate-900">{nf(rekap.berdampak_krisis)}</span> krisis
+          {jenis ? <span className="ml-1.5 text-xs font-bold text-[#047D78]">· {jenis}</span> : <span className="ml-1.5 text-xs text-slate-500">· semua jenis</span>}
+        </p>
         <div className="shrink-0 text-xs text-slate-500 sm:text-right">
           {packed.updatedAt ? <span>Terakhir Diperbarui: {packed.updatedAt}</span> : null}
           {loadingRange ? <span className="ml-2">memuat…</span> : null}
         </div>
       </div>
 
-      <div className="flex flex-col items-stretch gap-4 2xl:flex-row">
-        <div className={`flex w-full flex-col justify-between rounded-2xl border bg-white p-4 shadow-[0_4px_12px_rgba(0,0,0,0.02)] 2xl:w-[62%] ${THEME}`}>
-          <div className="grid grid-cols-1 gap-3 border-b border-slate-250/60 pb-3 sm:grid-cols-2 xl:grid-cols-4">
-            <div className="flex items-start gap-2.5">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-orange-700 shadow-sm"><Flame className="h-4 w-4" /></div>
-              <div className="min-w-0">
-                <div className="text-[10px] font-black uppercase tracking-wider text-slate-500">Jenis terbanyak</div>
-                <div className="mt-0.5 truncate text-sm font-black text-slate-900">{jenisRows[0]?.jenis || '—'}</div>
-                <div className="text-[10.5px] font-semibold text-slate-500">{jenisRows[0] ? `${nf(jenisRows[0].kejadian)} kejadian` : 'Data belum tersedia dari API'}</div>
-              </div>
-            </div>
-            <div className="flex items-start gap-2.5">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-teal-700 shadow-sm"><MapPin className="h-4 w-4" /></div>
-              <div className="min-w-0">
-                <div className="text-[10px] font-black uppercase tracking-wider text-slate-500">Kab/kota terdampak</div>
-                <div className="mt-0.5 text-sm font-black text-slate-900">{nf(kabRows.length)} kab/kota</div>
-                <div className="truncate text-[10.5px] font-semibold text-slate-500">{kabRows[0] ? `Terbanyak: ${kabRows[0].nama}` : packed.nama.nama}</div>
-              </div>
-            </div>
-            <div className="flex items-start gap-2.5">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-rose-700 shadow-sm"><ShieldAlert className="h-4 w-4" /></div>
-              <div className="min-w-0">
-                <div className="text-[10px] font-black uppercase tracking-wider text-slate-500">Berdampak krisis</div>
-                <div className="mt-0.5 text-sm font-black text-slate-900">{nf(rekap.berdampak_krisis)} kejadian</div>
-                <div className="text-[10.5px] font-semibold text-slate-500">dari {nf(rekap.terpantau)} terpantau</div>
-              </div>
-            </div>
-            <div className="flex items-start gap-2.5">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-violet-700 shadow-sm"><Users className="h-4 w-4" /></div>
-              <div className="min-w-0">
-                <div className="text-[10px] font-black uppercase tracking-wider text-slate-500">Pengungsi</div>
-                <div className="mt-0.5 text-sm font-black text-slate-900">{nf(rekap.pengungsi)}</div>
-                <div className="text-[10.5px] font-semibold text-slate-500">{rekap.meninggal ? `${nf(rekap.meninggal)} meninggal` : `Kode ${packed.kab || packed.prov}`}</div>
-              </div>
-            </div>
-          </div>
-
-          {opsi.length ? (
-            <div className="flex flex-wrap gap-1.5 py-3" data-testid="wilayah-filter-jenis">
-              <button type="button" onClick={() => onJenis(null)} className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${!jenis ? 'bg-[#047D78] text-white' : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}>Semua jenis</button>
-              {opsi.map((o) => (
-                <button key={o.id} type="button" onClick={() => onJenis(o.id)} className={`rounded-full px-2.5 py-1 text-[11px] font-bold ${jenis === o.id ? 'bg-[#047D78] text-white' : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}>
-                  {o.id} <span className="tabular-nums opacity-80">{o.n}</span>
-                </button>
-              ))}
-            </div>
-          ) : null}
-
-          {kronologis ? (
-            <div className={`mt-auto flex items-start gap-3 rounded-xl border p-3 ${BULLETIN}`}>
-              <div className="mt-0.5 shrink-0 rounded-lg bg-rose-600 p-1.5 text-white shadow-sm">
-                <ShieldAlert className="h-4 w-4" />
-              </div>
-              <p className="text-xs font-semibold leading-relaxed text-slate-800 sm:text-sm">
-                <span className="mr-2 inline-flex items-center rounded-md bg-rose-600 px-2.5 py-0.5 text-xs font-black uppercase tracking-wide text-white shadow-sm">Kronologis</span>
-                {kronologis}
-              </p>
-            </div>
-          ) : null}
-        </div>
-
-        <div className="grid w-full grid-cols-1 gap-3.5 sm:grid-cols-2 2xl:w-[38%]">
-          <HeroStat
-            label="Kejadian terpantau"
-            value={nf(rekap.terpantau)}
-            subs={[
-              { value: nf(rekap.berdampak_krisis), label: 'Berdampak krisis', tone: rekap.berdampak_krisis ? 'text-rose-700' : undefined },
-              { value: nf(jenisRows.length), label: 'Jenis kejadian' },
-            ]}
-          />
-          <HeroStat
-            label="Penduduk terdampak"
-            value={nf(rekap.terdampak)}
-            unit="Jiwa"
-            subs={[
-              { value: nf(kabRows.length), label: 'Kab/kota terdampak' },
-            ]}
-          />
-        </div>
-      </div>
+      <WilayahKarakteristik list={packed.list || []} selected={jenis} onSelect={onJenis} tahun={tahun} />
 
       {heroMap}
 

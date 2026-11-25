@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { eocKejadian, rekapKejadian } from '@/lib/puskris/derive'
 import { kodeKab4, risikoWilayah } from '@/lib/puskris/kejadian-detail'
+import { jenisCategory } from '@/lib/puskris/jenis-meta'
 
 export type WilayahLevel = 'provinsi' | 'kabupaten'
 
@@ -251,3 +252,159 @@ export function analisaWilayah(list: any[], rekap: ReturnType<typeof rekapKejadi
 }
 
 export { BULAN, rekapKejadian }
+
+export type KarakteristikKartu = {
+  id: string | null
+  nama: string
+  category: string | null
+  kejadian: number
+  terdampak: number
+  pengungsi: number
+  meninggal: number
+  krisis: number
+  kab: number
+  sparkKejadian: number[]
+  sparkTerdampak: number[]
+  deltaKejadian: number | null
+  deltaTerdampak: number | null
+  lastDate: string | null
+}
+
+function bulanDelta(values: number[], tahun: number): number | null {
+  const now = new Date()
+  const y = now.getFullYear()
+  const m = now.getMonth() + 1
+  const idx = tahun < y ? 11 : tahun === y ? Math.max(0, m - 1) : -1
+  if (idx < 1) return null
+  return values[idx] - values[idx - 1]
+}
+
+function kategoriDari(nama: string, kelompok: Set<string>): string | null {
+  const named = jenisCategory(nama)
+  if (named && named !== 'LAINNYA') return named
+  if (kelompok.size === 1) {
+    const k = [...kelompok][0]
+    if (k && k !== 'Lainnya') return k.toUpperCase()
+  }
+  return null
+}
+
+export function karakteristikJenis(list: any[], tahun: number): KarakteristikKartu[] {
+  type Acc = {
+    nama: string
+    kejadian: number
+    terdampak: number
+    pengungsi: number
+    meninggal: number
+    krisis: number
+    kab: Set<string>
+    kelompok: Set<string>
+    sparkK: number[]
+    sparkT: number[]
+    lastDate: string | null
+  }
+  const map = new Map<string, Acc>()
+  const allKab = new Set<string>()
+  const sparkKAll = Array.from({ length: 12 }, () => 0)
+  const sparkTAll = Array.from({ length: 12 }, () => 0)
+  let lastAll: string | null = null
+  const totals = { kejadian: 0, terdampak: 0, pengungsi: 0, meninggal: 0, krisis: 0 }
+
+  const ensure = (nama: string): Acc => {
+    let a = map.get(nama)
+    if (!a) {
+      a = {
+        nama,
+        kejadian: 0,
+        terdampak: 0,
+        pengungsi: 0,
+        meninggal: 0,
+        krisis: 0,
+        kab: new Set(),
+        kelompok: new Set(),
+        sparkK: Array.from({ length: 12 }, () => 0),
+        sparkT: Array.from({ length: 12 }, () => 0),
+        lastDate: null,
+      }
+      map.set(nama, a)
+    }
+    return a
+  }
+
+  for (const k of list || []) {
+    const nama = String(k.jenis || 'Tanpa jenis')
+    const a = ensure(nama)
+    a.kejadian += 1
+    a.terdampak += Number(k.terdampak || 0)
+    a.pengungsi += Number(k.pengungsi || 0)
+    a.meninggal += Number(k.meninggal || 0)
+    if (k.krisis) a.krisis += 1
+    const kab = kodeKab4(k.kab_code) || String(k.kabupaten || '')
+    if (kab) { a.kab.add(kab); allKab.add(kab) }
+    if (k.kelompok) a.kelompok.add(String(k.kelompok))
+    const m = bulanOf(k.tanggal)
+    if (m) {
+      a.sparkK[m - 1] += 1
+      a.sparkT[m - 1] += Number(k.terdampak || 0)
+      sparkKAll[m - 1] += 1
+      sparkTAll[m - 1] += Number(k.terdampak || 0)
+    }
+    const tgl = String(k.tanggal || '')
+    if (tgl && (!a.lastDate || tgl > a.lastDate)) a.lastDate = tgl
+    if (tgl && (!lastAll || tgl > lastAll)) lastAll = tgl
+    totals.kejadian += 1
+    totals.terdampak += Number(k.terdampak || 0)
+    totals.pengungsi += Number(k.pengungsi || 0)
+    totals.meninggal += Number(k.meninggal || 0)
+    if (k.krisis) totals.krisis += 1
+  }
+
+  const toCard = (id: string | null, nama: string, category: string | null, src: {
+    kejadian: number; terdampak: number; pengungsi: number; meninggal: number; krisis: number
+    kab: number; sparkK: number[]; sparkT: number[]; lastDate: string | null
+  }): KarakteristikKartu => ({
+    id,
+    nama,
+    category,
+    kejadian: src.kejadian,
+    terdampak: src.terdampak,
+    pengungsi: src.pengungsi,
+    meninggal: src.meninggal,
+    krisis: src.krisis,
+    kab: src.kab,
+    sparkKejadian: src.sparkK,
+    sparkTerdampak: src.sparkT,
+    deltaKejadian: bulanDelta(src.sparkK, tahun),
+    deltaTerdampak: bulanDelta(src.sparkT, tahun),
+    lastDate: src.lastDate,
+  })
+
+  const cards = [...map.values()]
+    .sort((a, b) => b.kejadian - a.kejadian || a.nama.localeCompare(b.nama, 'id'))
+    .map((a) => toCard(a.nama, a.nama, kategoriDari(a.nama, a.kelompok), {
+      kejadian: a.kejadian,
+      terdampak: a.terdampak,
+      pengungsi: a.pengungsi,
+      meninggal: a.meninggal,
+      krisis: a.krisis,
+      kab: a.kab.size,
+      sparkK: a.sparkK,
+      sparkT: a.sparkT,
+      lastDate: a.lastDate,
+    }))
+
+  if (!cards.length) return []
+
+  const semua = toCard(null, 'Semua jenis', `${cards.length} jenis kejadian`, {
+    kejadian: totals.kejadian,
+    terdampak: totals.terdampak,
+    pengungsi: totals.pengungsi,
+    meninggal: totals.meninggal,
+    krisis: totals.krisis,
+    kab: allKab.size,
+    sparkK: sparkKAll,
+    sparkT: sparkTAll,
+    lastDate: lastAll,
+  })
+  return [semua, ...cards]
+}

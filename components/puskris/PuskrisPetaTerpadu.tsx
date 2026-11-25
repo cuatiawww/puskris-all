@@ -275,6 +275,22 @@ export default function PuskrisPetaTerpadu({
     if (f.provinsi) onApply({ ...f, provinsi: null, kabupaten: null })
   }, [f, onApply, setSelectedEvent, mode])
 
+  const fokusProv = String(fokusWilayah?.code || '').replace(/\D/g, '')
+  const alreadyThisProv = mode === 'wilayah' && !fokusWilayah?.kab && fokusProv.length > 0 && fokusProv.length <= 2 && fokusProv.padStart(2, '0').slice(0, 2) === drillProv
+  const selKabDigits = String(sel?.code || '').replace(/\D/g, '')
+  const selKabCode = selKabDigits.length >= 3 ? selKabDigits.padStart(4, '0').slice(0, 4) : ''
+  const fokusKab = String(fokusWilayah?.kab || (fokusProv.length >= 3 ? fokusProv : '') || '').replace(/\D/g, '')
+  const alreadyThisKab = mode === 'wilayah' && Boolean(selKabCode) && fokusKab.padStart(4, '0').slice(0, 4) === selKabCode
+  const drillWilayah = drillProv ? {
+    prov: drillProv,
+    nama: drillNama,
+    onExit: mode === 'wilayah' ? undefined : keluarDrill,
+    wilayahHref: alreadyThisProv ? undefined : wilayahHref(drillProv, { tahun: f.tahun }),
+    wilayahLabel: `Lihat Provinsi ${drillNama || drillProv}`,
+    kabHref: selKabCode && !alreadyThisKab ? wilayahHref(selKabCode, { tahun: f.tahun }) : undefined,
+    kabLabel: selKabCode ? `Lihat Kab/Kota ${sel?.nama || selKabCode}` : undefined,
+  } : null
+
   const aFilter = useMemo<AFilter>(() => ({ ...defaultFilter(), sumber: 'ebs' }), [])
   const eocLayer = useMemo(() => {
     let list = (mode === 'kejadian' && fokusKejadian) ? [fokusKejadian] : (kejadianSemuaPeta || kejadianPeta || [])
@@ -987,7 +1003,7 @@ export default function PuskrisPetaTerpadu({
               onBnpbStatus={onBnpbStatus}
               metricLabel={choroLabel}
               catChoro={drillCat || catChoro || (mode === 'kejadian' ? { id: 'kejadian-fokus', level: 'provinsi' as const, judul: 'Fokus satu kejadian', sumber: 'Halaman detail', items: {}, legend: [], catatan: 'Arsiran angka nasional dimatikan pada halaman detail. Aktifkan lapisan risiko untuk melihat arsiran wilayah.' } : null)}
-              drill={drillProv ? { prov: drillProv, nama: drillNama, onExit: mode === 'wilayah' ? undefined : keluarDrill } : null}
+              drill={drillWilayah}
               drillOnClick={mode === 'dasbor'}
               skipAutoFit={mode === 'kejadian' || mode === 'wilayah'}
               keepDrillFit={mode === 'wilayah'}

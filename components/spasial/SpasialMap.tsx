@@ -129,6 +129,44 @@ export interface MapHudCtrl {
   setShowLayers: (v: boolean) => void
 }
 
+
+function DrillBar({ drill }: {
+  drill: {
+    prov: string
+    nama: string
+    onExit?: () => void
+    wilayahHref?: string
+    wilayahLabel?: string
+    kabHref?: string
+    kabLabel?: string
+  }
+}) {
+  const pill = 'flex min-w-0 max-w-[11.5rem] items-center rounded-lg border border-[#00705a] bg-white px-2.5 py-1 text-[11px] font-bold text-[#00705a] shadow-sm hover:bg-[#00705a]/10 sm:max-w-[16rem]'
+  return (
+    <div className="pointer-events-auto flex max-w-[min(100%,44rem)] flex-wrap items-center gap-1.5 rounded-xl border border-slate-200 bg-white/95 px-2 py-1.5 shadow-lg backdrop-blur" data-testid="drill-bar">
+      {drill.onExit ? (
+        <button type="button" onClick={drill.onExit} data-testid="drill-kembali" className="flex shrink-0 items-center gap-1 rounded-lg bg-[#00705a] px-2.5 py-1 text-[11px] font-bold text-white shadow-sm hover:bg-[#005a48]">
+          ← Kembali ke Nasional
+        </button>
+      ) : null}
+      <span className="min-w-0 truncate text-[11px] font-semibold text-slate-500">
+        Indonesia <span className="text-slate-300">›</span> <b className="text-slate-800">{drill.nama}</b>
+      </span>
+      {drill.wilayahHref ? (
+        <a href={drill.wilayahHref} data-testid="drill-lihat-provinsi" title={drill.wilayahLabel || undefined} className={pill}>
+          <span className="truncate">{drill.wilayahLabel || `Lihat Provinsi ${drill.nama}`}</span>
+        </a>
+      ) : null}
+      {drill.kabHref ? (
+        <a href={drill.kabHref} data-testid="drill-lihat-kab" title={drill.kabLabel || undefined} className={pill}>
+          <span className="truncate">{drill.kabLabel}</span>
+        </a>
+      ) : null}
+      {drill.onExit ? <span className="hidden shrink-0 text-[10px] text-slate-400 sm:inline">· Esc</span> : null}
+    </div>
+  )
+}
+
 export default function SpasialMap({ data, titik, metric, setMetric, layers, setLayers, choroCfg, sumber, selectedId, onSelectArea, onDrill, onUp, focus, rightPanel, panelOpen, setPanelOpen, height = 680, fullHeight = false, topHud, leftDock, topOffset, hideDefaultToolbar = false, intelLayers, radiusSupport, onIntelStatus, pointOpacity = 1, showBoundaries = true, windFlow = false, metricLabel, bnpbLayers, onBnpbStatus, fitPadding, legendDefaultOpen = true, extraLayers, catChoro, drill = null, drillOnClick = false, skipAutoFit = false, keepDrillFit = false, areaExtra }: {
   data: SpasialResp | null; titik: Titik[]; metric: Metric; setMetric: (m: Metric) => void; layers: Layers; setLayers: (l: Layers) => void
   choroCfg: ChoroConfig | null; sumber: string; selectedId: number | null; onSelectArea: (a: Area | null) => void; onDrill: (a: Area) => void; onUp: (() => void) | null
@@ -154,7 +192,16 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
   /** Arsiran kategorikal; bila aktif menggantikan arsiran angka. */
   catChoro?: CatChoro | null
   /** Mode telusur provinsi: provinsi lain diredupkan & tak bisa diklik, ada tombol kembali ke nasional. */
-  drill?: { prov: string; nama: string; onExit?: () => void } | null
+  drill?: {
+    prov: string
+    nama: string
+    onExit?: () => void
+    /** Tautan ke halaman Detail Wilayah provinsi (dan opsional kab/kota). */
+    wilayahHref?: string
+    wilayahLabel?: string
+    kabHref?: string
+    kabLabel?: string
+  } | null
   /** Klik poligon provinsi memicu telusur (tanpa popup), bukan popup ringkas. */
   drillOnClick?: boolean
   /** Jangan sesuaikan view ke cakupan nasional/kab ketika fokus titik dikunci (halaman detail kejadian). */
@@ -1097,13 +1144,7 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
       <style>{`[data-base="light"] .spasial-base canvas{filter:grayscale(1) brightness(1.08) contrast(0.88)}`}</style>
       <div ref={el} className="absolute inset-0" />
       {windErr ? <div className="absolute left-1/2 top-28 z-30 -translate-x-1/2 rounded-lg bg-amber-50 px-3 py-1.5 text-[11px] font-bold text-amber-800">{windErr}</div> : null}
-      {!fullHeight && drill ? <div className="absolute left-1/2 top-3 z-30 -translate-x-1/2">{drill ? (
-                <div className="pointer-events-auto flex items-center gap-2 rounded-xl border border-slate-200 bg-white/95 px-2 py-1.5 shadow-lg backdrop-blur" data-testid="drill-bar">
-                  {drill.onExit ? <button type="button" onClick={drill.onExit} data-testid="drill-kembali" className="flex items-center gap-1 rounded-lg bg-[#00705a] px-2.5 py-1 text-[11px] font-bold text-white shadow-sm hover:bg-[#005a48]">← Kembali ke Nasional</button> : null}
-                  <span className="text-[11px] font-semibold text-slate-500">Indonesia <span className="text-slate-300">›</span> <b className="text-slate-800">{drill.nama}</b></span>
-                  {drill.onExit ? <span className="hidden text-[10px] text-slate-400 sm:inline">· Esc</span> : null}
-                </div>
-              ) : null}</div> : null}
+      {!fullHeight && drill ? <div className="absolute left-1/2 top-3 z-30 w-[min(calc(100%-1.5rem),44rem)] -translate-x-1/2"><DrillBar drill={drill} /></div> : null}
       {geoErr ? <div className="absolute left-1/2 top-20 z-30 -translate-x-1/2 rounded-lg bg-red-50 px-3 py-2 text-xs font-bold text-red-700">Batas wilayah gagal dimuat; titik tetap ditampilkan.</div> : null}
 
       {fullHeight ? (
@@ -1120,10 +1161,8 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
             </div>
             <div className="flex min-w-0 flex-1 flex-col items-center justify-end self-stretch pb-0.5">
               {drill ? (
-                <div className="pointer-events-auto mb-auto flex items-center gap-2 rounded-xl border border-slate-200 bg-white/95 px-2 py-1.5 shadow-lg backdrop-blur" data-testid="drill-bar">
-                  {drill.onExit ? <button type="button" onClick={drill.onExit} data-testid="drill-kembali" className="flex items-center gap-1 rounded-lg bg-[#00705a] px-2.5 py-1 text-[11px] font-bold text-white shadow-sm hover:bg-[#005a48]">← Kembali ke Nasional</button> : null}
-                  <span className="text-[11px] font-semibold text-slate-500">Indonesia <span className="text-slate-300">›</span> <b className="text-slate-800">{drill.nama}</b></span>
-                  {drill.onExit ? <span className="hidden text-[10px] text-slate-400 sm:inline">· Esc</span> : null}
+                <div className="mb-auto w-[min(100%,44rem)]">
+                  <DrillBar drill={drill} />
                 </div>
               ) : null}
               {weeks.length > 1 ? (

@@ -9,16 +9,32 @@ import { eocIconOf } from '@/lib/puskris/eoc-markers'
 const BRAND = '#047D78'
 const BULAN = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
 
+const DAMPAK_METRICS: { key: string; label: string; value: (c: KarakteristikKartu) => number }[] = [
+  { key: 'meninggal', label: 'Meninggal', value: (c) => c.meninggal },
+  { key: 'luka', label: 'Luka-luka', value: (c) => c.luka },
+  { key: 'hilang', label: 'Hilang', value: (c) => c.hilang },
+  { key: 'pengungsi', label: 'Pengungsi', value: (c) => c.pengungsi },
+  { key: 'terdampak', label: 'Terdampak', value: (c) => c.terdampak },
+  { key: 'faskes_rusak', label: 'Faskes rusak', value: (c) => c.faskes_rusak },
+]
+
 function nf(n: number | null | undefined) {
-  if (n == null || Number.isNaN(Number(n))) return '—'
+  if (n == null || Number.isNaN(Number(n))) return '–'
   return Number(n).toLocaleString('id-ID')
 }
 
-function compact(n: number) {
+function compact(n: number | null | undefined) {
+  if (n == null || Number.isNaN(Number(n))) return '–'
   if (n >= 1_000_000) return `${(n / 1_000_000).toLocaleString('id-ID', { maximumFractionDigits: 1 })} jt`
-  if (n >= 10_000) return `${Math.round(n / 1000).toLocaleString('id-ID')} rb`
   if (n >= 1_000) return `${(n / 1000).toLocaleString('id-ID', { maximumFractionDigits: 1 })} rb`
   return nf(n)
+}
+
+function tglPendek(iso: string | null) {
+  if (!iso) return null
+  const d = new Date(`${iso.slice(0, 10)}T00:00:00+07:00`)
+  if (Number.isNaN(d.getTime())) return null
+  return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
 }
 
 function accentOf(jenis: string | null) {
@@ -66,19 +82,17 @@ function MiniBars({ values, color }: { values: number[]; color: string }) {
 }
 
 function Kartu({
-  card, selected, onSelect, fill, total,
+  card, selected, onSelect, fill, metrics,
 }: {
   card: KarakteristikKartu
   selected: boolean
   onSelect: (id: string | null) => void
   fill?: boolean
-  total: number
+  metrics: typeof DAMPAK_METRICS
 }) {
   const color = accentOf(card.id)
-  const share = total > 0 ? (card.kejadian / total) * 100 : 0
-  const chips: { key: string; text: string }[] = []
-  if (card.terdampak > 0) chips.push({ key: 'td', text: `${compact(card.terdampak)} terdampak` })
-  chips.push({ key: 'kab', text: `${nf(card.kab)} kab/kota` })
+  const last = tglPendek(card.lastDate)
+  const cols = metrics.length >= 5 ? 3 : 2
 
   return (
     <button
@@ -88,41 +102,61 @@ function Kartu({
       data-jenis={card.id ?? 'semua'}
       aria-pressed={selected}
       onClick={() => onSelect(card.id)}
-      className={`group relative flex flex-col overflow-hidden rounded-xl border bg-white p-3 text-left shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-all hover:-translate-y-px hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#047D78] ${fill ? 'w-full' : 'w-[12.75rem] shrink-0 snap-start sm:w-[13rem]'} ${selected ? 'ring-2' : 'border-slate-200 hover:border-slate-300'}`}
+      className={`group relative flex flex-col overflow-hidden rounded-xl border bg-white p-3 text-left shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-all hover:-translate-y-px hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#047D78] ${fill ? 'w-full' : 'w-[15.5rem] shrink-0 snap-start sm:w-[16rem]'} ${selected ? 'ring-2' : 'border-slate-200 hover:border-slate-300'}`}
       style={selected ? { borderColor: color, boxShadow: `0 0 0 2px ${color}33` } : undefined}
     >
       <span className="absolute inset-y-0 left-0 w-[3px]" style={{ background: color }} aria-hidden />
-      <div className="flex items-center gap-2 pl-1">
+
+      <div className="flex items-start gap-2 pl-1">
         <JenisMark jenis={card.id} />
-        <div className="min-w-0 truncate text-[13px] font-bold leading-tight text-slate-900 group-hover:text-[#047D78]">
-          {card.nama}
+        <div className="min-w-0 flex-1">
+          <div className="truncate text-[13px] font-bold leading-tight text-slate-900 group-hover:text-[#047D78]">
+            {card.nama}
+          </div>
+          {card.category ? (
+            <div className="mt-0.5 truncate text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+              {card.category}
+            </div>
+          ) : null}
         </div>
+        {last ? (
+          <span className="shrink-0 rounded-full bg-slate-50 px-1.5 py-0.5 text-[9px] font-semibold tabular-nums text-slate-400" title={`Data terakhir ${last}`}>
+            {last}
+          </span>
+        ) : null}
       </div>
 
-      <div className="mt-2.5 flex items-end justify-between gap-2 pl-1">
+      <div className="mt-2.5 flex items-end justify-between gap-3 pl-1">
         <div className="min-w-0">
           <div className="text-[22px] font-black leading-none tabular-nums text-slate-900">{nf(card.kejadian)}</div>
           <div className="mt-0.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">kejadian</div>
         </div>
-        <div className="mb-0.5 shrink-0 text-right text-[11px] font-bold tabular-nums text-slate-500">
-          {share >= 10 ? `${Math.round(share)}%` : `${share.toLocaleString('id-ID', { maximumFractionDigits: 1 })}%`}
+        <div className="mb-0.5 w-[5rem] shrink-0">
+          <MiniBars values={card.sparkKejadian} color={color} />
         </div>
       </div>
 
-      <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-slate-100 pl-0" title={`${share.toLocaleString('id-ID', { maximumFractionDigits: 1 })}% dari kejadian di wilayah ini`}>
-        <div className="h-full rounded-full" style={{ width: `${Math.min(100, Math.max(share > 0 ? 4 : 0, share))}%`, background: color }} />
-      </div>
-
-      <div className="mt-2 pl-1">
-        <MiniBars values={card.sparkKejadian} color={color} />
+      <div className={`mt-2.5 grid gap-x-2 gap-y-1.5 border-t border-slate-100 pt-2 pl-1 ${cols === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
+        {metrics.map((m) => {
+          const n = m.value(card)
+          return (
+            <div key={m.key} className="min-w-0">
+              <div className="truncate text-[9px] font-semibold uppercase tracking-wide text-slate-400">{m.label}</div>
+              <div className={`mt-0.5 truncate text-[15px] font-extrabold leading-none tabular-nums ${n > 0 ? 'text-slate-900' : 'text-slate-400'}`}>
+                {compact(n)}
+              </div>
+            </div>
+          )
+        })}
       </div>
 
       <div className="mt-2 flex flex-wrap gap-1 pl-1">
-        {chips.map((c) => (
-          <span key={c.key} className="rounded-full bg-slate-50 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-slate-600">
-            {c.text}
-          </span>
-        ))}
+        <span className="rounded-full bg-slate-50 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-slate-600">
+          {nf(card.krisis)} krisis
+        </span>
+        <span className="rounded-full bg-slate-50 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-slate-600">
+          {nf(card.kab)} kab/kota
+        </span>
       </div>
     </button>
   )
@@ -137,7 +171,7 @@ export default function WilayahKarakteristik({
   tahun: number
 }) {
   const cards = useMemo(() => karakteristikJenis(list || [], tahun), [list, tahun])
-  const total = cards.find((c) => c.id == null)?.kejadian || cards.reduce((s, c) => s + (c.id ? c.kejadian : 0), 0)
+  const metrics = DAMPAK_METRICS
   const track = useRef<HTMLDivElement>(null)
   const drag = useRef<{ x: number; left: number; moved: boolean } | null>(null)
   const [grid, setGrid] = useState(false)
@@ -146,7 +180,7 @@ export default function WilayahKarakteristik({
     const el = track.current
     if (!el) return
     const card = el.querySelector<HTMLElement>('[data-slide]')
-    const w = card ? card.offsetWidth + 10 : 220
+    const w = card ? card.offsetWidth + 10 : 266
     el.scrollBy({ left: dir * w, behavior: 'smooth' })
   }
 
@@ -211,7 +245,7 @@ export default function WilayahKarakteristik({
       {grid ? (
         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5" data-testid="karakteristik-grid-view">
           {cards.map((c) => (
-            <Kartu key={c.id ?? 'semua'} card={c} selected={selected === c.id} onSelect={onSelect} fill total={total} />
+            <Kartu key={c.id ?? 'semua'} card={c} selected={selected === c.id} onSelect={onSelect} fill metrics={metrics} />
           ))}
         </div>
       ) : (
@@ -241,7 +275,7 @@ export default function WilayahKarakteristik({
           }}
         >
           {cards.map((c) => (
-            <Kartu key={c.id ?? 'semua'} card={c} selected={selected === c.id} onSelect={onSelect} total={total} />
+            <Kartu key={c.id ?? 'semua'} card={c} selected={selected === c.id} onSelect={onSelect} metrics={metrics} />
           ))}
         </div>
       )}

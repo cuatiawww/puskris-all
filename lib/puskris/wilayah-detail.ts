@@ -258,9 +258,14 @@ export type KarakteristikKartu = {
   nama: string
   category: string | null
   kejadian: number
-  terdampak: number
-  pengungsi: number
   meninggal: number
+  hilang: number
+  luka_berat: number
+  luka_ringan: number
+  luka: number
+  pengungsi: number
+  terdampak: number
+  faskes_rusak: number
   krisis: number
   kab: number
   sparkKejadian: number[]
@@ -293,9 +298,13 @@ export function karakteristikJenis(list: any[], tahun: number): KarakteristikKar
   type Acc = {
     nama: string
     kejadian: number
-    terdampak: number
-    pengungsi: number
     meninggal: number
+    hilang: number
+    luka_berat: number
+    luka_ringan: number
+    pengungsi: number
+    terdampak: number
+    faskes_rusak: number
     krisis: number
     kab: Set<string>
     kelompok: Set<string>
@@ -308,7 +317,21 @@ export function karakteristikJenis(list: any[], tahun: number): KarakteristikKar
   const sparkKAll = Array.from({ length: 12 }, () => 0)
   const sparkTAll = Array.from({ length: 12 }, () => 0)
   let lastAll: string | null = null
-  const totals = { kejadian: 0, terdampak: 0, pengungsi: 0, meninggal: 0, krisis: 0 }
+  const totals = {
+    kejadian: 0, meninggal: 0, hilang: 0, luka_berat: 0, luka_ringan: 0,
+    pengungsi: 0, terdampak: 0, faskes_rusak: 0, krisis: 0,
+  }
+
+  const bump = (dst: { meninggal: number; hilang: number; luka_berat: number; luka_ringan: number; pengungsi: number; terdampak: number; faskes_rusak: number; krisis: number }, k: any) => {
+    dst.meninggal += Number(k.meninggal || 0)
+    dst.hilang += Number(k.hilang || 0)
+    dst.luka_berat += Number(k.luka_berat || 0)
+    dst.luka_ringan += Number(k.luka_ringan || 0)
+    dst.pengungsi += Number(k.pengungsi || 0)
+    dst.terdampak += Number(k.terdampak || 0)
+    dst.faskes_rusak += Number(k.faskes_rusak || 0)
+    if (k.krisis) dst.krisis += 1
+  }
 
   const ensure = (nama: string): Acc => {
     let a = map.get(nama)
@@ -316,9 +339,13 @@ export function karakteristikJenis(list: any[], tahun: number): KarakteristikKar
       a = {
         nama,
         kejadian: 0,
-        terdampak: 0,
-        pengungsi: 0,
         meninggal: 0,
+        hilang: 0,
+        luka_berat: 0,
+        luka_ringan: 0,
+        pengungsi: 0,
+        terdampak: 0,
+        faskes_rusak: 0,
         krisis: 0,
         kab: new Set(),
         kelompok: new Set(),
@@ -335,10 +362,7 @@ export function karakteristikJenis(list: any[], tahun: number): KarakteristikKar
     const nama = String(k.jenis || 'Tanpa jenis')
     const a = ensure(nama)
     a.kejadian += 1
-    a.terdampak += Number(k.terdampak || 0)
-    a.pengungsi += Number(k.pengungsi || 0)
-    a.meninggal += Number(k.meninggal || 0)
-    if (k.krisis) a.krisis += 1
+    bump(a, k)
     const kab = kodeKab4(k.kab_code) || String(k.kabupaten || '')
     if (kab) { a.kab.add(kab); allKab.add(kab) }
     if (k.kelompok) a.kelompok.add(String(k.kelompok))
@@ -353,23 +377,26 @@ export function karakteristikJenis(list: any[], tahun: number): KarakteristikKar
     if (tgl && (!a.lastDate || tgl > a.lastDate)) a.lastDate = tgl
     if (tgl && (!lastAll || tgl > lastAll)) lastAll = tgl
     totals.kejadian += 1
-    totals.terdampak += Number(k.terdampak || 0)
-    totals.pengungsi += Number(k.pengungsi || 0)
-    totals.meninggal += Number(k.meninggal || 0)
-    if (k.krisis) totals.krisis += 1
+    bump(totals, k)
   }
 
   const toCard = (id: string | null, nama: string, category: string | null, src: {
-    kejadian: number; terdampak: number; pengungsi: number; meninggal: number; krisis: number
+    kejadian: number; meninggal: number; hilang: number; luka_berat: number; luka_ringan: number
+    pengungsi: number; terdampak: number; faskes_rusak: number; krisis: number
     kab: number; sparkK: number[]; sparkT: number[]; lastDate: string | null
   }): KarakteristikKartu => ({
     id,
     nama,
     category,
     kejadian: src.kejadian,
-    terdampak: src.terdampak,
-    pengungsi: src.pengungsi,
     meninggal: src.meninggal,
+    hilang: src.hilang,
+    luka_berat: src.luka_berat,
+    luka_ringan: src.luka_ringan,
+    luka: src.luka_berat + src.luka_ringan,
+    pengungsi: src.pengungsi,
+    terdampak: src.terdampak,
+    faskes_rusak: src.faskes_rusak,
     krisis: src.krisis,
     kab: src.kab,
     sparkKejadian: src.sparkK,
@@ -379,28 +406,30 @@ export function karakteristikJenis(list: any[], tahun: number): KarakteristikKar
     lastDate: src.lastDate,
   })
 
+  const fromAcc = (a: Acc, id: string | null, category: string | null) => toCard(id, a.nama, category, {
+    kejadian: a.kejadian,
+    meninggal: a.meninggal,
+    hilang: a.hilang,
+    luka_berat: a.luka_berat,
+    luka_ringan: a.luka_ringan,
+    pengungsi: a.pengungsi,
+    terdampak: a.terdampak,
+    faskes_rusak: a.faskes_rusak,
+    krisis: a.krisis,
+    kab: a.kab.size,
+    sparkK: a.sparkK,
+    sparkT: a.sparkT,
+    lastDate: a.lastDate,
+  })
+
   const cards = [...map.values()]
     .sort((a, b) => b.kejadian - a.kejadian || a.nama.localeCompare(b.nama, 'id'))
-    .map((a) => toCard(a.nama, a.nama, kategoriDari(a.nama, a.kelompok), {
-      kejadian: a.kejadian,
-      terdampak: a.terdampak,
-      pengungsi: a.pengungsi,
-      meninggal: a.meninggal,
-      krisis: a.krisis,
-      kab: a.kab.size,
-      sparkK: a.sparkK,
-      sparkT: a.sparkT,
-      lastDate: a.lastDate,
-    }))
+    .map((a) => fromAcc(a, a.nama, kategoriDari(a.nama, a.kelompok)))
 
   if (!cards.length) return []
 
   const semua = toCard(null, 'Semua jenis', `${cards.length} jenis kejadian`, {
-    kejadian: totals.kejadian,
-    terdampak: totals.terdampak,
-    pengungsi: totals.pengungsi,
-    meninggal: totals.meninggal,
-    krisis: totals.krisis,
+    ...totals,
     kab: allKab.size,
     sparkK: sparkKAll,
     sparkT: sparkTAll,

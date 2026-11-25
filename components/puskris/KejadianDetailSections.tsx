@@ -536,7 +536,7 @@ export function SecLogistik({ log }: { log?: any }) {
   )
 }
 
-function SecFaskes({ nearby }: { nearby?: any }) {
+export function SecFaskes({ nearby }: { nearby?: any }) {
   const psc = nearby?.psc
   const amb = nearby?.ambulans
   const rs = nearby?.rs

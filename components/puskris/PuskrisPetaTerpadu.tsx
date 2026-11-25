@@ -53,7 +53,7 @@ export function periodeLabel(f: PuskrisUiFilter) {
 
 export default function PuskrisPetaTerpadu({
   raw, f, onApply, derived, kejadian, selectedEvent, setSelectedEvent, variant = 'card', hudExtra, hudTitle,
-  mode = 'dasbor', fokusKejadian = null, fokusWilayah = null, kejadianPaket = null, embed = false, onRisikoControl,
+  mode = 'dasbor', fokusKejadian = null, fokusWilayah = null, kejadianPaket = null, embed = false, rightDockDefaultOpen, onRisikoControl,
 }: {
   raw: any
   f: PuskrisUiFilter
@@ -75,6 +75,8 @@ export default function PuskrisPetaTerpadu({
   kejadianPaket?: { status?: any; nearby?: any; risiko?: any; riwayat?: any; rekomendasi?: any[]; konteks?: any } | null
   /** Kartu peta di halaman detail: isi wadah induk, tanpa judul kartu dan tanpa dok kiri. */
   embed?: boolean
+  /** Buka dok "Pengaturan Lapisan" secara bawaan walau mode embed aktif. */
+  rightDockDefaultOpen?: boolean
   onRisikoControl?: (ctrl: { showAsis: (mode: 'irbi' | 'kapasitas') => void; showPie: () => void }) => void
 }) {
   const full = variant === 'fullscreen'
@@ -89,7 +91,7 @@ export default function PuskrisPetaTerpadu({
   const [choro, setChoro] = useState<ChoroId>('kejadian')
   const [layers, setLayers] = useState<MapLayers>({ ...DEFAULT_LAYERS, base: 'osm' })
   const [leftDockOpen, setLeftDockOpen] = useState(!embed)
-  const [rightDockOpen, setRightDockOpen] = useState(!embed)
+  const [rightDockOpen, setRightDockOpen] = useState(rightDockDefaultOpen ?? !embed)
   const [sel, setSel] = useState<SpasialArea | null>(null)
   const [focus, setFocus] = useState<Focus | null>(null)
   const [pointOpacity, setPointOpacity] = useState(1)
@@ -1106,7 +1108,7 @@ export default function PuskrisPetaTerpadu({
             {renderMap({})}
           </div>
 
-          <aside className={`z-20 flex h-full shrink-0 flex-col border-l border-slate-200 bg-white/95 backdrop-blur transition-all duration-300 ${rightDockOpen ? 'w-[320px]' : 'w-10'}`} data-testid="peta-right-dock">
+          <aside className={`z-20 flex h-full shrink-0 flex-col border-l border-slate-200 bg-white/95 backdrop-blur transition-all duration-300 ${rightDockOpen ? 'w-[280px] sm:w-[320px]' : 'w-10'}`} data-testid="peta-right-dock">
             {rightDockOpen ? (
               rightBody
             ) : (

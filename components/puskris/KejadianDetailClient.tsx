@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { createPortal } from 'react-dom'
-import { ArrowLeft, Maximize2, X } from 'lucide-react'
+import { ArrowLeft, MapPin, Maximize2, Minimize2 } from 'lucide-react'
 import { usePuskrisRaw } from '@/components/puskris/usePuskrisRaw'
 import ApiKosong from '@/components/puskris/ApiKosong'
 import PuskrisPetaTerpadu from '@/components/puskris/PuskrisPetaTerpadu'
@@ -38,7 +38,7 @@ import BanjirTemplatePanel from '@/components/puskris/kejadian/BanjirTemplatePan
 import GempaTemplatePanel from '@/components/puskris/kejadian/GempaTemplatePanel'
 import KarhutlaTemplatePanel from '@/components/puskris/kejadian/KarhutlaTemplatePanel'
 import UmumTemplatePanel from '@/components/puskris/kejadian/UmumTemplatePanel'
-import KejadianMapAndFaskes from '@/components/puskris/kejadian/KejadianMapAndFaskes'
+import KejadianFaskesDirectory from '@/components/puskris/kejadian/KejadianFaskesDirectory'
 import KejadianOperationalTabs from '@/components/puskris/kejadian/KejadianOperationalTabs'
 import {
   HealthRiskModal,
@@ -395,6 +395,84 @@ export default function KejadianDetailClient({
   const nearbyCount = pscCount + (nearby?.rs?.tersedia ? Number(nearby.rs.total || 0) : 0)
   const tckTotal = nearby?.tck?.tersedia ? Number(nearby.tck.individu ?? nearby.tck.tim ?? 0) : null
 
+  const mapArticle = (
+    <article
+      data-testid="kejadian-peta-section"
+      className={
+        mapFull
+          ? 'fixed inset-0 z-[200] flex flex-col bg-white'
+          : 'skdr-card w-full p-4 sm:p-5'
+      }
+    >
+      <div
+        className={`flex flex-wrap items-start justify-between gap-3 ${
+          mapFull ? 'border-b border-slate-200 bg-slate-50 px-4 py-3' : 'mb-3 border-b border-slate-100 pb-3'
+        }`}
+      >
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-[#00705a]">
+            <MapPin className="h-3.5 w-3.5" /> Peta Situasi Spasial &amp; Pengaturan Lapisan
+          </div>
+          <h2 className="mt-0.5 text-base font-black text-slate-900 sm:text-lg">
+            Peta Situasi — {k.jenis} ({k.kabupaten}{k.provinsi ? `, ${k.provinsi}` : ''})
+          </h2>
+          <p className="mt-0.5 text-xs text-slate-500">
+            Menampilkan posisi kejadian, radius layanan 50/100/200 km, jejaring PSC 119/ambulans/RS, lapisan BNPB InaRISK, API Intelijen Eksternal, serta pengaturan peta yang sama di seluruh halaman kejadian.
+          </p>
+        </div>
+        {raw && derived ? (
+          <button
+            type="button"
+            data-testid="kejadian-peta-perbesar"
+            onClick={() => setMapFull((v) => !v)}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50"
+            aria-pressed={mapFull}
+          >
+            {mapFull ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5 text-[#00705a]" />}
+            {mapFull ? 'Kecilkan' : 'Perbesar'}
+          </button>
+        ) : null}
+      </div>
+
+      <div
+        className={
+          mapFull
+            ? 'min-h-0 flex-1 p-3'
+            : 'h-[540px] w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-50 sm:h-[580px] lg:h-[620px]'
+        }
+        data-testid="kejadian-peta-canvas"
+      >
+        {raw && derived ? (
+          <PuskrisPetaTerpadu
+            variant="card"
+            raw={raw}
+            f={f}
+            onApply={setF}
+            derived={derived}
+            kejadian={derived.kejadian || []}
+            selectedEvent={selectedEvent}
+            setSelectedEvent={setSelectedEvent}
+            mode="kejadian"
+            embed
+            rightDockDefaultOpen={true}
+            fokusKejadian={k}
+            kejadianPaket={{ status, nearby, risiko, riwayat, rekomendasi, konteks }}
+            onRisikoControl={(ctrl) => {
+              risikoCtrl.current = ctrl
+            }}
+          />
+        ) : (
+          <div className="flex h-full w-full flex-col items-center justify-center gap-2 p-6 text-center">
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-[#00705a]" />
+            <p className="text-xs font-semibold text-slate-500">
+              Sedang memuat Peta Situasi Spasial &amp; Pengaturan Lapisan…
+            </p>
+          </div>
+        )}
+      </div>
+    </article>
+  )
+
   return (
     <div className="space-y-5 px-4 pb-10 pt-2 sm:px-6 lg:px-8" data-testid="kejadian-detail-page">
       {/* 1. Revamped 3-Column Hero Card + 3 Stacked Right KPI Cards */}
@@ -429,29 +507,17 @@ export default function KejadianDetailClient({
         <UmumTemplatePanel pendukung={pendukung} />
       )}
 
-      {/* 3. Peta Situasi Spasial OpenLayers + Rute Evakuasi OSRM + Jejaring PSC/RS */}
-      <div className="space-y-2">
-        {raw && derived ? (
-          <div className="flex justify-end">
-            <button
-              type="button"
-              onClick={() => setMapFull(true)}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50"
-            >
-              <Maximize2 className="h-3.5 w-3.5 text-[#00705a]" /> Buka Peta Eksplorasi Terpadu Penuh (EOC + Spasial)
-            </button>
-          </div>
-        ) : null}
-        <KejadianMapAndFaskes
-          kejadian={k}
-          template={activeTemplate}
-          nearby={nearby}
-          raw={raw}
-          pendukung={pendukung}
-        />
-      </div>
+      {/* 3. Peta Situasi (1 Kolom Penuh Melebar menggunakan PuskrisPetaTerpadu + Pengaturan Lapisan) */}
+      {mapFull ? (
+        <div className="h-[540px] w-full rounded-2xl border border-dashed border-slate-200 bg-slate-50 sm:h-[580px] lg:h-[620px]" aria-hidden />
+      ) : (
+        mapArticle
+      )}
 
-      {/* 4. Operational Capacity Tabs (Analisa, TCK, Logistik, Asistensi/PIE, Pos Pengungsi, Riwayat 12 Bln) */}
+      {/* 4. Jejaring Rujukan & Gawat Darurat (<= 80 km) tepat di bawah peta */}
+      <KejadianFaskesDirectory kejadian={k} nearby={nearby} raw={raw} />
+
+      {/* 5. Operational Capacity Tabs (Analisa, Faskes 50 km, TCK & Logistik, Pos Pengungsi & Riwayat) */}
       <KejadianOperationalTabs
         k={k}
         nearby={nearby}
@@ -472,44 +538,7 @@ export default function KejadianDetailClient({
         }}
       />
 
-      {/* Fullscreen PuskrisPetaTerpadu explorer modal */}
-      {mapFull && portalReady && raw && derived
-        ? createPortal(
-          <div className="fixed inset-0 z-[100] flex flex-col bg-white" role="dialog" aria-modal="true" aria-label="Peta terpadu kejadian layar penuh">
-            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-4 py-2.5">
-              <div className="text-xs font-black text-slate-900">
-                Peta Eksplorasi Terpadu — {k.jenis} ({k.kabupaten}) · Kode {k.uid}
-              </div>
-              <button
-                type="button"
-                onClick={() => setMapFull(false)}
-                className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1 text-xs font-bold text-slate-700 hover:bg-slate-100"
-              >
-                <X className="h-3.5 w-3.5" /> Tutup
-              </button>
-            </div>
-            <div className="min-h-0 flex-1">
-              <PuskrisPetaTerpadu
-                variant="fullscreen"
-                raw={raw}
-                f={f}
-                onApply={setF}
-                derived={derived}
-                kejadian={derived.kejadian || []}
-                selectedEvent={selectedEvent}
-                setSelectedEvent={setSelectedEvent}
-                mode="kejadian"
-                fokusKejadian={k}
-                kejadianPaket={{ status, nearby, risiko, riwayat, rekomendasi, konteks }}
-                onRisikoControl={(ctrl) => {
-                  risikoCtrl.current = ctrl
-                }}
-              />
-            </div>
-          </div>,
-          document.body,
-        )
-        : null}
+      {mapFull && portalReady ? createPortal(mapArticle, document.body) : null}
 
       {/* Modals */}
       <SeismicDetailModal

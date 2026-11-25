@@ -1,11 +1,12 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Building2, ClipboardList, History, Shield, Tent, Users } from 'lucide-react'
+import { Building2, ClipboardList, History, Hospital, Shield, Tent, Users } from 'lucide-react'
 import { analisaDariData } from '@/lib/puskris/kejadian-detail'
 import {
   SecAnalisa,
   SecDampak,
+  SecFaskes,
   SecLogistik,
   SecRisiko,
   SecRiwayat,
@@ -14,10 +15,11 @@ import {
 import type { PendukungPayload } from './types'
 import { nf } from '@/lib/puskris/derive'
 
-type TabKey = 'analisa' | 'kapasitas' | 'dampak'
+type TabKey = 'analisa' | 'faskes' | 'kapasitas' | 'dampak'
 
 const TABS: { key: TabKey; label: string; icon: any }[] = [
   { key: 'analisa', label: 'Analisa, Asistensi IRBI & PIE', icon: Shield },
+  { key: 'faskes', label: 'Faskes, PSC 119 & Rute OSRM', icon: Hospital },
   { key: 'kapasitas', label: 'TCK & Logistik Regional', icon: Users },
   { key: 'dampak', label: 'Dampak, Pos Pengungsi & Riwayat 12 Bln', icon: History },
 ]
@@ -25,6 +27,7 @@ const TABS: { key: TabKey; label: string; icon: any }[] = [
 export default function KejadianOperationalTabs({
   k,
   nearby,
+  raw,
   riwayat,
   konteks,
   risiko,
@@ -37,6 +40,7 @@ export default function KejadianOperationalTabs({
 }: {
   k: any
   nearby?: any
+  raw?: any
   riwayat?: any
   konteks?: any
   risiko?: any
@@ -79,7 +83,7 @@ export default function KejadianOperationalTabs({
             )
           })}
         </div>
-        <span className="px-2 text-[11px] text-slate-400">Data terintegrasi Kemkes EOC · TCK · SIMLOGKES · Asistensi · PIE</span>
+        <span className="px-2 text-[11px] text-slate-400">Data terintegrasi Kemkes EOC · PSC 119 · TCK · SIMLOGKES · Asistensi · PIE</span>
       </div>
 
       {tab === 'analisa' ? (
@@ -93,6 +97,10 @@ export default function KejadianOperationalTabs({
             onShowPie={onShowPie}
           />
         </div>
+      ) : null}
+
+      {tab === 'faskes' ? (
+        <SecFaskes nearby={nearby} />
       ) : null}
 
       {tab === 'kapasitas' ? (

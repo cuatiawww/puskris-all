@@ -22,6 +22,7 @@ if (backend) {
 const nextConfig = {
   output: process.env.VERCEL ? undefined : 'standalone',
   basePath: process.env.NEXT_PUBLIC_BASE_PATH || '',
+  assetPrefix: '/dashboard',
   experimental: {
     proxyTimeout: 90_000,
   },

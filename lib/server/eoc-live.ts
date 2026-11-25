@@ -7,6 +7,7 @@
  *   jadi diambil per bulan. `perkembangan`, `kecamatan`, `content_html` dibuang di sini.
  */
 
+import https from 'node:https'
 import { getEocAuth } from './puskris-auth-config'
 import { persist, REVALIDATE } from './persist'
 
@@ -36,12 +37,40 @@ export type EocEvent = {
 async function getJson(path: string, timeoutMs = 60_000): Promise<any> {
   const auth = getEocAuth()
   if (!auth) throw new Error('Autentikasi EOC belum diatur')
+  const url = `${EOC_BASE}/${path}`
+  const headers = { Authorization: `Basic ${Buffer.from(auth).toString('base64')}`, Accept: 'application/json' }
+
+  if (process.env.PUSKRIS_EOC_INSECURE === 'true' && url.startsWith('https://')) {
+    return new Promise((resolve, reject) => {
+      const req = https.get(url, { headers, rejectUnauthorized: false, timeout: timeoutMs }, (res) => {
+        if ((res.statusCode || 0) >= 400) {
+          res.resume()
+          return reject(new Error(`HTTP ${res.statusCode}`))
+        }
+        let body = ''
+        res.setEncoding('utf8')
+        res.on('data', (c) => { body += c })
+        res.on('end', () => {
+          try {
+            const j = JSON.parse(body)
+            if (j && j.sukses === 0) return reject(new Error(String(j.error_message || 'API menolak permintaan')))
+            resolve(j)
+          } catch (e: any) {
+            reject(new Error(String(e?.message || e)))
+          }
+        })
+      })
+      req.on('timeout', () => { req.destroy(); reject(new Error('Batas waktu habis')) })
+      req.on('error', (e) => reject(new Error(String(e?.message || e))))
+    })
+  }
+
   const ctl = new AbortController()
   const tm = setTimeout(() => ctl.abort(), timeoutMs)
   try {
-    const r = await fetch(`${EOC_BASE}/${path}`, {
+    const r = await fetch(url, {
       method: 'GET',
-      headers: { Authorization: `Basic ${Buffer.from(auth).toString('base64')}`, Accept: 'application/json' },
+      headers,
       cache: 'no-store',
       signal: ctl.signal,
     })

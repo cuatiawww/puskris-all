@@ -129,7 +129,7 @@ export interface MapHudCtrl {
   setShowLayers: (v: boolean) => void
 }
 
-export default function SpasialMap({ data, titik, metric, setMetric, layers, setLayers, choroCfg, sumber, selectedId, onSelectArea, onDrill, onUp, focus, rightPanel, panelOpen, setPanelOpen, height = 680, fullHeight = false, topHud, leftDock, topOffset, hideDefaultToolbar = false, intelLayers, radiusSupport, onIntelStatus, pointOpacity = 1, showBoundaries = true, windFlow = false, metricLabel, bnpbLayers, onBnpbStatus, fitPadding, legendDefaultOpen = true, extraLayers, catChoro, drill = null, drillOnClick = false, skipAutoFit = false, areaExtra }: {
+export default function SpasialMap({ data, titik, metric, setMetric, layers, setLayers, choroCfg, sumber, selectedId, onSelectArea, onDrill, onUp, focus, rightPanel, panelOpen, setPanelOpen, height = 680, fullHeight = false, topHud, leftDock, topOffset, hideDefaultToolbar = false, intelLayers, radiusSupport, onIntelStatus, pointOpacity = 1, showBoundaries = true, windFlow = false, metricLabel, bnpbLayers, onBnpbStatus, fitPadding, legendDefaultOpen = true, extraLayers, catChoro, drill = null, drillOnClick = false, skipAutoFit = false, keepDrillFit = false, areaExtra }: {
   data: SpasialResp | null; titik: Titik[]; metric: Metric; setMetric: (m: Metric) => void; layers: Layers; setLayers: (l: Layers) => void
   choroCfg: ChoroConfig | null; sumber: string; selectedId: number | null; onSelectArea: (a: Area | null) => void; onDrill: (a: Area) => void; onUp: (() => void) | null
   focus: Focus | null; rightPanel: ReactNode; panelOpen: boolean; setPanelOpen: (v: boolean) => void; height?: number
@@ -159,6 +159,8 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
   drillOnClick?: boolean
   /** Jangan sesuaikan view ke cakupan nasional/kab ketika fokus titik dikunci (halaman detail kejadian). */
   skipAutoFit?: boolean
+  /** Kunci dan ulang fit ke cakupan provinsi setelah ukuran peta benar-benar siap (halaman detail wilayah). */
+  keepDrillFit?: boolean
   /** Tautan tambahan pada popup poligon wilayah (mis. halaman detail wilayah). */
   areaExtra?: (a: Area) => ReactNode
 }) {
@@ -226,6 +228,54 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
   const weeks = data?.minggu || []
   const level = data?.level || 'provinsi'
   const areas = data?.wilayah || []
+
+  const keepDrillFitRef = useRef(keepDrillFit)
+  keepDrillFitRef.current = keepDrillFit
+  const showLegendRef = useRef(showLegend)
+  showLegendRef.current = showLegend
+  const fitPaddingRef = useRef(fitPadding)
+  fitPaddingRef.current = fitPadding
+  const drillExtent = useRef<number[] | null>(null)
+  const fitDrillViewRef = useRef<(opts?: { duration?: number }) => boolean>(() => false)
+
+  const paddingForDrill = (): [number, number, number, number] => {
+    if (fitPaddingRef.current) return fitPaddingRef.current
+    // Legenda dalam peta: left-3 + w-[250px] ≈ 262px; sisakan ruang agar provinsi tidak tertutup.
+    return [52, 52, 80, showLegendRef.current ? 286 : 48]
+  }
+
+  const collectDrillExtent = (): number[] | null => {
+    const pv = drillRef.current.prov
+    if (!pv) return null
+    const ext = createEmpty()
+    const catFeats = catSrc.current.getFeatures()
+    if (catFeats.length) {
+      catFeats.forEach((f) => { const g = f.getGeometry()?.getExtent(); if (g) extend(ext, g) })
+    } else {
+      choroSrc.current.getFeatures().forEach((f) => {
+        if (String(f.get('code')) === pv) {
+          const g = f.getGeometry()?.getExtent()
+          if (g) extend(ext, g)
+        }
+      })
+    }
+    if (isEmpty(ext)) return null
+    drillExtent.current = ext
+    return ext
+  }
+
+  const fitDrillView = (opts?: { duration?: number }) => {
+    const m = map.current
+    if (!m || !drillRef.current.prov) return false
+    m.updateSize()
+    const size = m.getSize()
+    if (!size || size[0] < 80 || size[1] < 80) return false
+    const ext = (drillExtent.current && !isEmpty(drillExtent.current)) ? drillExtent.current : collectDrillExtent()
+    if (!ext) return false
+    m.getView().fit(ext, { padding: paddingForDrill(), duration: opts?.duration ?? 350, maxZoom: 9 })
+    return true
+  }
+  fitDrillViewRef.current = fitDrillView
 
   // ── map init ──
   useEffect(() => {
@@ -467,11 +517,21 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
       if (!t) { setPopup(null); overlay.current?.setPosition(undefined); return }
       setPopup({ kind: 'titik', t }); overlay.current?.setPosition((fs2[0].getGeometry() as Point).getCoordinates())
     })
-    const onFs = () => { setFs(Boolean(document.fullscreenElement)); setTimeout(() => m.updateSize(), 60) }
+    const onFs = () => {
+      setFs(Boolean(document.fullscreenElement))
+      setTimeout(() => { m.updateSize(); if (keepDrillFitRef.current) fitDrillViewRef.current({ duration: 0 }) }, 80)
+    }
     document.addEventListener('fullscreenchange', onFs)
-    const ro = new ResizeObserver(() => m.updateSize())
+    let roTimer: number | undefined
+    const ro = new ResizeObserver(() => {
+      m.updateSize()
+      if (keepDrillFitRef.current && drillRef.current.prov) {
+        window.clearTimeout(roTimer)
+        roTimer = window.setTimeout(() => { fitDrillViewRef.current({ duration: 0 }) }, 120)
+      }
+    })
     ro.observe(el.current)
-    return () => { document.removeEventListener('fullscreenchange', onFs); ro.disconnect(); m.setTarget(undefined); map.current = null }
+    return () => { document.removeEventListener('fullscreenchange', onFs); window.clearTimeout(roTimer); ro.disconnect(); m.setTarget(undefined); map.current = null }
   }, [])
 
 
@@ -950,11 +1010,25 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
       const fokus = pv ? feats.filter((f) => lv === 'kabkota' || String(f.get('code')) === pv) : []
       if (fokus.length && map.current) {
         const ext = fokus.reduce((e, f) => { const g = f.getGeometry()?.getExtent(); return g ? [Math.min(e[0], g[0]), Math.min(e[1], g[1]), Math.max(e[2], g[2]), Math.max(e[3], g[3])] : e }, [Infinity, Infinity, -Infinity, -Infinity])
-        map.current.getView().fit(ext, { padding: fitPadding || [120, 80, 80, 80], duration: 700, maxZoom: 9 })
+        if (ext[0] !== Infinity) drillExtent.current = ext
+        if (keepDrillFitRef.current) fitDrillViewRef.current({ duration: 400 })
+        else map.current.getView().fit(ext, { padding: fitPadding || [120, 80, 80, 80], duration: 700, maxZoom: 9 })
       }
     }).catch(() => alive && setGeoErr(true))
     return () => { alive = false }
   }, [catGeoKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Halaman detail wilayah: fit sering jalan sebelum peta punya ukuran akhir (tinggi 100% masih 0),
+  // lalu ResizeObserver hanya updateSize tanpa mengulang fit — view tetap zoom-out di sekitar pusat provinsi.
+  useEffect(() => {
+    if (!keepDrillFit || !drillProv) return
+    drillExtent.current = null
+    const times = [0, 80, 200, 400, 800, 1600, 2800]
+    const ids = times.map((ms) => window.setTimeout(() => {
+      collectDrillExtent()
+      fitDrillViewRef.current({ duration: ms < 200 ? 0 : 400 })
+    }, ms))
+    return () => ids.forEach((id) => window.clearTimeout(id))
+  }, [keepDrillFit, drillProv, catGeoKey, geoReady, showLegend]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { setPopup((pp) => (pp?.kind === 'intel' && pp.type === 'kategori' ? null : pp)); overlay.current?.setPosition(undefined) }, [catChoro?.id, catChoro?.level])
   useEffect(() => {
     catCtx.current.cat = catChoro || null

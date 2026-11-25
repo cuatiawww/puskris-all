@@ -990,6 +990,7 @@ export default function PuskrisPetaTerpadu({
               drill={drillProv ? { prov: drillProv, nama: drillNama, onExit: mode === 'wilayah' ? undefined : keluarDrill } : null}
               drillOnClick={mode === 'dasbor'}
               skipAutoFit={mode === 'kejadian' || mode === 'wilayah'}
+              keepDrillFit={mode === 'wilayah'}
               areaExtra={(a) => a?.code ? (
                 <div className="mt-2 flex flex-col gap-1">
                   <a href={wilayahHref(String(a.code), { tahun: f.tahun })} className="block rounded-lg bg-[#00705a] px-2 py-1.5 text-center text-[11px] font-bold text-white hover:bg-[#005a48]" data-testid="peta-link-detail-wilayah">Lihat detail wilayah</a>

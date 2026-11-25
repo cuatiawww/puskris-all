@@ -26,6 +26,8 @@ import { hitungKategori, katOf, type JenisRow, type KategoriId } from '@/lib/pus
 import { BNPB_LAYERS, INTEL_LAYER_APIS, type BnpbLayerId, type BnpbStatus, type IntelLayerId } from '@/lib/puskris/open-data'
 import { KORBAN_LABEL } from '@/lib/puskris/labels'
 import { buildInternalLayers, DEFAULT_INTERNAL, type InternalLayerToggles } from '@/lib/puskris/internal-layers'
+import { DEFAULT_FASKES, FASKES_PUSKESMAS_COLOR, FASKES_RS_COLOR, faskesAgregatByKode, type FaskesToggles } from '@/lib/puskris/faskes-layers'
+import { useFaskesLayers } from '@/components/puskris/useFaskesLayers'
 import { buildEocEventLayer, kejadianHref, wilayahHref } from '@/lib/puskris/eoc-event-layer'
 import ApiKosong from '@/components/puskris/ApiKosong'
 import { buildRisikoAsistensi, asistensiTersedia, type RisikoAsisMode, type RisikoAsisLevel } from '@/lib/puskris/risiko-asistensi'
@@ -108,6 +110,7 @@ export default function PuskrisPetaTerpadu({
   const [terbaruCount, setTerbaruCount] = useState<number | null>(null)
   const [radiusOn, setRadiusOn] = useState(true)
   const [internal, setInternal] = useState<InternalLayerToggles>(DEFAULT_INTERNAL)
+  const [faskes, setFaskes] = useState<FaskesToggles>(DEFAULT_FASKES)
   // Filter Dasbor "Status" (PSC aktif / ambulans siap) menyalakan lapisan terkait di peta.
   useEffect(() => {
     if (f.status === 'aktif') setInternal((p) => ({ ...p, psc: true, pscAktifOnly: true }))
@@ -312,7 +315,11 @@ export default function PuskrisPetaTerpadu({
     () => (mode === 'kejadian' ? buildKejadianMapLayers({ raw, fokus: fokusKejadian, riwayat: kejadianPaket?.riwayat, konteks: kejadianPaket?.konteks, toggles: sekitar }) : []),
     [mode, raw, fokusKejadian, kejadianPaket?.riwayat, kejadianPaket?.konteks, sekitar],
   )
-  const mapExtraLayers = useMemo(() => [...internalPack.layers, eocLayer, ...kejadianLayers], [internalPack.layers, eocLayer, kejadianLayers])
+  const faskesProv = (drillProv || provKode || (fokusWilayah?.code ? String(fokusWilayah.code).replace(/\D/g, '').padStart(2, '0').slice(0, 2) : null) || null)
+  const faskesKab = (f.kabupaten ? String(f.kabupaten).replace(/\D/g, '').padStart(4, '0').slice(0, 4) : (fokusWilayah?.kab ? String(fokusWilayah.kab).replace(/\D/g, '').padStart(4, '0').slice(0, 4) : null))
+  const faskesPack = useFaskesLayers(faskes, faskesProv, faskesKab)
+  const faskesLookup = useMemo(() => faskesAgregatByKode(faskesPack.agregat), [faskesPack.agregat])
+  const mapExtraLayers = useMemo(() => [...internalPack.layers, eocLayer, ...kejadianLayers, ...faskesPack.layers], [internalPack.layers, eocLayer, kejadianLayers, faskesPack.layers])
   const pieKab = useMemo(() => {
     if (mode !== 'kejadian' || !pieData || !fokusKejadian) return null
     const kabCode = fokusKejadian.kab_code ? String(fokusKejadian.kab_code).padStart(4, '0') : ''
@@ -636,6 +643,43 @@ export default function PuskrisPetaTerpadu({
                     )}
                   </div>
 
+                  <div data-testid="faskes-group">
+                    <div className="mb-2 flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-slate-400">
+                      <span className="inline-flex items-center gap-1">Fasyankes
+                        <InfoHint text="Sebaran Rumah Sakit dan Puskesmas dari API Dashboard Faskes Pusat Krisis. Titik dimuat saat kotak dicentang. Pada peta nasional, jumlah per provinsi tampil lebih dulu; titik fasilitas menyusul setelah data selesai dimuat, atau saat wilayah dipilih. Jenis lain (klinik, posyandu, pustu) belum ditampilkan. Tidak memuat email, telepon, atau data perorangan." label="Penjelasan Fasyankes" />
+                      </span>
+                    </div>
+                    {faskesPack.agregatError && (faskes.rs || faskes.puskesmas) ? (
+                      <p className="mb-1.5 rounded-lg border border-amber-200 bg-amber-50 p-2 text-[10px] text-amber-800" data-testid="faskes-empty">Data Fasyankes belum termuat ({faskesPack.agregatError}). Lapisan akan muncul otomatis setelah API merespons.</p>
+                    ) : null}
+                    <div className="space-y-1.5">
+                      <label className={`block cursor-pointer rounded-xl border p-2.5 transition select-none ${faskes.rs ? 'border-red-300 bg-red-50/50' : 'border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50/60'}`} data-testid="faskes-rs">
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="flex min-w-0 items-center gap-1.5 text-xs font-bold text-slate-800">
+                            <span className="h-2.5 w-2.5 rounded-full" style={{ background: FASKES_RS_COLOR }} />
+                            Rumah Sakit
+                          </span>
+                          <input type="checkbox" checked={faskes.rs} onChange={(e) => setFaskes((p) => ({ ...p, rs: e.target.checked }))} className="h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 text-teal-700 focus:ring-teal-500" aria-label="Titik Rumah Sakit" />
+                        </div>
+                        <p className="mt-0.5 text-[10px] leading-tight text-slate-500">
+                          {faskes.rs ? (faskesPack.rs.loading ? `Memuat titik Rumah Sakit…${faskesPack.rs.list.length ? ` ${faskesPack.rs.list.length.toLocaleString('id-ID')} sudah tampil` : ''}` : faskesPack.rs.error ? faskesPack.rs.error : faskesPack.rs.ready ? `${(faskesPack.rs.total ?? faskesPack.rs.list.length).toLocaleString('id-ID')} titik dari API` : 'Menampilkan jumlah per wilayah sambil memuat titik.') : 'Tampilkan sebaran Rumah Sakit di peta.'}
+                        </p>
+                      </label>
+                      <label className={`block cursor-pointer rounded-xl border p-2.5 transition select-none ${faskes.puskesmas ? 'border-blue-300 bg-blue-50/50' : 'border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50/60'}`} data-testid="faskes-puskesmas">
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="flex min-w-0 items-center gap-1.5 text-xs font-bold text-slate-800">
+                            <span className="h-2.5 w-2.5 rounded-full" style={{ background: FASKES_PUSKESMAS_COLOR }} />
+                            Puskesmas
+                          </span>
+                          <input type="checkbox" checked={faskes.puskesmas} onChange={(e) => setFaskes((p) => ({ ...p, puskesmas: e.target.checked }))} className="h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 text-teal-700 focus:ring-teal-500" aria-label="Titik Puskesmas" />
+                        </div>
+                        <p className="mt-0.5 text-[10px] leading-tight text-slate-500">
+                          {faskes.puskesmas ? (faskesPack.pusk.loading ? `Memuat titik Puskesmas…${faskesPack.pusk.list.length ? ` ${faskesPack.pusk.list.length.toLocaleString('id-ID')} sudah tampil` : ''}` : faskesPack.pusk.error ? faskesPack.pusk.error : faskesPack.pusk.ready ? `${(faskesPack.pusk.total ?? faskesPack.pusk.list.length).toLocaleString('id-ID')} titik dari API` : 'Menampilkan jumlah per wilayah sambil memuat titik.') : 'Tampilkan sebaran Puskesmas di peta.'}
+                        </p>
+                      </label>
+                    </div>
+                  </div>
+
                   <div data-testid="risiko-group">
                     <div className="mb-2 flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-slate-400">
                       <span>Risiko</span>
@@ -957,7 +1001,7 @@ export default function PuskrisPetaTerpadu({
                       setIntelLayers({ fires: false, hazards: false })
                       setIntelStatus({})
                       setRadiusOn(true)
-                      setInternal(DEFAULT_INTERNAL)
+                      setInternal(DEFAULT_INTERNAL); setFaskes(DEFAULT_FASKES)
                       setKatOff(new Set())
                       setJenisOff(new Set())
                       setRisikoAsis(null)
@@ -1011,6 +1055,18 @@ export default function PuskrisPetaTerpadu({
               keepDrillFit={mode === 'wilayah'}
               areaExtra={(a) => a?.code ? (
                 <div className="mt-2 flex flex-col gap-1">
+                  {(() => {
+                    const code = String(a.code).replace(/\D/g, '')
+                    const row = faskesLookup.get(code) || faskesLookup.get(code.padStart(code.length <= 2 ? 2 : 4, '0'))
+                    if (!row) return null
+                    return (
+                      <div className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-[10px] text-slate-700" data-testid="peta-faskes-rekap">
+                        <p className="font-bold text-slate-800">Fasyankes di wilayah ini</p>
+                        <p>Rumah Sakit: <span className="font-black tabular-nums">{row.rs.toLocaleString('id-ID')}</span></p>
+                        <p>Puskesmas: <span className="font-black tabular-nums">{row.puskesmas.toLocaleString('id-ID')}</span></p>
+                      </div>
+                    )
+                  })()}
                   <a href={wilayahHref(String(a.code), { tahun: f.tahun, jenis: f.jenis })} className="block rounded-lg bg-[#00705a] px-2 py-1.5 text-center text-[11px] font-bold text-white hover:bg-[#005a48]" data-testid="peta-link-detail-wilayah">Lihat detail wilayah</a>
                 </div>
               ) : null}

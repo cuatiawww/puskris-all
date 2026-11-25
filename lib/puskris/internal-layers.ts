@@ -49,12 +49,16 @@ export type ExtraPointLayer = {
   legend: Array<{ color: string; label: string; dashed?: boolean; iconSrc?: string }>
 }
 
-export type GlyphId = 'psc' | 'ambulans' | 'panggilan'
+export type GlyphId = 'psc' | 'ambulans' | 'panggilan' | 'rs' | 'puskesmas'
 
 // Glyph garis (gaya lucide, viewBox 24) — putih di atas lingkaran berwarna.
 const GLYPH: Record<GlyphId, string> = {
   // gedung layanan dengan tanda palang (PSC 119 / fasilitas kesehatan)
   psc: '<path d="M12 6v4"/><path d="M10 8h4"/><path d="M14 14h-4"/><path d="M14 18h-4"/><path d="M18 12h2a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2h2"/><path d="M18 22V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v18"/>',
+  // Rumah Sakit: palang di dalam kotak
+  rs: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M12 8v8"/><path d="M8 12h8"/>',
+  // Puskesmas: rumah dengan palang
+  puskesmas: '<path d="M3 10.5 12 3l9 7.5"/><path d="M5 10v10h14V10"/><path d="M12 12v5"/><path d="M9.5 14.5h5"/>',
   ambulans: '<path d="M10 10H6"/><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.28a1 1 0 0 0-.684-.948l-1.923-.641a1 1 0 0 1-.578-.502l-1.539-3.076A1 1 0 0 0 16.382 8H14"/><path d="M8 8v4"/><path d="M9 18h6"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/>',
   panggilan: '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>',
 }

@@ -18,23 +18,30 @@ import DampakPendudukStrip from '@/components/puskris/DampakPendudukStrip'
 import { EMT_LABEL, NCC_LABEL } from '@/lib/puskris/labels'
 import { NASIONAL_NOTE, withQuery } from '@/lib/puskris/pages'
 import { jenisTrendSeries } from '@/lib/puskris/analisis-charts'
+import { jenisKejadianHref } from '@/lib/puskris/jenis-kejadian'
 import { Area, AreaChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { buildTimeline } from '@/lib/puskris/integrasi'
 import ApiKosong from '@/components/puskris/ApiKosong'
 
-function JenisBars({ items, selected, onSelect }: {
+function JenisBars({ items, selected, onSelect, tahun }: {
   items: { nama: string; kejadian: number }[]
   selected: string | null
   onSelect: (nama: string | null) => void
+  tahun?: number
 }) {
   const max = Math.max(1, ...items.map((i) => i.kejadian))
   return (
     <div className="skdr-card flex h-full flex-col p-3" data-testid="jenis-bars">
       <div className="mb-1.5 flex items-center justify-between gap-2">
         <h3 className="text-[11px] font-black uppercase tracking-wider text-slate-700">Jenis kejadian</h3>
-        {selected ? (
-          <button type="button" onClick={() => onSelect(null)} className="text-[10px] font-bold text-primary hover:underline">Hapus filter</button>
-        ) : null}
+        <div className="flex items-center gap-2">
+          {selected ? (
+            <Link href={jenisKejadianHref(selected, { tahun })} data-testid="jenis-bars-lihat-nasional" className="text-[10px] font-bold text-primary hover:underline">Lihat nasional</Link>
+          ) : null}
+          {selected ? (
+            <button type="button" onClick={() => onSelect(null)} className="text-[10px] font-bold text-primary hover:underline">Hapus filter</button>
+          ) : null}
+        </div>
       </div>
       {!items.length ? <ApiKosong pesan="Tidak ada data jenis kejadian dari API EOC untuk filter ini" compact /> : null}
       <ul className="min-h-0 flex-1 space-y-1 overflow-auto">
@@ -690,7 +697,7 @@ export default function PuskrisRingkasanView({
       {tab === 'ringkasan' ? (
         <>
           <section className="grid gap-3 lg:grid-cols-3" aria-label="Rekap ringkas">
-            <JenisBars items={jenisCards} selected={f.jenis} onSelect={(nama) => onApply({ ...f, jenis: nama })} />
+            <JenisBars items={jenisCards} selected={f.jenis} tahun={f.tahun} onSelect={(nama) => onApply({ ...f, jenis: nama })} />
             <TrenJenisCard kejadian={derived.kejadianSemua} f={f} />
             <LiniMasaRespons rows={timeline.rows} catatan={timeline.catatan} compact />
           </section>
@@ -709,7 +716,7 @@ export default function PuskrisRingkasanView({
         <>
           {tab === 'krisis' ? (
             <div className="max-w-xl">
-              <JenisBars items={jenisCards} selected={f.jenis} onSelect={(nama) => onApply({ ...f, jenis: nama })} />
+              <JenisBars items={jenisCards} selected={f.jenis} tahun={f.tahun} onSelect={(nama) => onApply({ ...f, jenis: nama })} />
             </div>
           ) : null}
           {(tab === 'krisis' || tab === 'layanan') ? (

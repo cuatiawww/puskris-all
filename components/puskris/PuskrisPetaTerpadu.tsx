@@ -285,9 +285,9 @@ export default function PuskrisPetaTerpadu({
     prov: drillProv,
     nama: drillNama,
     onExit: mode === 'wilayah' ? undefined : keluarDrill,
-    wilayahHref: alreadyThisProv ? undefined : wilayahHref(drillProv, { tahun: f.tahun }),
+    wilayahHref: alreadyThisProv ? undefined : wilayahHref(drillProv, { tahun: f.tahun, jenis: f.jenis }),
     wilayahLabel: `Lihat Provinsi ${drillNama || drillProv}`,
-    kabHref: selKabCode && !alreadyThisKab ? wilayahHref(selKabCode, { tahun: f.tahun }) : undefined,
+    kabHref: selKabCode && !alreadyThisKab ? wilayahHref(selKabCode, { tahun: f.tahun, jenis: f.jenis }) : undefined,
     kabLabel: selKabCode ? `Lihat Kab/Kota ${sel?.nama || selKabCode}` : undefined,
   } : null
 
@@ -420,7 +420,7 @@ export default function PuskrisPetaTerpadu({
                 <div className="shrink-0 border-b border-slate-100 px-3 py-2" data-testid="peta-cta-wilayah">
                   <p className="truncate text-[12px] font-bold text-slate-800">{drillNama || `Prov. ${drillProv}`}</p>
                   <div className="mt-1.5 flex flex-col gap-1">
-                    <Link href={wilayahHref(drillProv, { tahun: f.tahun })} className="block rounded-lg bg-[#00705a] px-2 py-1.5 text-center text-[11px] font-bold text-white hover:bg-[#005a48]">Lihat detail wilayah</Link>
+                    <Link href={wilayahHref(drillProv, { tahun: f.tahun, jenis: f.jenis })} className="block rounded-lg bg-[#00705a] px-2 py-1.5 text-center text-[11px] font-bold text-white hover:bg-[#005a48]">Lihat detail wilayah</Link>
                     {(kejadianSemuaPeta || kejadianPeta || []).filter((k: any) => String(k.code || '').replace(/\D/g, '').padStart(2, '0').slice(0, 2) === String(drillProv).padStart(2, '0')).sort((a: any, b: any) => String(b.tanggal || '').localeCompare(String(a.tanggal || ''))).slice(0, 1).map((k: any) => (
                       <Link key={k.uid} href={kejadianHref(String(k.uid), k.tanggal)} className="block rounded-lg border border-teal-200 bg-teal-50 px-2 py-1.5 text-center text-[11px] font-bold text-teal-800 hover:bg-teal-100">Lihat detail kejadian</Link>
                     ))}
@@ -1009,7 +1009,7 @@ export default function PuskrisPetaTerpadu({
               keepDrillFit={mode === 'wilayah'}
               areaExtra={(a) => a?.code ? (
                 <div className="mt-2 flex flex-col gap-1">
-                  <a href={wilayahHref(String(a.code), { tahun: f.tahun })} className="block rounded-lg bg-[#00705a] px-2 py-1.5 text-center text-[11px] font-bold text-white hover:bg-[#005a48]" data-testid="peta-link-detail-wilayah">Lihat detail wilayah</a>
+                  <a href={wilayahHref(String(a.code), { tahun: f.tahun, jenis: f.jenis })} className="block rounded-lg bg-[#00705a] px-2 py-1.5 text-center text-[11px] font-bold text-white hover:bg-[#005a48]" data-testid="peta-link-detail-wilayah">Lihat detail wilayah</a>
                 </div>
               ) : null}
               radiusSupport={{ enabled: radiusOn && Boolean(radiusCenter) && (mode === 'kejadian' || !drillProv), center: radiusCenter, ringsKm: [50, 100, 200] }}

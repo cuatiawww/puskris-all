@@ -16,7 +16,7 @@ export function kejadianHref(uid: string, tanggal?: string | null) {
   return `${PUBLIC_BASE_PATH}/kejadian/${encodeURIComponent(uid)}${q}`
 }
 
-export function wilayahHref(kode: string, opts?: { tahun?: string | number | null; kab?: string | null }) {
+export function wilayahHref(kode: string, opts?: { tahun?: string | number | null; kab?: string | null; jenis?: string | null }) {
   const digits = String(kode || '').replace(/\D/g, '')
   if (!digits) return `${PUBLIC_BASE_PATH}/dashboard/spatial-mode`
   const code = digits.length <= 2 ? digits.padStart(2, '0') : digits.padStart(4, '0').slice(0, 4)
@@ -25,6 +25,7 @@ export function wilayahHref(kode: string, opts?: { tahun?: string | number | nul
   if (/^\d{4}$/.test(tahun)) q.set('tahun', tahun)
   const kab = opts?.kab ? String(opts.kab).replace(/\D/g, '').padStart(4, '0').slice(0, 4) : ''
   if (kab.length === 4 && code.length === 2) q.set('kab', kab)
+  if (opts?.jenis) q.set('jenis', String(opts.jenis))
   const qs = q.toString()
   return `${PUBLIC_BASE_PATH}/dashboard/wilayah/${encodeURIComponent(code)}${qs ? `?${qs}` : ''}`
 }

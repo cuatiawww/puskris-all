@@ -2,9 +2,11 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useMemo, useRef, useState } from 'react'
+import Link from 'next/link'
 import { ChevronLeft, ChevronRight, LayoutGrid, LayoutList, Layers } from 'lucide-react'
 import { karakteristikJenis, type KarakteristikKartu } from '@/lib/puskris/wilayah-detail'
 import { eocIconOf } from '@/lib/puskris/eoc-markers'
+import { jenisKejadianHref } from '@/lib/puskris/jenis-kejadian'
 
 const BRAND = '#047D78'
 const BULAN = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
@@ -82,27 +84,30 @@ function MiniBars({ values, color }: { values: number[]; color: string }) {
 }
 
 function Kartu({
-  card, selected, onSelect, fill, metrics,
+  card, selected, onSelect, fill, metrics, tahun,
 }: {
   card: KarakteristikKartu
   selected: boolean
   onSelect: (id: string | null) => void
   fill?: boolean
   metrics: typeof DAMPAK_METRICS
+  tahun: number
 }) {
   const color = accentOf(card.id)
   const last = tglPendek(card.lastDate)
   const cols = metrics.length >= 5 ? 3 : 2
 
   return (
-    <button
-      type="button"
+    <div
       data-slide
       data-testid={card.id == null ? 'karakteristik-card-semua' : 'karakteristik-card'}
       data-jenis={card.id ?? 'semua'}
       aria-pressed={selected}
+      role="button"
+      tabIndex={0}
       onClick={() => onSelect(card.id)}
-      className={`group relative flex flex-col overflow-hidden rounded-xl border bg-white p-3 text-left shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-all hover:-translate-y-px hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#047D78] ${fill ? 'w-full' : 'w-[15.5rem] shrink-0 snap-start sm:w-[16rem]'} ${selected ? 'ring-2' : 'border-slate-200 hover:border-slate-300'}`}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(card.id) } }}
+      className={`group relative flex cursor-pointer flex-col overflow-hidden rounded-xl border bg-white p-3 text-left shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-all hover:-translate-y-px hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#047D78] ${fill ? 'w-full' : 'w-[15.5rem] shrink-0 snap-start sm:w-[16rem]'} ${selected ? 'ring-2' : 'border-slate-200 hover:border-slate-300'}`}
       style={selected ? { borderColor: color, boxShadow: `0 0 0 2px ${color}33` } : undefined}
     >
       <span className="absolute inset-y-0 left-0 w-[3px]" style={{ background: color }} aria-hidden />
@@ -150,15 +155,25 @@ function Kartu({
         })}
       </div>
 
-      <div className="mt-2 flex flex-wrap gap-1 pl-1">
+      <div className="mt-2 flex flex-wrap items-center gap-1 pl-1">
         <span className="rounded-full bg-slate-50 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-slate-600">
           {nf(card.krisis)} krisis
         </span>
         <span className="rounded-full bg-slate-50 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-slate-600">
           {nf(card.kab)} kab/kota
         </span>
+        {card.id ? (
+          <Link
+            href={jenisKejadianHref(card.id, { tahun })}
+            data-testid="karakteristik-lihat-nasional"
+            onClick={(e) => e.stopPropagation()}
+            className="ml-auto rounded-full px-1.5 py-0.5 text-[10px] font-bold text-[#047D78] hover:underline"
+          >
+            Lihat nasional
+          </Link>
+        ) : null}
       </div>
-    </button>
+    </div>
   )
 }
 
@@ -245,7 +260,7 @@ export default function WilayahKarakteristik({
       {grid ? (
         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5" data-testid="karakteristik-grid-view">
           {cards.map((c) => (
-            <Kartu key={c.id ?? 'semua'} card={c} selected={selected === c.id} onSelect={onSelect} fill metrics={metrics} />
+            <Kartu key={c.id ?? 'semua'} card={c} selected={selected === c.id} onSelect={onSelect} fill metrics={metrics} tahun={tahun} />
           ))}
         </div>
       ) : (
@@ -275,7 +290,7 @@ export default function WilayahKarakteristik({
           }}
         >
           {cards.map((c) => (
-            <Kartu key={c.id ?? 'semua'} card={c} selected={selected === c.id} onSelect={onSelect} metrics={metrics} />
+            <Kartu key={c.id ?? 'semua'} card={c} selected={selected === c.id} onSelect={onSelect} metrics={metrics} tahun={tahun} />
           ))}
         </div>
       )}

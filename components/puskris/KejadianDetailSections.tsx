@@ -20,6 +20,7 @@ import {
 import ApiKosong from '@/components/puskris/ApiKosong'
 import { PUBLIC_BASE_PATH } from '@/lib/public-path'
 import { wilayahHref } from '@/lib/puskris/eoc-event-layer'
+import { jenisKejadianHref } from '@/lib/puskris/jenis-kejadian'
 import { fmtAngka, tglKejadian } from '@/lib/puskris/eoc-markers'
 import { analisaDariData, type AnalisaItem } from '@/lib/puskris/kejadian-detail'
 
@@ -214,8 +215,13 @@ export function KejadianHeaderBand({ k, status, loadingRange }: { k: any; status
         </div>
         <div className="flex shrink-0 flex-col items-stretch gap-1.5 self-start">
           {k.code ? (
-            <Link href={wilayahHref(String(k.code), { tahun: k.tanggal })} className="inline-flex h-8 items-center justify-center rounded-lg bg-[#00705a] px-2.5 text-[11px] font-bold text-white hover:bg-[#005a48]">
+            <Link href={wilayahHref(String(k.code), { tahun: k.tanggal, jenis: k.jenis })} className="inline-flex h-8 items-center justify-center rounded-lg bg-[#00705a] px-2.5 text-[11px] font-bold text-white hover:bg-[#005a48]">
               Lihat detail wilayah
+            </Link>
+          ) : null}
+          {k.jenis ? (
+            <Link href={jenisKejadianHref(String(k.jenis), { tahun: k.tanggal })} data-testid="kejadian-link-jenis-nasional" className="inline-flex h-8 items-center justify-center rounded-lg border border-[#00705a] bg-white px-2.5 text-[11px] font-bold text-[#00705a] hover:bg-[#00705a]/10">
+              Lihat semua {k.jenis}
             </Link>
           ) : null}
           {k.url ? (

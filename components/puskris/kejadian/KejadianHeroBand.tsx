@@ -27,6 +27,8 @@ import {
 import { PUBLIC_BASE_PATH } from '@/lib/public-path'
 import { nf } from '@/lib/puskris/derive'
 import { dmy } from '@/lib/puskris/jenis-meta'
+import { wilayahHref } from '@/lib/puskris/eoc-event-layer'
+import { jenisKejadianHref } from '@/lib/puskris/jenis-kejadian'
 import {
   templateMeta,
   type HealthRiskBreakdown,
@@ -258,6 +260,23 @@ export default function KejadianHeroBand({
           >
             Peta Spasial
           </Link>
+          {kejadian.code || kejadian.kab_code ? (
+            <Link
+              href={wilayahHref(String(kejadian.kab_code || kejadian.code), { tahun: kejadian.tanggal, jenis: kejadian.jenis })}
+              className="inline-flex items-center gap-1 rounded-lg border border-[#00705a] bg-[#00705a] px-2.5 py-1 font-bold text-white hover:bg-[#005a48]"
+            >
+              Lihat detail wilayah
+            </Link>
+          ) : null}
+          {kejadian.jenis ? (
+            <Link
+              href={jenisKejadianHref(String(kejadian.jenis), { tahun: kejadian.tanggal })}
+              data-testid="kejadian-link-jenis-nasional"
+              className="inline-flex items-center gap-1 rounded-lg border border-[#00705a] bg-white px-2.5 py-1 font-bold text-[#00705a] hover:bg-[#00705a]/10"
+            >
+              Lihat semua {kejadian.jenis}
+            </Link>
+          ) : null}
         </div>
 
         {/* Telemetry refresh + source status */}

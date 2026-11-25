@@ -9,7 +9,7 @@ import { toDeriveFilter, type PuskrisUiFilter } from '@/lib/puskris/ui-filter'
  * Data dasbor dari /api/puskris/ringkasan. Bila rentang periode Filter Dasbor mulai sebelum cakupan
  * kejadian tahun berjalan, data diambil ulang dengan ?tanggal1&tanggal2 sehingga API EOC & NCC
  * dipanggil untuk rentang itu (bukan disaring dari data tahun ini saja).
- * Data yang belum selesai diambil server dimuat ulang diam-diam (maks. 12 kali, tiap 20 detik).
+ * Data yang belum selesai diambil server dimuat ulang diam-diam (maks. 12 kali, awalnya tiap 2–6 detik).
  *
  * Hasil disimpan di memori modul supaya pindah menu sidebar (yang me-remount halaman) tidak
  * mengosongkan data dan memaksa tunggu API ringkasan sampai 25 detik lagi.
@@ -29,8 +29,8 @@ function parsePayload(j: any): Payload {
   return { data: j.data || j, pending: Boolean(j.pending) }
 }
 
-function loadJson(url: string): Promise<Payload> {
-  return fetch(url, { cache: 'no-store' })
+function loadJson(url: string, bust = false): Promise<Payload> {
+  return fetch(url, bust ? { cache: 'no-store' } : { cache: 'default' })
     .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json() })
     .then(parsePayload)
 }
@@ -38,7 +38,7 @@ function loadJson(url: string): Promise<Payload> {
 function loadBase(force = false): Promise<Payload> {
   if (!force && baseCache && !baseCache.pending) return Promise.resolve(baseCache)
   if (baseInflight) return baseInflight
-  baseInflight = loadJson(ringkasanUrl())
+  baseInflight = loadJson(ringkasanUrl(), force)
     .then((p) => { baseCache = p; return p })
     .finally(() => { baseInflight = null })
   return baseInflight
@@ -50,7 +50,7 @@ function loadRange(key: string, force = false): Promise<Payload> {
   const existing = rangeInflight.get(key)
   if (existing) return existing
   const [a, b] = key.split('|')
-  const p = loadJson(ringkasanUrl(`?tanggal1=${a}&tanggal2=${b}`))
+  const p = loadJson(ringkasanUrl(`?tanggal1=${a}&tanggal2=${b}`), force)
     .then((payload) => { rangeCache.set(key, payload); return payload })
     .finally(() => { rangeInflight.delete(key) })
   rangeInflight.set(key, p)
@@ -96,7 +96,8 @@ export function usePuskrisRaw(f: PuskrisUiFilter, ready: boolean) {
 
   useEffect(() => {
     if (!pending || tries >= 12) return
-    const t = setTimeout(() => setTries((n) => n + 1), 20000)
+    const backoff = [2000, 3000, 4000, 6000, 8000, 12000, 20000]
+    const t = setTimeout(() => setTries((n) => n + 1), backoff[Math.min(tries, backoff.length - 1)])
     return () => clearTimeout(t)
   }, [pending, tries])
 

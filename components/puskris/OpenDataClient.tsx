@@ -96,7 +96,7 @@ export default function OpenDataClient() {
   useEffect(() => { runAll() }, [runAll])
   useEffect(() => { OFFICIAL_APIS.forEach((a) => { void runOfficial(a.id) }) }, [runOfficial])
   useEffect(() => {
-    fetch(`${PUBLIC_BASE_PATH}/api/puskris/ringkasan`, { cache: 'no-store' }).then((r) => r.json()).then((j) => setRaw(j.data || j)).catch(() => {})
+    fetch(`${PUBLIC_BASE_PATH}/api/puskris/ringkasan`, { cache: 'default' }).then((r) => r.json()).then((j) => setRaw(j.data || j)).catch(() => {})
   }, [])
 
   const vals = Object.values(checks)

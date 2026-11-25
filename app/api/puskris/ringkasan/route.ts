@@ -18,12 +18,14 @@ export async function GET(req: Request) {
   const rentang = parseRentang(new URL(req.url).searchParams)
   const snapshot = loadPuskrisData()
   const codes = (snapshot.regions || []).map((r: any) => String(r.code))
-  const ov = await getLiveOverlay(codes, 25_000, rentang)
+  // Jangan tahan TTFB sampai 25 detik. Potongan yang belum siap ditandai pending;
+  // after() + cache persist (15 menit) menyelesaikan sisanya, klien memuat ulang cepat.
+  const ov = await getLiveOverlay(codes, 7_000, rentang)
   if (ov.jobs.length) after(() => Promise.allSettled(ov.jobs))
   const data = mergeLive(snapshot, ov)
   const pending = Object.values(ov.status).some((s: any) => s.pending)
   return NextResponse.json(
     { success: true, data: { ...data, rentang_api: rentang }, pending },
-    { headers: { 'Cache-Control': pending ? 'no-store' : 'private, max-age=60' } },
+    { headers: { 'Cache-Control': pending ? 'no-store' : 'public, s-maxage=180, stale-while-revalidate=720, max-age=30' } },
   )
 }

@@ -9,6 +9,9 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: sh
     steps:
       - name: Install git & docker-cli
         run: apk add --no-cache git docker-cli docker-cli-compose

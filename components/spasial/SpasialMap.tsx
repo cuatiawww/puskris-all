@@ -422,6 +422,7 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
           title: hit.f.get('title') || '',
           subtitle: hit.f.get('subtitle'),
           details: hit.f.get('details') || [],
+          href: hit.f.get('href') || undefined,
           link: hit.f.get('link'),
         })
         overlay.current?.setPosition(e.coordinate)

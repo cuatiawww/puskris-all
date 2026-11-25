@@ -44,6 +44,8 @@ export function nearbyDetail(data: any, k: any, pos: { lat: number; lon: number 
       aktif: p.a === 1,
       ambulans: Number(p.amb || 0),
       siap: Number(p.siap || 0),
+      lat: Number(p.lat),
+      lon: Number(p.lon),
       jarak_km: pos && p.lat != null ? Math.round(haversineKm(pos, { lat: p.lat, lon: p.lon }) * 10) / 10 : null,
     }))
     .sort((a, b) => (a.jarak_km ?? 9e9) - (b.jarak_km ?? 9e9))

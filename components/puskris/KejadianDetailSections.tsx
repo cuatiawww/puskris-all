@@ -109,7 +109,7 @@ function Kpi({ label, value, tone = 'slate', sub }: { label: string; value: Reac
   )
 }
 
-function SectionCard({ id, eyebrow, title, source, kpis, actions, children, kpiClass }: {
+export function SectionCard({ id, eyebrow, title, source, kpis, actions, children, kpiClass }: {
   id: string; eyebrow: string; title: string; source?: string; kpis?: ReactNode; actions?: ReactNode; children?: ReactNode; kpiClass?: string
 }) {
   return (
@@ -233,7 +233,7 @@ const ANALISA_DOT: Record<string, string> = {
   info: 'bg-slate-500',
 }
 
-function SecAnalisa({ items }: { items: AnalisaItem[] }) {
+export function SecAnalisa({ items }: { items: AnalisaItem[] }) {
   return (
     <SectionCard
       id="kejadian-sec-analisa"
@@ -257,7 +257,7 @@ function SecAnalisa({ items }: { items: AnalisaItem[] }) {
   )
 }
 
-function SecDampak({ k, riwayat }: { k: any; riwayat?: any }) {
+export function SecDampak({ k, riwayat }: { k: any; riwayat?: any }) {
   const [rentang, setRentang] = useState<'30h' | '12bln'>('12bln')
   const data = useMemo(() => {
     if (!riwayat?.tersedia) return []
@@ -307,7 +307,7 @@ function SecDampak({ k, riwayat }: { k: any; riwayat?: any }) {
   )
 }
 
-function SecTck({ tck, kabNama }: { tck?: any; kabNama?: string }) {
+export function SecTck({ tck, kabNama }: { tck?: any; kabNama?: string }) {
   if (!tck?.tersedia) {
     return (
       <SectionCard id="kejadian-sec-tck" eyebrow="TCK" title="Tenaga cadangan kesehatan" source="API Tenaga Cadangan, tingkat provinsi">
@@ -411,7 +411,7 @@ function SecTck({ tck, kabNama }: { tck?: any; kabNama?: string }) {
   )
 }
 
-function SecLogistik({ log }: { log?: any }) {
+export function SecLogistik({ log }: { log?: any }) {
   if (!log?.tersedia) {
     return (
       <SectionCard id="kejadian-sec-logistik" eyebrow="Logistik" title="Stok logistik regional" source="API Logistik Kesehatan (SIMLOGKES)">
@@ -561,7 +561,7 @@ function SecFaskes({ nearby }: { nearby?: any }) {
   )
 }
 
-function SecRisiko({ risiko, pieKab, piePending, onShowAsis, onShowPie }: {
+export function SecRisiko({ risiko, pieKab, piePending, onShowAsis, onShowPie }: {
   risiko?: any
   pieKab?: { disease: string; status: string }[] | null
   piePending?: boolean
@@ -803,7 +803,7 @@ function SecLingkungan({ k, konteks }: { k: any; konteks?: any }) {
   )
 }
 
-function SecRiwayat({ riwayat }: { riwayat?: any }) {
+export function SecRiwayat({ riwayat }: { riwayat?: any }) {
   const [rentang, setRentang] = useState<'30h' | '12bln'>('12bln')
   const data = useMemo(() => {
     if (!riwayat?.tersedia) return []

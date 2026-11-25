@@ -13,7 +13,7 @@ const kabList = kabIndex as KabRow[]
 export function kejadianHref(uid: string, tanggal?: string | null) {
   const tahun = String(tanggal || '').slice(0, 4)
   const q = /^\d{4}$/.test(tahun) ? `?tahun=${tahun}` : ''
-  return `${PUBLIC_BASE_PATH}/dashboard/kejadian/${encodeURIComponent(uid)}${q}`
+  return `${PUBLIC_BASE_PATH}/kejadian/${encodeURIComponent(uid)}${q}`
 }
 
 /** Lapisan ikon kejadian EOC: koordinat asli bila ada, kalau tidak pusat kab/kota atau provinsi. */

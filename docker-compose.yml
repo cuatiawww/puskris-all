@@ -13,18 +13,15 @@ services:
         NEXT_PUBLIC_DEFAULT_LOCALE: ${NEXT_PUBLIC_DEFAULT_LOCALE:-id}
     image: dashboard-puskris:latest
     restart: unless-stopped
-    ports:
-      - "127.0.0.1:${APP_PORT:-3005}:3000"
-    extra_hosts:
-      - "pusatkrisis.kemkes.go.id:host-gateway"
+    network_mode: host
     # Suntikkan seluruh variabel environment (termasuk secret PUSKRIS_*) saat runtime
     env_file:
       - path: .env
         required: true
     environment:
       NODE_ENV: production
-      PORT: "3000"
-      HOSTNAME: "0.0.0.0"
+      PORT: "${APP_PORT:-3005}"
+      HOSTNAME: "127.0.0.1"
       NEXT_TELEMETRY_DISABLED: ${NEXT_TELEMETRY_DISABLED:-1}
     # Hardening keamanan container
     read_only: true
@@ -41,7 +38,7 @@ services:
           "CMD",
           "node",
           "-e",
-          "fetch('http://127.0.0.1:3000/').then(r => process.exit(r.status < 500 ? 0 : 1)).catch(() => process.exit(1))",
+          "fetch('http://127.0.0.1:3005/').then(r => process.exit(r.status < 500 ? 0 : 1)).catch(() => process.exit(1))",
         ]
       interval: 30s
       timeout: 5s

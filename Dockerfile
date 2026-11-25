@@ -55,7 +55,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 # Pastikan direktori cache Next.js dapat ditulis oleh user non-root
-RUN mkdir -p /app/.next/cache && chown -R nextjs:nodejs /app/.next
+RUN mkdir -p /app/.next/cache && chown nextjs:nodejs /app/.next/cache
 
 USER nextjs
 

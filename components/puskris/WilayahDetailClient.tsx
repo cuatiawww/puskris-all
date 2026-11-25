@@ -10,7 +10,7 @@ import { applyDerive } from '@/lib/puskris/derive'
 import { defaultUiFilter, toDeriveFilter, type PuskrisUiFilter } from '@/lib/puskris/ui-filter'
 import PuskrisPetaTerpadu from '@/components/puskris/PuskrisPetaTerpadu'
 import ApiKosong from '@/components/puskris/ApiKosong'
-import { WilayahHeaderBand, WilayahIndikatorSections } from '@/components/puskris/WilayahDetailSections'
+import { WilayahIndikatorSections } from '@/components/puskris/WilayahDetailSections'
 import { PUBLIC_BASE_PATH } from '@/lib/public-path'
 import {
   analisaWilayah,
@@ -79,8 +79,9 @@ export default function WilayahDetailClient({
       panasJenis: heatmapJenisBulan(filtered),
       panasKab: heatmapKabJenis(filtered),
       analisa: analisaWilayah(filtered, rekap, kabRows, jenisRows, ctx),
+      updatedAt: raw?.eoc?.fetched_at_wib || derived?.freshness?.eoc?.at || derived?.generatedAt || raw?.generated_at_wib || null,
     }
-  }, [raw, parsed, jenis])
+  }, [raw, parsed, jenis, derived])
 
   useEffect(() => {
     if (!mapFull) return
@@ -101,22 +102,22 @@ export default function WilayahDetailClient({
 
   if (!parsed.valid) {
     return (
-      <div className="flex flex-col items-start gap-3 px-6 py-10 lg:px-8">
+      <div className="flex flex-col items-start gap-3 bg-[#fbffff] px-3 py-10 sm:px-6 lg:px-8">
         <ApiKosong pesan="Kode wilayah tidak dikenali." detail="Gunakan kode Kemendagri provinsi (2 digit) atau kabupaten/kota (4 digit)." />
-        <Link href={`${PUBLIC_BASE_PATH}/dashboard/spatial-mode`} className="inline-flex items-center gap-1.5 text-xs font-bold text-[#00705a] hover:underline"><ArrowLeft className="h-3.5 w-3.5" /> Kembali ke peta</Link>
+        <Link href={`${PUBLIC_BASE_PATH}/dashboard/spatial-mode`} className="inline-flex items-center gap-1.5 text-xs font-bold text-[#047D78] hover:underline"><ArrowLeft className="h-3.5 w-3.5" /> Kembali ke peta</Link>
       </div>
     )
   }
   if (error) {
     return (
-      <div className="space-y-3 px-6 py-8 lg:px-8 text-sm text-red-700">
+      <div className="space-y-3 bg-[#fbffff] px-3 py-8 sm:px-6 lg:px-8 text-sm text-red-700">
         <p>Data Pusat Krisis Kesehatan tidak dapat dimuat: {error}</p>
-        <Link href={`${PUBLIC_BASE_PATH}/dashboard/spatial-mode`} className="inline-flex items-center gap-1.5 text-xs font-bold text-[#00705a] hover:underline"><ArrowLeft className="h-3.5 w-3.5" /> Kembali ke peta</Link>
+        <Link href={`${PUBLIC_BASE_PATH}/dashboard/spatial-mode`} className="inline-flex items-center gap-1.5 text-xs font-bold text-[#047D78] hover:underline"><ArrowLeft className="h-3.5 w-3.5" /> Kembali ke peta</Link>
       </div>
     )
   }
   if (!raw || !derived || !packed) {
-    return <div className="px-6 py-16 lg:px-8 text-sm font-bold text-slate-500" data-testid="wilayah-detail-loading">Memuat detail wilayah…</div>
+    return <div className="bg-[#fbffff] px-3 py-16 sm:px-6 lg:px-8 text-sm font-bold text-slate-500" data-testid="wilayah-detail-loading">Memuat detail wilayah…</div>
   }
 
   const mapBlock = (
@@ -138,12 +139,14 @@ export default function WilayahDetailClient({
   const mapArticle = (
     <article
       data-testid="wilayah-peta-section"
-      className={mapFull ? 'fixed inset-0 z-[200] flex flex-col bg-white' : 'flex h-fit flex-col rounded-2xl border border-slate-200 bg-white p-4 sm:p-5'}
+      className={mapFull ? 'fixed inset-0 z-[200] flex flex-col bg-white' : 'rounded-2xl border border-slate-200 bg-white p-5 sm:p-6 shadow-[0_4px_12px_rgba(0,0,0,0.02)]'}
     >
-      <div className={`flex shrink-0 items-start justify-between gap-3 ${mapFull ? 'border-b border-slate-200 px-4 py-3' : 'mb-3'}`}>
+      <div className={`flex shrink-0 items-start justify-between gap-3 ${mapFull ? 'border-b border-slate-200 px-4 py-3' : 'mb-3 border-b border-slate-100 pb-2'}`}>
         <div className="min-w-0">
-          <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Peta wilayah</p>
-          <h2 className="text-[15px] font-bold text-slate-900 sm:text-base">Kejadian di {packed.nama.nama}</h2>
+          <h4 className="text-xl sm:text-2xl font-black text-slate-900">Pemetaan Spasial Kejadian Bencana - {packed.nama.nama.toUpperCase()}</h4>
+          <p className="mt-1 text-sm sm:text-base font-normal text-slate-600">
+            Peta hanya menampilkan kejadian EOC di wilayah ini. Batas wilayah disorot; kejadian di luar wilayah disembunyikan. Klik titik untuk membuka detail kejadian.
+          </p>
         </div>
         <button
           type="button"
@@ -157,29 +160,22 @@ export default function WilayahDetailClient({
           {mapFull ? 'Kecilkan' : 'Perbesar'}
         </button>
       </div>
-      <div className={mapFull ? 'min-h-0 flex-1 p-3' : 'h-[280px] sm:h-[320px] lg:h-[360px]'} data-testid="wilayah-peta-canvas">
+      <div className={mapFull ? 'min-h-0 flex-1 p-3' : 'mt-2 h-[540px] sm:h-[580px] lg:h-[620px] overflow-hidden rounded-xl border border-slate-200 shadow-inner'} data-testid="wilayah-peta-canvas">
         {mapBlock}
       </div>
     </article>
   )
 
   return (
-    <div className="flex flex-col gap-5 px-6 py-5 lg:gap-6 lg:px-8 lg:py-6" data-testid="wilayah-detail">
-      <WilayahHeaderBand
-        nama={packed.nama}
-        level={packed.level}
-        kode={packed.kab || packed.prov}
-        tahun={f.tahun}
-        rekap={packed.rekap}
-        loadingRange={loadingRange || pending}
-      />
+    <div className="w-full max-w-full overflow-x-hidden space-y-5 bg-[#fbffff] px-3 py-4 sm:px-6 lg:px-8 animate-in fade-in duration-200" data-testid="wilayah-detail">
       {mapFull && portalReady ? createPortal(mapArticle, document.body) : null}
       <WilayahIndikatorSections
         packed={packed}
         jenis={jenis}
         onJenis={onJenis}
         tahun={f.tahun}
-        heroMap={mapFull ? <div className="h-[280px] sm:h-[320px] lg:h-[360px] rounded-2xl border border-dashed border-slate-200 bg-slate-50" aria-hidden /> : mapArticle}
+        loadingRange={loadingRange || pending}
+        heroMap={mapFull ? <div className="h-[540px] sm:h-[580px] lg:h-[620px] rounded-2xl border border-dashed border-slate-200 bg-slate-50" aria-hidden /> : mapArticle}
       />
     </div>
   )

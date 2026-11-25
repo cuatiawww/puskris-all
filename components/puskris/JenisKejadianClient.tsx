@@ -53,6 +53,13 @@ export default function JenisKejadianClient({
 
   const names = useMemo(() => (raw ? allJenisNames(raw) : []), [raw])
   const jenis = useMemo(() => (slug ? resolveJenis(slug, names) : null), [slug, names])
+  const listSemua = useMemo(() => (raw ? eventsNasional(raw, null, f.provinsi).list : []), [raw, f.provinsi])
+  const regionsAll = useMemo(() => (
+    (raw?.regions || []).map((r: any) => ({
+      code: String(r.code).padStart(2, '0').slice(0, 2),
+      nama: r.name,
+    })).sort((a: any, b: any) => String(a.nama).localeCompare(String(b.nama), 'id'))
+  ), [raw])
 
   useEffect(() => {
     if (!jenis) return
@@ -129,6 +136,8 @@ export default function JenisKejadianClient({
           loadingRange={loadingRange || pending}
           heroMap={null}
           prevRekap={null}
+          listSemua={listSemua}
+          regions={regionsAll}
         />
       </div>
     )
@@ -192,6 +201,8 @@ export default function JenisKejadianClient({
         onTahun={onTahun}
         onProv={onProv}
         loadingRange={loadingRange || pending}
+        listSemua={listSemua}
+        regions={regionsAll}
         heroMap={mapFull ? <div className="h-[540px] sm:h-[580px] lg:h-[620px] rounded-2xl border border-dashed border-slate-200 bg-slate-50" aria-hidden /> : mapArticle}
         prevRekap={prevRekap}
       />

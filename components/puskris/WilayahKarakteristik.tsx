@@ -1,7 +1,7 @@
 'use client'
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { ChevronLeft, ChevronRight, LayoutGrid, LayoutList, Layers } from 'lucide-react'
 import { karakteristikJenis, type KarakteristikKartu } from '@/lib/puskris/wilayah-detail'
@@ -84,7 +84,7 @@ function MiniBars({ values, color }: { values: number[]; color: string }) {
 }
 
 function Kartu({
-  card, selected, onSelect, fill, metrics, tahun,
+  card, selected, onSelect, fill, metrics, tahun, showNasionalLink,
 }: {
   card: KarakteristikKartu
   selected: boolean
@@ -92,6 +92,7 @@ function Kartu({
   fill?: boolean
   metrics: typeof DAMPAK_METRICS
   tahun: number
+  showNasionalLink?: boolean
 }) {
   const color = accentOf(card.id)
   const last = tglPendek(card.lastDate)
@@ -162,7 +163,7 @@ function Kartu({
         <span className="rounded-full bg-slate-50 px-1.5 py-0.5 text-[10px] font-semibold tabular-nums text-slate-600">
           {nf(card.kab)} kab/kota
         </span>
-        {card.id ? (
+        {showNasionalLink && card.id ? (
           <Link
             href={jenisKejadianHref(card.id, { tahun })}
             data-testid="karakteristik-lihat-nasional"
@@ -178,18 +179,28 @@ function Kartu({
 }
 
 export default function WilayahKarakteristik({
-  list, selected, onSelect, tahun,
+  list, selected, onSelect, tahun, showNasionalLink = true,
 }: {
   list: any[]
   selected: string | null
   onSelect: (id: string | null) => void
   tahun: number
+  showNasionalLink?: boolean
 }) {
   const cards = useMemo(() => karakteristikJenis(list || [], tahun), [list, tahun])
   const metrics = DAMPAK_METRICS
   const track = useRef<HTMLDivElement>(null)
   const drag = useRef<{ x: number; left: number; moved: boolean } | null>(null)
   const [grid, setGrid] = useState(false)
+
+  useEffect(() => {
+    if (grid) return
+    const el = track.current
+    if (!el) return
+    const key = selected ?? 'semua'
+    const card = el.querySelector<HTMLElement>(`[data-jenis="${CSS.escape(key)}"]`)
+    card?.scrollIntoView({ inline: 'center', block: 'nearest', behavior: 'smooth' })
+  }, [selected, cards, grid])
 
   const page = (dir: 1 | -1) => {
     const el = track.current
@@ -260,7 +271,7 @@ export default function WilayahKarakteristik({
       {grid ? (
         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5" data-testid="karakteristik-grid-view">
           {cards.map((c) => (
-            <Kartu key={c.id ?? 'semua'} card={c} selected={selected === c.id} onSelect={onSelect} fill metrics={metrics} tahun={tahun} />
+            <Kartu key={c.id ?? 'semua'} card={c} selected={selected === c.id} onSelect={onSelect} fill metrics={metrics} tahun={tahun} showNasionalLink={showNasionalLink} />
           ))}
         </div>
       ) : (
@@ -290,7 +301,7 @@ export default function WilayahKarakteristik({
           }}
         >
           {cards.map((c) => (
-            <Kartu key={c.id ?? 'semua'} card={c} selected={selected === c.id} onSelect={onSelect} metrics={metrics} tahun={tahun} />
+            <Kartu key={c.id ?? 'semua'} card={c} selected={selected === c.id} onSelect={onSelect} metrics={metrics} tahun={tahun} showNasionalLink={showNasionalLink} />
           ))}
         </div>
       )}

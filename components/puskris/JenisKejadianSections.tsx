@@ -32,7 +32,7 @@ import { PUBLIC_BASE_PATH } from '@/lib/public-path'
 import { eocIconOf, eocKindOf, fmtAngka, tglKejadian } from '@/lib/puskris/eoc-markers'
 import { kejadianHref, wilayahHref } from '@/lib/puskris/eoc-event-layer'
 import { jenisKejadianHref, tahunPilihan, type JenisKejadianPack, copyJenisDashboard, narasiJenis, heroUtama } from '@/lib/puskris/jenis-kejadian'
-import { jenisCategory } from '@/lib/puskris/jenis-meta'
+import WilayahKarakteristik from '@/components/puskris/WilayahKarakteristik'
 
 function nf(n: number | null | undefined) {
   if (n == null || Number.isNaN(Number(n))) return '—'
@@ -128,7 +128,7 @@ function JenisMark({ nama, size = 28 }: { nama: string; size?: number }) {
 }
 
 export function JenisKejadianSections({
-  packed, names, jenis, tahun, prov, onJenis, onTahun, onProv, heroMap, loadingRange, prevRekap,
+  packed, names: _names, jenis, tahun, prov, onJenis, onTahun, onProv, heroMap, loadingRange, prevRekap, listSemua, regions: regionsProp,
 }: {
   packed: JenisKejadianPack | null
   names: string[]
@@ -141,6 +141,8 @@ export function JenisKejadianSections({
   heroMap: ReactNode
   loadingRange?: boolean
   prevRekap: { tahun: number; rekap: any; tren: any[] } | null
+  listSemua?: any[]
+  regions?: { code: string; nama: string }[]
 }) {
   const [lihat, setLihat] = useState(25)
   const [q, setQ] = useState('')
@@ -154,14 +156,13 @@ export function JenisKejadianSections({
   const kabRows = packed?.kabRows || []
   const ctx = packed?.ctx
   const panas = packed?.panasProv
-  const regions = packed?.regions || []
+  const regions = (regionsProp && regionsProp.length) ? regionsProp : (packed?.regions || [])
+  const kartuList = (listSemua && listSemua.length) ? listSemua : []
   const sumberEoc = `Sumber: API EOC Pusat Krisis Kesehatan, agregat kejadian ${jenis || 'terpilih'} di Indonesia pada tahun ${tahun}`
   const updated = packed?.updatedAt ? ` | Pembaruan: ${packed.updatedAt}` : ''
   const wilayahLabel = packed?.prov ? (provRows[0]?.nama || packed.prov) : 'Indonesia'
 
   const years = tahunPilihan(tahun)
-  const chips = packed?.opsiJenis?.length ? packed.opsiJenis.map((o) => o.id) : names
-
   const filteredList = useMemo(() => {
     const needle = q.trim().toLowerCase()
     let rows = list
@@ -259,29 +260,14 @@ export function JenisKejadianSections({
             </select>
           </label>
         </div>
-        <div>
-          <div className="mb-1.5 text-[10px] font-black uppercase tracking-wider text-slate-500">Jenis kejadian</div>
-          <div className="flex gap-1.5 overflow-x-auto pb-1 [scrollbar-width:thin]" data-testid="jenis-chips">
-            {chips.length ? chips.map((nama) => {
-              const on = jenis === nama
-              const icon = eocIconOf(nama)
-              return (
-                <button
-                  key={nama}
-                  type="button"
-                  data-testid="jenis-chip"
-                  data-jenis={nama}
-                  onClick={() => onJenis(nama)}
-                  className={`inline-flex max-w-[14rem] shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-left text-[11px] font-bold transition ${on ? 'text-white shadow-sm' : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'}`}
-                  style={on ? { background: icon.color, borderColor: icon.color } : undefined}
-                  title={`${nama} · ${jenisCategory(nama)}`}
-                >
-                  <JenisMark nama={nama} size={18} />
-                  <span className="truncate">{nama}</span>
-                </button>
-              )
-            }) : <span className="text-xs font-semibold text-slate-500">Data belum tersedia dari API</span>}
-          </div>
+        <div data-testid="jenis-chips">
+          <WilayahKarakteristik
+            list={kartuList}
+            selected={jenis}
+            onSelect={onJenis}
+            tahun={tahun}
+            showNasionalLink={false}
+          />
         </div>
       </div>
 

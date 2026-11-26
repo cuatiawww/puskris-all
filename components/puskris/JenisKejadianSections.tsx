@@ -439,22 +439,7 @@ export function JenisKejadianSections({
                 </div>
               ) : <Empty />}
             </Card>
-
-            <Card title="Komposisi dampak (korban)" icon={Activity} source={`${sumberEoc}${updated}`}>
-              {dampakChart.length ? (
-                <div className="h-[300px]">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={dampakChart} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis dataKey="nama" tick={{ fontSize: 11 }} />
-                      <YAxis allowDecimals={false} tick={{ fontSize: 11 }} width={40} />
-                      <Tooltip contentStyle={tipStyle} />
-                      <Bar dataKey="n" name="Jumlah" fill="#7C3AED" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              ) : <Empty />}
-            </Card>
+          </div>
 
           <Card title={`Heatmap provinsi × bulan · ${jenis} ${tahun}`} icon={BarChart3} source={`${sumberEoc}${updated}`}>
             {panas && panas.prov.length && panas.max > 0 ? (
@@ -479,7 +464,7 @@ export function JenisKejadianSections({
                           return (
                             <td key={`${r.code}-${i}`} className="px-0.5 py-0.5 text-center">
                               <div
-                                className="flex h-7 min-w-[2rem] items-center justify-center rounded-md font-bold tabular-nums"
+                                className="flex h-8 min-w-[2.75rem] items-center justify-center rounded-md font-bold tabular-nums"
                                 style={{ background: heatColor(n, panas.max), color: n && n / Math.max(panas.max, 1) > 0.55 ? '#fff' : '#134e4a' }}
                               >
                                 {n || ''}
@@ -494,6 +479,23 @@ export function JenisKejadianSections({
               </div>
             ) : <Empty />}
           </Card>
+
+          <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+            <Card title="Komposisi dampak (korban)" icon={Activity} source={`${sumberEoc}${updated}`}>
+              {dampakChart.length ? (
+                <div className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={dampakChart} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <XAxis dataKey="nama" tick={{ fontSize: 11 }} />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 11 }} width={40} />
+                      <Tooltip contentStyle={tipStyle} />
+                      <Bar dataKey="n" name="Jumlah" fill="#7C3AED" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              ) : <Empty />}
+            </Card>
 
           <Card title={`Perbandingan dengan tahun ${tahun - 1}`} icon={BarChart3} source={prevRekap ? `${sumberEoc}${updated}` : 'Perbandingan hanya ditampilkan bila data tahun sebelumnya tersedia dari API.'}>
             {yoyChart.length ? (
@@ -520,6 +522,7 @@ export function JenisKejadianSections({
               </>
             ) : <Empty />}
           </Card>
+          </div>
 
           <Card title="Sebaran status krisis" icon={Activity} source={`${sumberEoc}${updated}`}>
             {rekap.terpantau ? (
@@ -561,7 +564,6 @@ export function JenisKejadianSections({
               </div>
             ) : <Empty />}
           </Card>
-          </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_4px_12px_rgba(0,0,0,0.02)] sm:p-5" data-testid="jenis-sec-indikator">
             <h3 className="text-xl font-black uppercase text-slate-900">Data Situasi {jenis} per Indikator</h3>

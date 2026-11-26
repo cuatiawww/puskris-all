@@ -16,6 +16,7 @@ import { PUBLIC_BASE_PATH } from '@/lib/public-path'
 import {
   allJenisNames,
   jenisKejadianHref,
+  jenisKejadianIndexHref,
   packJenisKejadian,
   resolveJenis,
   eventsNasional,
@@ -106,7 +107,10 @@ export default function JenisKejadianClient({
 
   const onProv = (code: string | null) => {
     setF((prevF) => ({ ...prevF, provinsi: code }))
-    if (jenis) router.replace(jenisKejadianHref(jenis, { tahun: f.tahun, prov: code }))
+    const href = jenis
+      ? jenisKejadianHref(jenis, { tahun: f.tahun, prov: code })
+      : jenisKejadianIndexHref({ tahun: f.tahun, prov: code })
+    router.replace(href)
   }
 
   if (error) {

@@ -30,7 +30,6 @@ function JenisBars({ items, selected, onSelect, tahun }: {
   tahun?: number
 }) {
   const max = Math.max(1, ...items.map((i) => i.kejadian))
-  const indexHref = `${jenisKejadianHref(items[0]?.nama || 'banjir', { tahun }).replace(/\/dashboard\/jenis-kejadian\/[^?]+/, '/dashboard/jenis-kejadian')}`
   return (
     <div className="skdr-card flex h-full flex-col p-3" data-testid="jenis-bars">
       <div className="mb-1.5 flex items-center justify-between gap-2">

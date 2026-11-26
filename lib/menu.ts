@@ -474,7 +474,7 @@ export function ensureModeSpasialMenu(config: SidebarGroupConfig[]): SidebarGrou
 
 export const DEFAULT_NAVIGATION_CONFIG: SidebarGroupConfig[] = [
   { id: 'grp_dasbor', title: 'Dasbor', order: 1, enabled: true, area: 'dashboard', items: [
-    it('mod_ringkasan', 'Ringkasan', '/dashboard/ringkasan', 'LayoutDashboard', 1, {
+    it('mod_ringkasan', 'Dasbor Utama', '/dashboard/ringkasan', 'LayoutDashboard', 1, {
       description: 'Dasbor agregat Pusat Krisis Kesehatan',
     }),
     it('mod_situasi_krisis', 'Pantauan Krisis', '/dashboard/situasi-krisis', 'AlertTriangle', 2, {

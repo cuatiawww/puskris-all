@@ -5,6 +5,7 @@ import "./globals.css"
 import LayoutContent from "@/components/layout/LayoutContent"
 import { LanguageProvider } from "@/lib/i18n/LanguageContext"
 import { AuthProvider } from "@/lib/skdr-auth"
+import { PUBLIC_BASE_PATH } from "@/lib/public-path"
 import idDict from '@/locales/id.json'
 
 // Use locally-bundled font files so Docker build works without internet access.
@@ -34,7 +35,7 @@ const roboto = localFont({
   display: 'swap',
 })
 
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH || ''
+const basePath = PUBLIC_BASE_PATH
 
 // SKDR: metadata text from the language file (default locale id).
 export const metadata: Metadata = {

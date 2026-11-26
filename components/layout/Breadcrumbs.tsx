@@ -15,14 +15,12 @@ export default function Breadcrumbs({ match }: { match: Match }) {
   const router = useRouter()
   if (pathname === '/' || pathname === '/beranda' || !match) return null
 
-  // Tautkan grup ke halamannya jika ada (tatakelola -> /tatakelola, dashboard -> /dashboard, atau item pertama)
-  const groupHref = match.group.area === 'tatakelola'
-    ? '/tatakelola'
-    : match.group.area === 'dashboard'
-    ? '/dashboard'
+  // Tautkan grup ke halamannya jika ada (dashboard -> /dashboard/ringkasan, atau item pertama)
+  const groupHref = match.group.area === 'dashboard'
+    ? '/dashboard/ringkasan'
     : (match.group.items?.[0]?.href && match.group.items[0].href !== '#')
     ? match.group.items[0].href
-    : undefined
+    : '/dashboard/ringkasan'
 
   const crumbs: { label: string; href?: string }[] = [{ label: match.group.title, href: groupHref }]
   const itemHasPage = match.item.href && match.item.href !== '#'
@@ -55,7 +53,7 @@ export default function Breadcrumbs({ match }: { match: Match }) {
       router.back()
     } else {
       const prevCrumb = crumbs.slice(0, last).reverse().find((c) => c.href)
-      router.push(prevCrumb?.href || '/beranda')
+      router.push(prevCrumb?.href || '/dashboard/ringkasan')
     }
   }
 
@@ -77,7 +75,7 @@ export default function Breadcrumbs({ match }: { match: Match }) {
       {/* Pill Breadcrumbs */}
       <ol className="inline-flex max-w-full flex-wrap items-center gap-1.5 rounded-xl border border-slate-200/90 bg-slate-50/90 px-3.5 py-1.5 text-xs text-slate-600 shadow-2xs backdrop-blur-xs">
         <li>
-          <Link href="/beranda" className="inline-flex items-center gap-1.5 font-medium text-slate-600 transition-colors hover:text-primary">
+          <Link href="/dashboard/ringkasan" className="inline-flex items-center gap-1.5 font-medium text-slate-600 transition-colors hover:text-primary">
             <Home className="h-3.5 w-3.5 text-slate-400 group-hover:text-primary" />
             <span>Beranda</span>
           </Link>

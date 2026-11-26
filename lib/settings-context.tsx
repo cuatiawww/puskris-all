@@ -63,10 +63,17 @@ const SettingsContext = createContext<SettingsContextType>({
 });
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
+  const skipConsoleSettings =
+    process.env.NEXT_PUBLIC_BYPASS_AUTH === 'true' &&
+    process.env.NEXT_PUBLIC_ENABLE_CONSOLE_SETTINGS !== 'true';
   const [settings, setSettings] = useState<SystemSettings>(DEFAULT_SETTINGS);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!skipConsoleSettings);
 
   const fetchSettings = useCallback(async () => {
+    if (skipConsoleSettings) {
+      setLoading(false);
+      return;
+    }
     try {
       const res = await fetch(`${PUBLIC_BASE_PATH}/api/v1/console/settings?_t=${Date.now()}`, {
         cache: 'no-store',

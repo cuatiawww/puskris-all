@@ -91,7 +91,7 @@ export default function DashboardHeader({
               <Menu className="h-5 w-5" />
             </button>
             <Link
-              href={consoleMode ? "/console/settings" : authenticated ? "/beranda" : "/"}
+              href={consoleMode ? "/console/settings" : "/dashboard/ringkasan"}
               className="flex min-w-0 flex-col gap-3 md:flex-row md:items-center md:gap-5"
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -171,7 +171,7 @@ export default function DashboardHeader({
                   {tr("skdr.layout.reports")}
                 </Link>
                 <Link
-                  href="/main-dashboard"
+                  href="/dashboard/ringkasan"
                   className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${onBrand ? "text-white/90 hover:bg-white/15 hover:text-white" : "text-slate-700 hover:bg-white hover:text-primary"
                     }`}
                 >

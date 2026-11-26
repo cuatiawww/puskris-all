@@ -67,7 +67,7 @@ export default function NotFound() {
           {/* Action Buttons */}
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3 border-t border-slate-100 pt-6">
             <Link
-              href="/main-dashboard"
+              href="/dashboard/ringkasan"
               className="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-blue-600/20 transition hover:bg-primary-dark"
             >
               <LayoutDashboard className="h-4 w-4" />

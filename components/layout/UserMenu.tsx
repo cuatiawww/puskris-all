@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { ChevronDown, KeyRound, LayoutDashboard, LogIn, LogOut } from 'lucide-react'
+import { ChevronDown, Database, KeyRound, LayoutDashboard, LogIn, LogOut } from 'lucide-react'
 import { toast } from 'sonner'
 import Modal from '@/components/Modal'
 import { Field, FormActions, inputCls } from '@/components/master/MasterUi'
@@ -35,7 +35,7 @@ export function AreaSwitch({ onBrand = false }: { onBrand?: boolean }) {
       className={`hidden items-center rounded-2xl border p-1 shadow-sm backdrop-blur-sm sm:flex ${onBrand ? 'border-white/25 bg-white/15' : 'border-white/45 bg-white/90'
         }`}
     >
-      <Link href="/dashboard" className={cls(area === 'dashboard')}><LayoutDashboard className="h-3.5 w-3.5" />{t('skdr.auth.areaDashboard')}</Link>
+      <Link href="/dashboard/ringkasan" className={cls(area === 'dashboard')}><LayoutDashboard className="h-3.5 w-3.5" />{t('skdr.auth.areaDashboard')}</Link>
     </nav>
   )
 }
@@ -76,6 +76,7 @@ export default function UserMenu({ onBrand = false }: { onBrand?: boolean }) {
     toast.success(t('skdr.auth.loggedOut'))
     router.replace('/login')
   }
+  const isBypass = process.env.NEXT_PUBLIC_BYPASS_AUTH === 'true'
   const item = 'flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-semibold text-slate-700 hover:bg-slate-50'
   return (
     <div className="relative" ref={ref}>
@@ -99,15 +100,22 @@ export default function UserMenu({ onBrand = false }: { onBrand?: boolean }) {
             <p className="truncate text-xs text-slate-500">@{user.username} · {user.role_name}</p>
           </div>
           <div className="pt-1">
-            <Link href="/dashboard" role="menuitem" className={item}><LayoutDashboard className="h-4 w-4 text-slate-400" />{t('skdr.auth.areaDashboard')}</Link>
-            <button type="button" role="menuitem" className={item} onClick={() => { setOpen(false); setPwOpen(true) }}><KeyRound className="h-4 w-4 text-slate-400" />{t('skdr.auth.changePassword')}</button>
-            <button type="button" role="menuitem" data-testid="logout" className={`${item} text-red-600 hover:bg-red-50`} onClick={doLogout}><LogOut className="h-4 w-4" />{t('skdr.auth.logout')}</button>
+            <Link href="/dashboard/ringkasan" role="menuitem" className={item}><LayoutDashboard className="h-4 w-4 text-slate-400" />{t('skdr.auth.areaDashboard')}</Link>
+            <Link href="/dashboard/open-data" role="menuitem" className={item}><Database className="h-4 w-4 text-slate-400" />Open Data &amp; API</Link>
+            {!isBypass && (
+              <>
+                <button type="button" role="menuitem" className={item} onClick={() => { setOpen(false); setPwOpen(true) }}><KeyRound className="h-4 w-4 text-slate-400" />{t('skdr.auth.changePassword')}</button>
+                <button type="button" role="menuitem" data-testid="logout" className={`${item} text-red-600 hover:bg-red-50`} onClick={doLogout}><LogOut className="h-4 w-4" />{t('skdr.auth.logout')}</button>
+              </>
+            )}
           </div>
         </div>
       )}
-      <Modal open={pwOpen} onClose={() => setPwOpen(false)} title={t('skdr.auth.changePassword')}>
-        <PasswordForm onDone={() => setPwOpen(false)} />
-      </Modal>
+      {!isBypass && (
+        <Modal open={pwOpen} onClose={() => setPwOpen(false)} title={t('skdr.auth.changePassword')}>
+          <PasswordForm onDone={() => setPwOpen(false)} />
+        </Modal>
+      )}
     </div>
   )
 }

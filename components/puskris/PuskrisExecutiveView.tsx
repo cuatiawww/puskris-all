@@ -97,7 +97,7 @@ export default function PuskrisExecutiveView({
   const [centroids, setCentroids] = useState<Centroids>({})
   useEffect(() => {
     let on = true
-    fetch(GEO_URL).then((r) => r.json()).then((fc) => { if (on) setCentroids(centroidsFromGeo(fc)) }).catch(() => {})
+    fetch(GEO_URL).then((r) => r.json()).then((fc) => { if (on) setCentroids(centroidsFromGeo(fc)) }).catch(() => { })
     return () => { on = false }
   }, [])
 
@@ -278,7 +278,7 @@ export default function PuskrisExecutiveView({
             setPanelOpen={setPanelOpen}
             fullHeight
             hideDefaultToolbar
-            radiusSupport={{ enabled: Boolean(radiusCenter), center: radiusCenter, ringsKm: [50, 100, 200] }}
+            radiusSupport={{ enabled: false, center: radiusCenter, ringsKm: [50, 100, 200] }}
           />
         </div>
 
@@ -315,7 +315,7 @@ export default function PuskrisExecutiveView({
                           <AlertTriangle className={`mt-0.5 h-3 w-3 shrink-0 ${p.tingkat === 'tinggi' ? 'text-red-600' : 'text-amber-500'}`} />
                           <span className="line-clamp-2 leading-snug">{p.judul}</span>
                         </p>
-                        
+
                       </button>
                     </li>
                   )) : (
@@ -373,7 +373,7 @@ export default function PuskrisExecutiveView({
                           <span className="leading-snug">{p.judul}</span>
                         </p>
                         <p className="mt-0.5 line-clamp-2 pl-4 text-[10px] leading-snug text-slate-500">{p.detail}</p>
-                        
+
                       </button>
                     </li>
                   )) : (

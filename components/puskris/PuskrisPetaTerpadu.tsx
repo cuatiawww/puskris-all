@@ -86,7 +86,7 @@ export default function PuskrisPetaTerpadu({
   const [centroids, setCentroids] = useState<Centroids>({})
   useEffect(() => {
     let on = true
-    fetch(GEO_URL).then((r) => r.json()).then((fc) => { if (on) setCentroids(centroidsFromGeo(fc)) }).catch(() => {})
+    fetch(GEO_URL).then((r) => r.json()).then((fc) => { if (on) setCentroids(centroidsFromGeo(fc)) }).catch(() => { })
     return () => { on = false }
   }, [])
 
@@ -109,7 +109,7 @@ export default function PuskrisPetaTerpadu({
   const [dockTab, setDockTab] = useState<'ai' | 'analisa' | 'terbaru' | 'terpadu' | 'analitik' | 'situasi' | 'kesiapan' | 'risiko'>(mode === 'kejadian' ? 'situasi' : 'ai')
   const [sekitar, setSekitar] = useState<SekitarToggles>(mode === 'kejadian' ? { ...DEFAULT_SEKITAR, riwayat: false } : DEFAULT_SEKITAR)
   const [terbaruCount, setTerbaruCount] = useState<number | null>(null)
-  const [radiusOn, setRadiusOn] = useState(true)
+  const [radiusOn, setRadiusOn] = useState(false)
   const [internal, setInternal] = useState<InternalLayerToggles>(DEFAULT_INTERNAL)
   const [faskes, setFaskes] = useState<FaskesToggles>(DEFAULT_FASKES)
   // Filter Dasbor "Status" (PSC aktif / ambulans siap) menyalakan lapisan terkait di peta.
@@ -370,725 +370,726 @@ export default function PuskrisPetaTerpadu({
 
   const controls = (
     <>
-            <div className="flex items-center rounded-xl bg-slate-100 p-0.5 text-xs font-bold">
-              {METRIC_PILLS.map((m) => (
-                <button key={`${m.key}-${m.choro}`} type="button" onClick={() => setPill(m.key, m.choro)}
-                  className={`rounded-lg px-2.5 py-1 transition ${metric === m.key && choro === m.choro ? 'bg-white text-primary shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}>
-                  {m.label}
-                </button>
-              ))}
-            </div>
-            <label className="flex items-center gap-1 text-[11px] font-bold text-slate-500">
-              <span className="sr-only">Variabel peta lainnya</span>
-              <select value={choro} onChange={(e) => {
-                  const id = e.target.value as ChoroId
-                  const pill = METRIC_PILLS.find((p) => p.choro === id)
-                  setPill((pill?.key || 'kasus') as Metric, id)
-                }}
-                className="max-w-[190px] rounded-xl border border-slate-200 bg-white px-2 py-1 text-xs font-bold text-slate-700 focus:border-primary focus:outline-none"
-                title="Pilih variabel arsiran peta" data-testid="peta-variabel-select">
-                {Array.from(new Set(CHORO_OPTIONS.map((o) => o.group))).map((g) => (
-                  <optgroup key={g} label={g}>
-                    {CHORO_OPTIONS.filter((o) => o.group === g).map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
-                  </optgroup>
-                ))}
-              </select>
-              {choro === 'luka_berat' || choro === 'luka_ringan' || choro === 'hilang' ? (
-                <InfoHint text={`${choro === 'luka_berat' ? KORBAN_LABEL.lbHint : choro === 'luka_ringan' ? KORBAN_LABEL.lrHint : KORBAN_LABEL.hilangHint} Sebaran per provinsi memakai jumlah kumulatif semua tahun karena sumber belum merilis rincian 2026 per provinsi.`} label="Penjelasan variabel peta" />
-              ) : null}
-            </label>
-            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">{periodeLabel(f)}</span>
-            <div className="flex items-center gap-1.5 border-l border-slate-200 pl-2">
-              <button type="button" onClick={() => { setDockTab('ai'); setLeftDockOpen(true) }}
-                className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-bold transition ${leftDockOpen && dockTab === 'ai' ? 'border-[#047D78] bg-teal-50 text-[#047D78]' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'}`}
-                title="Buka Rekomendasi Insight AI & Video Presenter">
-                <Sparkles className="h-3.5 w-3.5 text-[#047D78]" /><span className="hidden sm:inline">Analisa AI</span>
-              </button>
-              <button type="button" onClick={() => setLeftDockOpen(!leftDockOpen)}
-                className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-bold transition ${leftDockOpen && dockTab !== 'ai' ? 'border-primary bg-primary/10 text-primary' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
-                title="Buka / Ciutkan Analisa & Detail Wilayah">
-                <MapPin className="h-3.5 w-3.5" /><span className="hidden sm:inline">Analisa Wilayah</span>
-              </button>
-              <button type="button" onClick={() => setRightDockOpen(!rightDockOpen)}
-                className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-bold transition ${rightDockOpen ? 'border-teal-700 bg-teal-50 text-teal-800' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
-                title="Buka / Ciutkan Pengaturan Peta & Lapisan">
-                <Settings className="h-3.5 w-3.5 text-emerald-700" /><span className="hidden sm:inline">Pengaturan Lapisan</span>
-              </button>
-            </div>
+      <div className="flex items-center rounded-xl bg-slate-100 p-0.5 text-xs font-bold">
+        {METRIC_PILLS.map((m) => (
+          <button key={`${m.key}-${m.choro}`} type="button" onClick={() => setPill(m.key, m.choro)}
+            className={`rounded-lg px-2.5 py-1 transition ${metric === m.key && choro === m.choro ? 'bg-white text-primary shadow-xs' : 'text-slate-600 hover:text-slate-900'}`}>
+            {m.label}
+          </button>
+        ))}
+      </div>
+      <label className="flex items-center gap-1 text-[11px] font-bold text-slate-500">
+        <span className="sr-only">Variabel peta lainnya</span>
+        <select value={choro} onChange={(e) => {
+          const id = e.target.value as ChoroId
+          const pill = METRIC_PILLS.find((p) => p.choro === id)
+          setPill((pill?.key || 'kasus') as Metric, id)
+        }}
+          className="max-w-[190px] rounded-xl border border-slate-200 bg-white px-2 py-1 text-xs font-bold text-slate-700 focus:border-primary focus:outline-none"
+          title="Pilih variabel arsiran peta" data-testid="peta-variabel-select">
+          {Array.from(new Set(CHORO_OPTIONS.map((o) => o.group))).map((g) => (
+            <optgroup key={g} label={g}>
+              {CHORO_OPTIONS.filter((o) => o.group === g).map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+            </optgroup>
+          ))}
+        </select>
+        {choro === 'luka_berat' || choro === 'luka_ringan' || choro === 'hilang' ? (
+          <InfoHint text={`${choro === 'luka_berat' ? KORBAN_LABEL.lbHint : choro === 'luka_ringan' ? KORBAN_LABEL.lrHint : KORBAN_LABEL.hilangHint} Sebaran per provinsi memakai jumlah kumulatif semua tahun karena sumber belum merilis rincian 2026 per provinsi.`} label="Penjelasan variabel peta" />
+        ) : null}
+      </label>
+      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">{periodeLabel(f)}</span>
+      <div className="flex items-center gap-1.5 border-l border-slate-200 pl-2">
+        <button type="button" onClick={() => { setDockTab('ai'); setLeftDockOpen(true) }}
+          className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-bold transition ${leftDockOpen && dockTab === 'ai' ? 'border-[#047D78] bg-teal-50 text-[#047D78]' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'}`}
+          title="Buka Rekomendasi Insight AI & Video Presenter">
+          <Sparkles className="h-3.5 w-3.5 text-[#047D78]" /><span className="hidden sm:inline">Analisa AI</span>
+        </button>
+        <button type="button" onClick={() => setLeftDockOpen(!leftDockOpen)}
+          className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-bold transition ${leftDockOpen && dockTab !== 'ai' ? 'border-primary bg-primary/10 text-primary' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
+          title="Buka / Ciutkan Analisa & Detail Wilayah">
+          <MapPin className="h-3.5 w-3.5" /><span className="hidden sm:inline">Analisa Wilayah</span>
+        </button>
+        <button type="button" onClick={() => setRightDockOpen(!rightDockOpen)}
+          className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-bold transition ${rightDockOpen ? 'border-teal-700 bg-teal-50 text-teal-800' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
+          title="Buka / Ciutkan Pengaturan Peta & Lapisan">
+          <Settings className="h-3.5 w-3.5 text-emerald-700" /><span className="hidden sm:inline">Pengaturan Lapisan</span>
+        </button>
+      </div>
     </>
   )
 
   const leftBody = (
     <>
-              <div className="flex shrink-0 gap-1 border-b border-slate-200 bg-white px-2 py-1.5">
-                {(mode === 'kejadian'
-                  ? ([['situasi', 'Situasi'], ['analitik', 'Analitik'], ['kesiapan', 'Kesiapan'], ['risiko', 'Risiko']] as const)
-                  : ([['ai', 'Analisa AI'], ['analitik', 'Tren'], ['terbaru', `Terbaru${terbaruCount ? ` (${terbaruCount})` : ''}`], ['terpadu', 'Detail'], ['analisa', 'Nasional']] as const)
-                ).map(([key, l]) => (
-                  <button key={key} type="button" onClick={() => setDockTab(key)}
-                    className={`flex-1 rounded-lg px-1.5 py-1 text-[10px] font-bold ${dockTab === key ? 'bg-teal-50 text-teal-800' : 'text-slate-500 hover:bg-slate-100'}`}>
-                    {l}
-                  </button>
-                ))}
-              </div>
-              {mode === 'dasbor' && drillProv ? (
-                <div className="shrink-0 border-b border-slate-100 px-3 py-2" data-testid="peta-cta-wilayah">
-                  <p className="truncate text-[12px] font-bold text-slate-800">{drillNama || `Prov. ${drillProv}`}</p>
-                  <div className="mt-1.5 flex flex-col gap-1">
-                    <Link href={wilayahHref(drillProv, { tahun: f.tahun, jenis: f.jenis })} className="block rounded-lg bg-[#00705a] px-2 py-1.5 text-center text-[11px] font-bold text-white hover:bg-[#005a48]">Lihat detail wilayah</Link>
-                    {(kejadianSemuaPeta || kejadianPeta || []).filter((k: any) => String(k.code || '').replace(/\D/g, '').padStart(2, '0').slice(0, 2) === String(drillProv).padStart(2, '0')).sort((a: any, b: any) => String(b.tanggal || '').localeCompare(String(a.tanggal || ''))).slice(0, 1).map((k: any) => (
-                      <Link key={k.uid} href={kejadianHref(String(k.uid), k.tanggal)} className="block rounded-lg border border-teal-200 bg-teal-50 px-2 py-1.5 text-center text-[11px] font-bold text-teal-800 hover:bg-teal-100">Lihat detail kejadian</Link>
-                    ))}
-                  </div>
-                </div>
-              ) : null}
-              <div className="min-h-0 flex-1 overflow-y-auto">
-                {dockTab === 'ai' && (
-                  <PuskrisAiDock
-                    raw={raw}
-                    f={f}
-                    derived={derived}
-                    regionLabel={drillNama || (derived.rows || []).find((r) => String(r.code) === String(f.provinsi || f.kabupaten || ''))?.nama || 'Nasional'}
-                  />
-                )}
-                {dockTab === 'analisa' && (
-                  <SpasialPanel
-                    f={aFilter}
-                    data={data}
-                    titik={titik}
-                    metric={activeMetric}
-                    selected={sel}
-                    onPickArea={(a) => pickArea(a)}
-                    onPickTitik={(t: Titik) => {
-                      setSelectedEvent((kejadian || []).find((k: any) => k.jenis === t.unit && k.kabupaten === t.kab) || null)
-                      setDockTab('terpadu')
-                      setFocus({ lat: t.lat, lon: t.lon, titik: t, nonce: Date.now() })
-                    }}
-                    onClose={() => setLeftDockOpen(false)}
-                    onClear={() => { setSel(null); setSelectedEvent(null) }}
-                    className="h-full rounded-none border-none bg-slate-50/70 shadow-none"
-                    closeIcon="left"
-                    metricLabel={choroLabel}
-                    curveMode="eoc-bulanan"
-                    tahun={f.tahun}
-                  />
-                )}
-                <div className={dockTab === 'terbaru' ? 'h-full' : 'hidden'}>
-                  <KejadianTerbaruList f={f as any} eocKrisis={(raw as any).eoc?.kejadian_krisis_terbaru} onCount={setTerbaruCount}
-                    onPick={(k) => {
-                      if (k.lat != null && k.lon != null) setFocus({ lat: k.lat, lon: k.lon, zoom: 9, nonce: Date.now() })
-                      else if (k.provCode && centroids[k.provCode]) setFocus({ lat: centroids[k.provCode].lat, lon: centroids[k.provCode].lon, zoom: 6.5, nonce: Date.now() })
-                    }} />
-                </div>
-                {dockTab === 'terpadu' && (
-                  <div className="p-3">
-                    {terpadu ? (
-                      <KejadianTerpaduCard data={terpadu} radius={radiusCounts} radiusOn={radiusOn} />
-                    ) : (
-                      <p className="text-[11px] text-slate-500">Klik kejadian atau provinsi pada peta untuk membuka kartu terpadu.</p>
-                    )}
-                  </div>
-                )}
-                <div className={dockTab === 'analitik' ? 'h-full overflow-y-auto' : 'hidden'}>
-                  {mode === 'kejadian' && fokusKejadian
-                    ? <KejadianAnalitikDock riwayat={kejadianPaket?.riwayat} konteks={kejadianPaket?.konteks} layers={{ fires: intelLayers.fires, hujan: sekitar.hujan, riwayat: sekitar.riwayat }} />
-                    : <PetaAnalitikPanel kejadian={kejadianSemuaPeta || kejadianPeta || []} drillProv={drillProv} drillNama={drillNama} />}
-                </div>
-                {mode === 'kejadian' && dockTab === 'situasi' && (
-                  <KejadianSituasiDock k={fokusKejadian} status={kejadianPaket?.status} rekomendasi={kejadianPaket?.rekomendasi} />
-                )}
-                {mode === 'kejadian' && dockTab === 'kesiapan' && (
-                  <KejadianKesiapanDock nearby={kejadianPaket?.nearby} />
-                )}
-                {mode === 'kejadian' && dockTab === 'risiko' && (
-                  <KejadianRisikoDock
-                    risiko={kejadianPaket?.risiko}
-                    pieKab={pieKab}
-                    onShowAsis={(m) => { setRisikoPie(false); setRisikoAsis(m); setRisikoLevel('kabkota') }}
-                    onShowPie={() => { setRisikoAsis(null); setRisikoPie(true); setRisikoLevel('kabkota') }}
-                  />
-                )}
-              </div>
+      <div className="flex shrink-0 gap-1 border-b border-slate-200 bg-white px-2 py-1.5">
+        {(mode === 'kejadian'
+          ? ([['situasi', 'Situasi'], ['analitik', 'Analitik'], ['kesiapan', 'Kesiapan'], ['risiko', 'Risiko']] as const)
+          : ([['ai', 'Analisa AI'], ['analitik', 'Tren'], ['terbaru', `Terbaru${terbaruCount ? ` (${terbaruCount})` : ''}`], ['terpadu', 'Detail'], ['analisa', 'Nasional']] as const)
+        ).map(([key, l]) => (
+          <button key={key} type="button" onClick={() => setDockTab(key)}
+            className={`flex-1 rounded-lg px-1.5 py-1 text-[10px] font-bold ${dockTab === key ? 'bg-teal-50 text-teal-800' : 'text-slate-500 hover:bg-slate-100'}`}>
+            {l}
+          </button>
+        ))}
+      </div>
+      {mode === 'dasbor' && drillProv ? (
+        <div className="shrink-0 border-b border-slate-100 px-3 py-2" data-testid="peta-cta-wilayah">
+          <p className="truncate text-[12px] font-bold text-slate-800">{drillNama || `Prov. ${drillProv}`}</p>
+          <div className="mt-1.5 flex flex-col gap-1">
+            <Link href={wilayahHref(drillProv, { tahun: f.tahun, jenis: f.jenis })} className="block rounded-lg bg-[#00705a] px-2 py-1.5 text-center text-[11px] font-bold text-white hover:bg-[#005a48]">Lihat detail wilayah</Link>
+            {(kejadianSemuaPeta || kejadianPeta || []).filter((k: any) => String(k.code || '').replace(/\D/g, '').padStart(2, '0').slice(0, 2) === String(drillProv).padStart(2, '0')).sort((a: any, b: any) => String(b.tanggal || '').localeCompare(String(a.tanggal || ''))).slice(0, 1).map((k: any) => (
+              <Link key={k.uid} href={kejadianHref(String(k.uid), k.tanggal)} className="block rounded-lg border border-teal-200 bg-teal-50 px-2 py-1.5 text-center text-[11px] font-bold text-teal-800 hover:bg-teal-100">Lihat detail kejadian</Link>
+            ))}
+          </div>
+        </div>
+      ) : null}
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {dockTab === 'ai' && (
+          <PuskrisAiDock
+            raw={raw}
+            f={f}
+            derived={derived}
+            regionLabel={drillNama || (derived.rows || []).find((r) => String(r.code) === String(f.provinsi || f.kabupaten || ''))?.nama || 'Nasional'}
+          />
+        )}
+        {dockTab === 'analisa' && (
+          <SpasialPanel
+            f={aFilter}
+            data={data}
+            titik={titik}
+            metric={activeMetric}
+            selected={sel}
+            onPickArea={(a) => pickArea(a)}
+            onPickTitik={(t: Titik) => {
+              setSelectedEvent((kejadian || []).find((k: any) => k.jenis === t.unit && k.kabupaten === t.kab) || null)
+              setDockTab('terpadu')
+              setFocus({ lat: t.lat, lon: t.lon, titik: t, nonce: Date.now() })
+            }}
+            onClose={() => setLeftDockOpen(false)}
+            onClear={() => { setSel(null); setSelectedEvent(null) }}
+            className="h-full rounded-none border-none bg-slate-50/70 shadow-none"
+            closeIcon="left"
+            metricLabel={choroLabel}
+            curveMode="eoc-bulanan"
+            tahun={f.tahun}
+          />
+        )}
+        <div className={dockTab === 'terbaru' ? 'h-full' : 'hidden'}>
+          <KejadianTerbaruList f={f as any} eocKrisis={(raw as any).eoc?.kejadian_krisis_terbaru} onCount={setTerbaruCount}
+            onPick={(k) => {
+              if (k.lat != null && k.lon != null) setFocus({ lat: k.lat, lon: k.lon, zoom: 9, nonce: Date.now() })
+              else if (k.provCode && centroids[k.provCode]) setFocus({ lat: centroids[k.provCode].lat, lon: centroids[k.provCode].lon, zoom: 6.5, nonce: Date.now() })
+            }} />
+        </div>
+        {dockTab === 'terpadu' && (
+          <div className="p-3">
+            {terpadu ? (
+              <KejadianTerpaduCard data={terpadu} radius={radiusCounts} radiusOn={radiusOn} />
+            ) : (
+              <p className="text-[11px] text-slate-500">Klik kejadian atau provinsi pada peta untuk membuka kartu terpadu.</p>
+            )}
+          </div>
+        )}
+        <div className={dockTab === 'analitik' ? 'h-full overflow-y-auto' : 'hidden'}>
+          {mode === 'kejadian' && fokusKejadian
+            ? <KejadianAnalitikDock riwayat={kejadianPaket?.riwayat} konteks={kejadianPaket?.konteks} layers={{ fires: intelLayers.fires, hujan: sekitar.hujan, riwayat: sekitar.riwayat }} />
+            : <PetaAnalitikPanel kejadian={kejadianSemuaPeta || kejadianPeta || []} drillProv={drillProv} drillNama={drillNama} />}
+        </div>
+        {mode === 'kejadian' && dockTab === 'situasi' && (
+          <KejadianSituasiDock k={fokusKejadian} status={kejadianPaket?.status} rekomendasi={kejadianPaket?.rekomendasi} />
+        )}
+        {mode === 'kejadian' && dockTab === 'kesiapan' && (
+          <KejadianKesiapanDock nearby={kejadianPaket?.nearby} />
+        )}
+        {mode === 'kejadian' && dockTab === 'risiko' && (
+          <KejadianRisikoDock
+            risiko={kejadianPaket?.risiko}
+            pieKab={pieKab}
+            onShowAsis={(m) => { setRisikoPie(false); setRisikoAsis(m); setRisikoLevel('kabkota') }}
+            onShowPie={() => { setRisikoAsis(null); setRisikoPie(true); setRisikoLevel('kabkota') }}
+          />
+        )}
+      </div>
     </>
   )
 
   const rightBody = (
-              <div className="flex h-full flex-col overflow-hidden">
-                <div className="flex shrink-0 items-center justify-between border-b border-slate-100 bg-white p-3">
-                  <div className="flex items-center gap-2">
-                    <Settings className="h-4 w-4 text-emerald-700" />
-                    <span className="text-sm font-bold uppercase text-slate-800">Pengaturan Peta & Lapisan</span>
-                  </div>
-                  <button type="button" onClick={() => setRightDockOpen(false)} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Tutup pengaturan peta">
-                    <X className="h-4 w-4" />
-                  </button>
+    <div className="flex h-full flex-col overflow-hidden">
+      <div className="flex shrink-0 items-center justify-between border-b border-slate-100 bg-white p-3">
+        <div className="flex items-center gap-2">
+          <Settings className="h-4 w-4 text-emerald-700" />
+          <span className="text-sm font-bold uppercase text-slate-800">Pengaturan Peta & Lapisan</span>
+        </div>
+        <button type="button" onClick={() => setRightDockOpen(false)} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Tutup pengaturan peta">
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+      <div className="flex-1 space-y-3.5 overflow-y-auto p-3.5 text-xs">
+        <div>
+          <div className="mb-2 text-[10px] font-black uppercase tracking-wider text-slate-400">Visualisasi Kasus &amp; Wilayah</div>
+          <div className="space-y-2">
+            <label className={`block cursor-pointer rounded-xl border p-2.5 transition select-none ${layers.points !== 'off' ? 'border-teal-200 bg-white shadow-2xs' : 'border-slate-100 bg-slate-50'}`}>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="flex items-center gap-0.5">
+                    {eocLayer.legend.slice(0, 6).map((g) => (
+                      g.iconSrc
+                        ? <img key={g.label} alt="" aria-hidden src={g.iconSrc} className="h-5 w-3.5 object-contain" title={g.label} />
+                        : <span key={g.label} className="h-2 w-2 rounded-full" style={{ background: g.color }} title={g.label} />
+                    ))}
+                  </span>
+                  <span className="text-xs font-bold text-slate-800">Ikon kejadian EOC</span>
                 </div>
-                <div className="flex-1 space-y-3.5 overflow-y-auto p-3.5 text-xs">
-                  <div>
-                    <div className="mb-2 text-[10px] font-black uppercase tracking-wider text-slate-400">Visualisasi Kasus &amp; Wilayah</div>
-                    <div className="space-y-2">
-                      <label className={`block cursor-pointer rounded-xl border p-2.5 transition select-none ${layers.points !== 'off' ? 'border-teal-200 bg-white shadow-2xs' : 'border-slate-100 bg-slate-50'}`}>
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2">
-                            <span className="flex items-center gap-0.5">
-                              {eocLayer.legend.slice(0, 6).map((g) => (
-                                g.iconSrc
-                                  ? <img key={g.label} alt="" aria-hidden src={g.iconSrc} className="h-5 w-3.5 object-contain" title={g.label} />
-                                  : <span key={g.label} className="h-2 w-2 rounded-full" style={{ background: g.color }} title={g.label} />
-                              ))}
-                            </span>
-                            <span className="text-xs font-bold text-slate-800">Ikon kejadian EOC</span>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-black tabular-nums text-slate-800">{totalTitik.toLocaleString('id-ID')}</span>
-                            <input
-                              type="checkbox"
-                              checked={layers.points !== 'off'}
-                              onChange={(e) => setLayers({ ...layers, points: e.target.checked ? 'kluster' : 'off' })}
-                              className="h-4 w-4 cursor-pointer rounded border-slate-300 text-teal-700 focus:ring-teal-500"
-                              aria-label="Ikon kejadian EOC"
-                            />
-                          </div>
-                        </div>
-                        <p className="ml-5 mt-0.5 text-[10px] text-slate-500">Ikon sesuai jenis bencana · koordinat kejadian dari API EOC, atau perkiraan pusat kab/kota (garis putus-putus) · {totalTitik.toLocaleString('id-ID')} titik</p>
-                        {layers.points !== 'off' && (
-                          <div className="ml-5 mt-2 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                            <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Opasitas</span>
-                            <input type="range" min={0.2} max={1} step={0.05} value={pointOpacity} onChange={(e) => setPointOpacity(Number(e.target.value))} className="h-1 flex-1 cursor-pointer accent-[#00705a]" />
-                            <span className="w-8 text-right text-[10px] font-bold tabular-nums text-slate-600">{Math.round(pointOpacity * 100)}%</span>
-                          </div>
-                        )}
-                      </label>
-                      <label className={`block cursor-pointer rounded-xl border p-2.5 transition select-none ${radiusOn ? 'border-teal-200 bg-white shadow-2xs' : 'border-slate-100 bg-slate-50'}`}>
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-xs font-bold text-slate-800">Radius dukungan 50/100/200 km</span>
-                          <input
-                            type="checkbox"
-                            checked={radiusOn}
-                            onChange={(e) => setRadiusOn(e.target.checked)}
-                            className="h-4 w-4 cursor-pointer rounded border-slate-300 text-teal-700 focus:ring-teal-500"
-                            aria-label="Radius dukungan"
-                          />
-                        </div>
-                        <p className="mt-0.5 text-[10px] text-slate-500">Lingkaran di sekitar titik/provinsi terpilih. {titikFasilitas(raw) ? 'PSC, ambulans, dan rumah sakit dihitung dari koordinat API PSC 119 (PSC tanpa koordinat valid memakai pusat kab/kota); tenaga cadangan dan gudang masih memakai pusat provinsi.' : 'Koordinat fasilitas belum tersedia dari API PSC 119; jarak memakai pusat provinsi.'}</p>
-                      </label>
-                      <label className={`block cursor-pointer rounded-xl border p-2.5 transition select-none ${layers.choro ? 'border-teal-200 bg-white shadow-2xs' : 'border-slate-100 bg-slate-50'}`}>
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-2">
-                            <Shapes className="h-3.5 w-3.5 text-teal-700" />
-                            <span className="text-xs font-bold text-slate-800">Arsiran wilayah</span>
-                          </div>
-                          <input
-                            type="checkbox"
-                            checked={layers.choro}
-                            onChange={(e) => setLayers({ ...layers, choro: e.target.checked })}
-                            className="h-4 w-4 cursor-pointer rounded border-slate-300 text-teal-700 focus:ring-teal-500"
-                            aria-label="Arsiran wilayah"
-                          />
-                        </div>
-                        <p className="ml-5 mt-0.5 text-[10px] text-slate-500">Mengikuti pil variabel di atas peta (legenda kiri bawah)</p>
-                        {layers.choro && (
-                          <div className="ml-5 mt-2 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                            <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Opasitas</span>
-                            <input type="range" min={0.2} max={1} step={0.05} value={layers.opChoro} onChange={(e) => setLayers({ ...layers, opChoro: Number(e.target.value) })} className="h-1 flex-1 cursor-pointer accent-teal-700" />
-                            <span className="w-8 text-right text-[10px] font-bold tabular-nums text-slate-600">{Math.round(layers.opChoro * 100)}%</span>
-                          </div>
-                        )}
-                      </label>
-                    </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-black tabular-nums text-slate-800">{totalTitik.toLocaleString('id-ID')}</span>
+                  <input
+                    type="checkbox"
+                    checked={layers.points !== 'off'}
+                    onChange={(e) => setLayers({ ...layers, points: e.target.checked ? 'kluster' : 'off' })}
+                    className="h-4 w-4 cursor-pointer rounded border-slate-300 text-teal-700 focus:ring-teal-500"
+                    aria-label="Ikon kejadian EOC"
+                  />
+                </div>
+              </div>
+              <p className="ml-5 mt-0.5 text-[10px] text-slate-500">Ikon sesuai jenis bencana · koordinat kejadian dari API EOC, atau perkiraan pusat kab/kota (garis putus-putus) · {totalTitik.toLocaleString('id-ID')} titik</p>
+              {layers.points !== 'off' && (
+                <div className="ml-5 mt-2 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Opasitas</span>
+                  <input type="range" min={0.2} max={1} step={0.05} value={pointOpacity} onChange={(e) => setPointOpacity(Number(e.target.value))} className="h-1 flex-1 cursor-pointer accent-[#00705a]" />
+                  <span className="w-8 text-right text-[10px] font-bold tabular-nums text-slate-600">{Math.round(pointOpacity * 100)}%</span>
+                </div>
+              )}
+            </label>
+            {/* Radius dukungan 50/100/200 km sementara disembunyikan */}
+            {false && (
+              <label className={`block cursor-pointer rounded-xl border p-2.5 transition select-none ${radiusOn ? 'border-teal-200 bg-white shadow-2xs' : 'border-slate-100 bg-slate-50'}`}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-bold text-slate-800">Radius dukungan 50/100/200 km</span>
+                  <input
+                    type="checkbox"
+                    checked={radiusOn}
+                    onChange={(e) => setRadiusOn(e.target.checked)}
+                    className="h-4 w-4 cursor-pointer rounded border-slate-300 text-teal-700 focus:ring-teal-500"
+                    aria-label="Radius dukungan"
+                  />
+                </div>
+                <p className="mt-0.5 text-[10px] text-slate-500">Lingkaran di sekitar titik/provinsi terpilih. {titikFasilitas(raw) ? 'PSC, ambulans, dan rumah sakit dihitung dari koordinat API PSC 119 (PSC tanpa koordinat valid memakai pusat kab/kota); tenaga cadangan dan gudang masih memakai pusat provinsi.' : 'Koordinat fasilitas belum tersedia dari API PSC 119; jarak memakai pusat provinsi.'}</p>
+              </label>
+            )}
+            <label className={`block cursor-pointer rounded-xl border p-2.5 transition select-none ${layers.choro ? 'border-teal-200 bg-white shadow-2xs' : 'border-slate-100 bg-slate-50'}`}>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <Shapes className="h-3.5 w-3.5 text-teal-700" />
+                  <span className="text-xs font-bold text-slate-800">Arsiran wilayah</span>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={layers.choro}
+                  onChange={(e) => setLayers({ ...layers, choro: e.target.checked })}
+                  className="h-4 w-4 cursor-pointer rounded border-slate-300 text-teal-700 focus:ring-teal-500"
+                  aria-label="Arsiran wilayah"
+                />
+              </div>
+              <p className="ml-5 mt-0.5 text-[10px] text-slate-500">Mengikuti pil variabel di atas peta (legenda kiri bawah)</p>
+              {layers.choro && (
+                <div className="ml-5 mt-2 flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Opasitas</span>
+                  <input type="range" min={0.2} max={1} step={0.05} value={layers.opChoro} onChange={(e) => setLayers({ ...layers, opChoro: Number(e.target.value) })} className="h-1 flex-1 cursor-pointer accent-teal-700" />
+                  <span className="w-8 text-right text-[10px] font-bold tabular-nums text-slate-600">{Math.round(layers.opChoro * 100)}%</span>
+                </div>
+              )}
+            </label>
+          </div>
+        </div>
+
+        <KategoriBencanaFilter live={eocLive} error={(raw as any)?.eoc?.error} kat={katHitung.kat} jenis={katHitung.jenis}
+          katOff={katOff} jenisOff={jenisOff} onKategori={onKategori} onJenis={onJenis}
+          onReset={() => { setKatOff(new Set()); setJenisOff(new Set()) }} />
+
+        <div data-testid="internal-group">
+          <div className="mb-2 flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-slate-400">
+            <span className="inline-flex items-center gap-1">API Internal
+              <InfoHint text="Titik fasilitas dan agregat panggilan dari API resmi PSC 119 Kementerian Kesehatan, diringkas di server. Tidak memuat data perorangan (nama, telepon, plat nomor, pelapor)." label="Penjelasan API Internal" />
+            </span>
+            <span className={`normal-case tracking-normal ${iInfo?.live ? 'text-emerald-700' : 'text-amber-700'}`}>{iInfo?.live ? `langsung${iInfo.at ? ` · ${iInfo.at}` : ''}` : 'menunggu data'}</span>
+          </div>
+          {!iInfo ? (
+            <p className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-[10px] text-amber-800" data-testid="internal-empty">Data API PSC 119 belum termuat (token server belum diatur atau API sedang lambat). Lapisan akan muncul otomatis.</p>
+          ) : (
+            <div className="space-y-1.5">
+              <label className={`block cursor-pointer rounded-xl border p-2.5 transition select-none ${internal.psc ? 'border-teal-300 bg-teal-50/50' : 'border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50/60'}`} data-testid="internal-psc">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="flex min-w-0 items-center gap-1.5 text-xs font-bold text-slate-800"><span className="flex h-4 w-4 items-center justify-center rounded-full bg-teal-600 text-white"><Hospital className="h-2.5 w-2.5" /></span>Titik PSC 119</span>
+                  <span className="flex items-center gap-2">
+                    <span className="text-xs font-black tabular-nums text-slate-800">{nfi(internal.psc ? iInfo.psc.tampil : iInfo.psc.dgnKoordinat)}</span>
+                    <input type="checkbox" checked={internal.psc} onChange={(e) => setInternal((p) => ({ ...p, psc: e.target.checked }))} className="h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 text-teal-700 focus:ring-teal-500" aria-label="Titik PSC 119" />
+                  </span>
+                </div>
+                <p className="mt-0.5 text-[10px] leading-tight text-slate-500">{nfi(iInfo.psc.koordinatAsli)} dari {nfi(iInfo.psc.total)} PSC berkoordinat asli; {nfi(iInfo.psc.pusatKab)} lainnya di pusat kab/kota (garis putus-putus){iInfo.psc.bawaan ? `, karena ${nfi(iInfo.psc.bawaan)} PSC memakai koordinat bawaan yang sama` : ''}. {nfi(iInfo.psc.aktif)} aktif. Klik titik untuk status, ambulans, personel, RS jejaring.</p>
+                {internal.psc ? (
+                  <label className="ml-1 mt-1.5 flex items-center gap-1.5 text-[10px] font-bold text-slate-700" onClick={(e) => e.stopPropagation()}>
+                    <input type="checkbox" checked={internal.pscAktifOnly} onChange={(e) => setInternal((p) => ({ ...p, pscAktifOnly: e.target.checked }))} className="h-3.5 w-3.5 rounded border-slate-300 text-teal-700" data-testid="internal-psc-aktif" />
+                    Hanya PSC aktif / siap
+                  </label>
+                ) : null}
+              </label>
+              <label className={`block cursor-pointer rounded-xl border p-2.5 transition select-none ${internal.ambulans ? 'border-teal-300 bg-teal-50/50' : 'border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50/60'}`} data-testid="internal-ambulans">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="flex min-w-0 items-center gap-1.5 text-xs font-bold text-slate-800"><span className="flex h-4 w-4 items-center justify-center rounded-full bg-green-600 text-white"><Ambulance className="h-2.5 w-2.5" /></span>Titik Ambulans</span>
+                  <span className="flex items-center gap-2">
+                    <span className="text-xs font-black tabular-nums text-slate-800">{nfi(internal.ambulans ? iInfo.ambulans.tampil : iInfo.ambulans.koordinatSendiri + iInfo.ambulans.diLokasiPsc)}</span>
+                    <input type="checkbox" checked={internal.ambulans} onChange={(e) => setInternal((p) => ({ ...p, ambulans: e.target.checked }))} className="h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 text-teal-700 focus:ring-teal-500" aria-label="Titik Ambulans" />
+                  </span>
+                </div>
+                <p className="mt-0.5 text-[10px] leading-tight text-slate-500">{nfi(iInfo.ambulans.koordinatSendiri)} ambulans punya koordinat sendiri (GPS/tercatat); {nfi(iInfo.ambulans.diLokasiPsc + iInfo.ambulans.diPusatKab)} lainnya diletakkan di lokasi PSC induk atau pusat kab/kota (garis putus-putus){iInfo.ambulans.tanpaLokasi ? `; ${nfi(iInfo.ambulans.tanpaLokasi)} tanpa lokasi sama sekali` : ''}. Siap = aktif dan kondisi baik ({nfi(iInfo.ambulans.siap)}).</p>
+                {internal.ambulans ? (
+                  <label className="ml-1 mt-1.5 flex items-center gap-1.5 text-[10px] font-bold text-slate-700" onClick={(e) => e.stopPropagation()}>
+                    <input type="checkbox" checked={internal.ambSiapOnly} onChange={(e) => setInternal((p) => ({ ...p, ambSiapOnly: e.target.checked }))} className="h-3.5 w-3.5 rounded border-slate-300 text-teal-700" data-testid="internal-amb-siap" />
+                    Hanya ambulans siap (aktif &amp; baik)
+                  </label>
+                ) : null}
+              </label>
+              <label className={`block cursor-pointer rounded-xl border p-2.5 transition select-none ${internal.panggilan ? 'border-teal-300 bg-teal-50/50' : 'border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50/60'}`} data-testid="internal-panggilan">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="flex min-w-0 items-center gap-1.5 text-xs font-bold text-slate-800"><span className="flex h-4 w-4 items-center justify-center rounded-full bg-violet-600 text-white"><PhoneCall className="h-2.5 w-2.5" /></span>Titik Panggilan 119</span>
+                  <span className="flex items-center gap-2">
+                    <span className="text-xs font-black tabular-nums text-slate-800">{nfi(iInfo.panggilan.tampil)}</span>
+                    <input type="checkbox" checked={internal.panggilan} onChange={(e) => setInternal((p) => ({ ...p, panggilan: e.target.checked }))} className="h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 text-teal-700 focus:ring-teal-500" aria-label="Titik Panggilan 119" />
+                  </span>
+                </div>
+                <p className="mt-0.5 text-[10px] leading-tight text-slate-500">Agregat per kab/kota dari sampel {nfi(iInfo.panggilan.sampel)} panggilan terbaru ({iInfo.panggilan.dari || '–'} s.d. {iInfo.panggilan.sampai || '–'}), bukan titik penelepon. Lingkaran di rata-rata koordinat panggilan ({nfi(iInfo.panggilan.kabKoordinatPanggilan)} kab/kota) atau pusat kab/kota ({nfi(iInfo.panggilan.kabPusat)}, garis putus-putus).</p>
+              </label>
+            </div>
+          )}
+        </div>
+
+        <div data-testid="faskes-group">
+          <div className="mb-2 flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-slate-400">
+            <span className="inline-flex items-center gap-1">Fasyankes
+              <InfoHint text="Sebaran Rumah Sakit dan Puskesmas dari API Dashboard Faskes Pusat Krisis. Titik dimuat saat kotak dicentang. Pada peta nasional, jumlah per provinsi tampil lebih dulu; titik fasilitas menyusul setelah data selesai dimuat, atau saat wilayah dipilih. Jenis lain (klinik, posyandu, pustu) belum ditampilkan. Tidak memuat email, telepon, atau data perorangan." label="Penjelasan Fasyankes" />
+            </span>
+          </div>
+          {faskesPack.agregatError && (faskes.rs || faskes.puskesmas) ? (
+            <p className="mb-1.5 rounded-lg border border-amber-200 bg-amber-50 p-2 text-[10px] text-amber-800" data-testid="faskes-empty">Data Fasyankes belum termuat ({faskesPack.agregatError}). Lapisan akan muncul otomatis setelah API merespons.</p>
+          ) : null}
+          <div className="space-y-1.5">
+            <label className={`block cursor-pointer rounded-xl border p-2.5 transition select-none ${faskes.rs ? 'border-red-300 bg-red-50/50' : 'border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50/60'}`} data-testid="faskes-rs">
+              <div className="flex items-start justify-between gap-2">
+                <span className="flex min-w-0 items-center gap-1.5 text-xs font-bold text-slate-800">
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ background: FASKES_RS_COLOR }} />
+                  Rumah Sakit
+                </span>
+                <input type="checkbox" checked={faskes.rs} onChange={(e) => setFaskes((p) => ({ ...p, rs: e.target.checked }))} className="h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 text-teal-700 focus:ring-teal-500" aria-label="Titik Rumah Sakit" />
+              </div>
+              <p className="mt-0.5 text-[10px] leading-tight text-slate-500">
+                {faskes.rs ? (faskesPack.rs.loading ? `Memuat titik Rumah Sakit…${faskesPack.rs.list.length ? ` ${faskesPack.rs.list.length.toLocaleString('id-ID')} sudah tampil` : ''}` : faskesPack.rs.error ? faskesPack.rs.error : faskesPack.rs.ready ? `${(faskesPack.rs.total ?? faskesPack.rs.list.length).toLocaleString('id-ID')} titik dari API` : 'Menampilkan jumlah per wilayah sambil memuat titik.') : 'Tampilkan sebaran Rumah Sakit di peta.'}
+              </p>
+            </label>
+            <label className={`block cursor-pointer rounded-xl border p-2.5 transition select-none ${faskes.puskesmas ? 'border-blue-300 bg-blue-50/50' : 'border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50/60'}`} data-testid="faskes-puskesmas">
+              <div className="flex items-start justify-between gap-2">
+                <span className="flex min-w-0 items-center gap-1.5 text-xs font-bold text-slate-800">
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ background: FASKES_PUSKESMAS_COLOR }} />
+                  Puskesmas
+                </span>
+                <input type="checkbox" checked={faskes.puskesmas} onChange={(e) => setFaskes((p) => ({ ...p, puskesmas: e.target.checked }))} className="h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 text-teal-700 focus:ring-teal-500" aria-label="Titik Puskesmas" />
+              </div>
+              <p className="mt-0.5 text-[10px] leading-tight text-slate-500">
+                {faskes.puskesmas ? (faskesPack.pusk.loading ? `Memuat titik Puskesmas…${faskesPack.pusk.list.length ? ` ${faskesPack.pusk.list.length.toLocaleString('id-ID')} sudah tampil` : ''}` : faskesPack.pusk.error ? faskesPack.pusk.error : faskesPack.pusk.ready ? `${(faskesPack.pusk.total ?? faskesPack.pusk.list.length).toLocaleString('id-ID')} titik dari API` : 'Menampilkan jumlah per wilayah sambil memuat titik.') : 'Tampilkan sebaran Puskesmas di peta.'}
+              </p>
+            </label>
+          </div>
+        </div>
+
+        <div data-testid="risiko-group">
+          <div className="mb-2 flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-slate-400">
+            <span>Risiko</span>
+            <span className="normal-case tracking-normal text-slate-400">{asisOk ? 1 : 0} tersedia</span>
+          </div>
+          <div className="space-y-1.5">
+            <div data-testid="risiko-risiko-krisis" className={`rounded-xl border p-2.5 ${risikoAsis ? 'border-rose-300 bg-rose-50/40' : 'border-slate-100 bg-white'}`}>
+              <div className="flex items-center justify-between gap-2">
+                <span className="flex min-w-0 items-center gap-1.5 text-xs font-bold text-slate-800"><span className="h-2.5 w-2.5 rounded-full" style={{ background: '#e11d48' }} />Risiko Krisis Kesehatan</span>
+                {asisOk ? <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[9px] font-bold text-emerald-800">API Asistensi</span> : null}
+              </div>
+              {asisOk ? (
+                <>
+                  <p className="mt-0.5 text-[10px] leading-tight text-slate-500">Arsir poligon wilayah dengan warna status dari API Asistensi{raw?.asistensi?.tahun ? ` ${raw.asistensi.tahun}` : ''}. Hanya satu arsiran aktif.</p>
+                  <div className="mt-1.5 flex items-center gap-1 text-[10px]" data-testid="risiko-level">
+                    <span className="font-bold text-slate-500">Tingkat:</span>
+                    {(['provinsi', 'kabkota'] as const).map((lv) => (
+                      <button key={lv} type="button" onClick={() => setRisikoLevel(lv)} data-testid={`risiko-level-${lv}`}
+                        className={`rounded-full px-2 py-0.5 font-bold ${risikoLevel === lv ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>{lv === 'provinsi' ? 'Provinsi' : 'Kab/Kota'}</button>
+                    ))}
                   </div>
-
-                  <KategoriBencanaFilter live={eocLive} error={(raw as any)?.eoc?.error} kat={katHitung.kat} jenis={katHitung.jenis}
-                    katOff={katOff} jenisOff={jenisOff} onKategori={onKategori} onJenis={onJenis}
-                    onReset={() => { setKatOff(new Set()); setJenisOff(new Set()) }} />
-
-                  <div data-testid="internal-group">
-                    <div className="mb-2 flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-slate-400">
-                      <span className="inline-flex items-center gap-1">API Internal
-                        <InfoHint text="Titik fasilitas dan agregat panggilan dari API resmi PSC 119 Kementerian Kesehatan, diringkas di server. Tidak memuat data perorangan (nama, telepon, plat nomor, pelapor)." label="Penjelasan API Internal" />
-                      </span>
-                      <span className={`normal-case tracking-normal ${iInfo?.live ? 'text-emerald-700' : 'text-amber-700'}`}>{iInfo?.live ? `langsung${iInfo.at ? ` · ${iInfo.at}` : ''}` : 'menunggu data'}</span>
-                    </div>
-                    {!iInfo ? (
-                      <p className="rounded-lg border border-amber-200 bg-amber-50 p-2 text-[10px] text-amber-800" data-testid="internal-empty">Data API PSC 119 belum termuat (token server belum diatur atau API sedang lambat). Lapisan akan muncul otomatis.</p>
-                    ) : (
-                      <div className="space-y-1.5">
-                        <label className={`block cursor-pointer rounded-xl border p-2.5 transition select-none ${internal.psc ? 'border-teal-300 bg-teal-50/50' : 'border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50/60'}`} data-testid="internal-psc">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="flex min-w-0 items-center gap-1.5 text-xs font-bold text-slate-800"><span className="flex h-4 w-4 items-center justify-center rounded-full bg-teal-600 text-white"><Hospital className="h-2.5 w-2.5" /></span>Titik PSC 119</span>
-                            <span className="flex items-center gap-2">
-                              <span className="text-xs font-black tabular-nums text-slate-800">{nfi(internal.psc ? iInfo.psc.tampil : iInfo.psc.dgnKoordinat)}</span>
-                              <input type="checkbox" checked={internal.psc} onChange={(e) => setInternal((p) => ({ ...p, psc: e.target.checked }))} className="h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 text-teal-700 focus:ring-teal-500" aria-label="Titik PSC 119" />
-                            </span>
-                          </div>
-                          <p className="mt-0.5 text-[10px] leading-tight text-slate-500">{nfi(iInfo.psc.koordinatAsli)} dari {nfi(iInfo.psc.total)} PSC berkoordinat asli; {nfi(iInfo.psc.pusatKab)} lainnya di pusat kab/kota (garis putus-putus){iInfo.psc.bawaan ? `, karena ${nfi(iInfo.psc.bawaan)} PSC memakai koordinat bawaan yang sama` : ''}. {nfi(iInfo.psc.aktif)} aktif. Klik titik untuk status, ambulans, personel, RS jejaring.</p>
-                          {internal.psc ? (
-                            <label className="ml-1 mt-1.5 flex items-center gap-1.5 text-[10px] font-bold text-slate-700" onClick={(e) => e.stopPropagation()}>
-                              <input type="checkbox" checked={internal.pscAktifOnly} onChange={(e) => setInternal((p) => ({ ...p, pscAktifOnly: e.target.checked }))} className="h-3.5 w-3.5 rounded border-slate-300 text-teal-700" data-testid="internal-psc-aktif" />
-                              Hanya PSC aktif / siap
-                            </label>
-                          ) : null}
-                        </label>
-                        <label className={`block cursor-pointer rounded-xl border p-2.5 transition select-none ${internal.ambulans ? 'border-teal-300 bg-teal-50/50' : 'border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50/60'}`} data-testid="internal-ambulans">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="flex min-w-0 items-center gap-1.5 text-xs font-bold text-slate-800"><span className="flex h-4 w-4 items-center justify-center rounded-full bg-green-600 text-white"><Ambulance className="h-2.5 w-2.5" /></span>Titik Ambulans</span>
-                            <span className="flex items-center gap-2">
-                              <span className="text-xs font-black tabular-nums text-slate-800">{nfi(internal.ambulans ? iInfo.ambulans.tampil : iInfo.ambulans.koordinatSendiri + iInfo.ambulans.diLokasiPsc)}</span>
-                              <input type="checkbox" checked={internal.ambulans} onChange={(e) => setInternal((p) => ({ ...p, ambulans: e.target.checked }))} className="h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 text-teal-700 focus:ring-teal-500" aria-label="Titik Ambulans" />
-                            </span>
-                          </div>
-                          <p className="mt-0.5 text-[10px] leading-tight text-slate-500">{nfi(iInfo.ambulans.koordinatSendiri)} ambulans punya koordinat sendiri (GPS/tercatat); {nfi(iInfo.ambulans.diLokasiPsc + iInfo.ambulans.diPusatKab)} lainnya diletakkan di lokasi PSC induk atau pusat kab/kota (garis putus-putus){iInfo.ambulans.tanpaLokasi ? `; ${nfi(iInfo.ambulans.tanpaLokasi)} tanpa lokasi sama sekali` : ''}. Siap = aktif dan kondisi baik ({nfi(iInfo.ambulans.siap)}).</p>
-                          {internal.ambulans ? (
-                            <label className="ml-1 mt-1.5 flex items-center gap-1.5 text-[10px] font-bold text-slate-700" onClick={(e) => e.stopPropagation()}>
-                              <input type="checkbox" checked={internal.ambSiapOnly} onChange={(e) => setInternal((p) => ({ ...p, ambSiapOnly: e.target.checked }))} className="h-3.5 w-3.5 rounded border-slate-300 text-teal-700" data-testid="internal-amb-siap" />
-                              Hanya ambulans siap (aktif &amp; baik)
-                            </label>
-                          ) : null}
-                        </label>
-                        <label className={`block cursor-pointer rounded-xl border p-2.5 transition select-none ${internal.panggilan ? 'border-teal-300 bg-teal-50/50' : 'border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50/60'}`} data-testid="internal-panggilan">
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="flex min-w-0 items-center gap-1.5 text-xs font-bold text-slate-800"><span className="flex h-4 w-4 items-center justify-center rounded-full bg-violet-600 text-white"><PhoneCall className="h-2.5 w-2.5" /></span>Titik Panggilan 119</span>
-                            <span className="flex items-center gap-2">
-                              <span className="text-xs font-black tabular-nums text-slate-800">{nfi(iInfo.panggilan.tampil)}</span>
-                              <input type="checkbox" checked={internal.panggilan} onChange={(e) => setInternal((p) => ({ ...p, panggilan: e.target.checked }))} className="h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 text-teal-700 focus:ring-teal-500" aria-label="Titik Panggilan 119" />
-                            </span>
-                          </div>
-                          <p className="mt-0.5 text-[10px] leading-tight text-slate-500">Agregat per kab/kota dari sampel {nfi(iInfo.panggilan.sampel)} panggilan terbaru ({iInfo.panggilan.dari || '–'} s.d. {iInfo.panggilan.sampai || '–'}), bukan titik penelepon. Lingkaran di rata-rata koordinat panggilan ({nfi(iInfo.panggilan.kabKoordinatPanggilan)} kab/kota) atau pusat kab/kota ({nfi(iInfo.panggilan.kabPusat)}, garis putus-putus).</p>
-                        </label>
+                  {([
+                    { id: 'kapasitas' as const, nama: 'Risiko Asistensi — Status Kapasitas', info: 'Warna dari API Asistensi (status_kapasitas.color); poin kapasitas di tooltip.', lg: legendAsis.kapasitas },
+                    { id: 'irbi' as const, nama: 'Status IRBI', info: 'IRBI = Indeks Risiko Bencana Indonesia. API tidak mengirim warna, dipakai skala baku: TINGGI merah, SEDANG jingga, RENDAH hijau.', lg: legendAsis.irbi },
+                  ]).map((o) => (
+                    <label key={o.id} data-testid={`risiko-asis-${o.id}`} className="mt-1.5 block cursor-pointer rounded-lg border border-slate-100 bg-white p-2 select-none hover:bg-slate-50/60">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="flex min-w-0 items-center gap-1 text-[11px] font-bold text-slate-800">{o.nama}<span title={o.info} className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-200 text-[8px] font-black text-slate-600">i</span></span>
+                        <input type="checkbox" checked={risikoAsis === o.id} aria-label={o.nama}
+                          onChange={(e) => {
+                            setRisikoAsis(e.target.checked ? o.id : null)
+                            if (e.target.checked) {
+                              setRisikoPie(false)
+                              if (!layers.choro) setLayers({ ...layers, choro: true })
+                            }
+                          }}
+                          className="h-4 w-4 shrink-0 rounded border-slate-300 text-rose-600" />
                       </div>
-                    )}
-                  </div>
-
-                  <div data-testid="faskes-group">
-                    <div className="mb-2 flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-slate-400">
-                      <span className="inline-flex items-center gap-1">Fasyankes
-                        <InfoHint text="Sebaran Rumah Sakit dan Puskesmas dari API Dashboard Faskes Pusat Krisis. Titik dimuat saat kotak dicentang. Pada peta nasional, jumlah per provinsi tampil lebih dulu; titik fasilitas menyusul setelah data selesai dimuat, atau saat wilayah dipilih. Jenis lain (klinik, posyandu, pustu) belum ditampilkan. Tidak memuat email, telepon, atau data perorangan." label="Penjelasan Fasyankes" />
-                      </span>
-                    </div>
-                    {faskesPack.agregatError && (faskes.rs || faskes.puskesmas) ? (
-                      <p className="mb-1.5 rounded-lg border border-amber-200 bg-amber-50 p-2 text-[10px] text-amber-800" data-testid="faskes-empty">Data Fasyankes belum termuat ({faskesPack.agregatError}). Lapisan akan muncul otomatis setelah API merespons.</p>
-                    ) : null}
-                    <div className="space-y-1.5">
-                      <label className={`block cursor-pointer rounded-xl border p-2.5 transition select-none ${faskes.rs ? 'border-red-300 bg-red-50/50' : 'border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50/60'}`} data-testid="faskes-rs">
-                        <div className="flex items-start justify-between gap-2">
-                          <span className="flex min-w-0 items-center gap-1.5 text-xs font-bold text-slate-800">
-                            <span className="h-2.5 w-2.5 rounded-full" style={{ background: FASKES_RS_COLOR }} />
-                            Rumah Sakit
-                          </span>
-                          <input type="checkbox" checked={faskes.rs} onChange={(e) => setFaskes((p) => ({ ...p, rs: e.target.checked }))} className="h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 text-teal-700 focus:ring-teal-500" aria-label="Titik Rumah Sakit" />
-                        </div>
-                        <p className="mt-0.5 text-[10px] leading-tight text-slate-500">
-                          {faskes.rs ? (faskesPack.rs.loading ? `Memuat titik Rumah Sakit…${faskesPack.rs.list.length ? ` ${faskesPack.rs.list.length.toLocaleString('id-ID')} sudah tampil` : ''}` : faskesPack.rs.error ? faskesPack.rs.error : faskesPack.rs.ready ? `${(faskesPack.rs.total ?? faskesPack.rs.list.length).toLocaleString('id-ID')} titik dari API` : 'Menampilkan jumlah per wilayah sambil memuat titik.') : 'Tampilkan sebaran Rumah Sakit di peta.'}
-                        </p>
-                      </label>
-                      <label className={`block cursor-pointer rounded-xl border p-2.5 transition select-none ${faskes.puskesmas ? 'border-blue-300 bg-blue-50/50' : 'border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50/60'}`} data-testid="faskes-puskesmas">
-                        <div className="flex items-start justify-between gap-2">
-                          <span className="flex min-w-0 items-center gap-1.5 text-xs font-bold text-slate-800">
-                            <span className="h-2.5 w-2.5 rounded-full" style={{ background: FASKES_PUSKESMAS_COLOR }} />
-                            Puskesmas
-                          </span>
-                          <input type="checkbox" checked={faskes.puskesmas} onChange={(e) => setFaskes((p) => ({ ...p, puskesmas: e.target.checked }))} className="h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 text-teal-700 focus:ring-teal-500" aria-label="Titik Puskesmas" />
-                        </div>
-                        <p className="mt-0.5 text-[10px] leading-tight text-slate-500">
-                          {faskes.puskesmas ? (faskesPack.pusk.loading ? `Memuat titik Puskesmas…${faskesPack.pusk.list.length ? ` ${faskesPack.pusk.list.length.toLocaleString('id-ID')} sudah tampil` : ''}` : faskesPack.pusk.error ? faskesPack.pusk.error : faskesPack.pusk.ready ? `${(faskesPack.pusk.total ?? faskesPack.pusk.list.length).toLocaleString('id-ID')} titik dari API` : 'Menampilkan jumlah per wilayah sambil memuat titik.') : 'Tampilkan sebaran Puskesmas di peta.'}
-                        </p>
-                      </label>
-                    </div>
-                  </div>
-
-                  <div data-testid="risiko-group">
-                    <div className="mb-2 flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-slate-400">
-                      <span>Risiko</span>
-                      <span className="normal-case tracking-normal text-slate-400">{asisOk ? 1 : 0} tersedia</span>
-                    </div>
-                    <div className="space-y-1.5">
-                      <div data-testid="risiko-risiko-krisis" className={`rounded-xl border p-2.5 ${risikoAsis ? 'border-rose-300 bg-rose-50/40' : 'border-slate-100 bg-white'}`}>
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="flex min-w-0 items-center gap-1.5 text-xs font-bold text-slate-800"><span className="h-2.5 w-2.5 rounded-full" style={{ background: '#e11d48' }} />Risiko Krisis Kesehatan</span>
-                          {asisOk ? <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[9px] font-bold text-emerald-800">API Asistensi</span> : null}
-                        </div>
-                        {asisOk ? (
-                          <>
-                            <p className="mt-0.5 text-[10px] leading-tight text-slate-500">Arsir poligon wilayah dengan warna status dari API Asistensi{raw?.asistensi?.tahun ? ` ${raw.asistensi.tahun}` : ''}. Hanya satu arsiran aktif.</p>
-                            <div className="mt-1.5 flex items-center gap-1 text-[10px]" data-testid="risiko-level">
-                              <span className="font-bold text-slate-500">Tingkat:</span>
-                              {(['provinsi', 'kabkota'] as const).map((lv) => (
-                                <button key={lv} type="button" onClick={() => setRisikoLevel(lv)} data-testid={`risiko-level-${lv}`}
-                                  className={`rounded-full px-2 py-0.5 font-bold ${risikoLevel === lv ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>{lv === 'provinsi' ? 'Provinsi' : 'Kab/Kota'}</button>
-                              ))}
-                            </div>
-                            {([
-                              { id: 'kapasitas' as const, nama: 'Risiko Asistensi — Status Kapasitas', info: 'Warna dari API Asistensi (status_kapasitas.color); poin kapasitas di tooltip.', lg: legendAsis.kapasitas },
-                              { id: 'irbi' as const, nama: 'Status IRBI', info: 'IRBI = Indeks Risiko Bencana Indonesia. API tidak mengirim warna, dipakai skala baku: TINGGI merah, SEDANG jingga, RENDAH hijau.', lg: legendAsis.irbi },
-                            ]).map((o) => (
-                              <label key={o.id} data-testid={`risiko-asis-${o.id}`} className="mt-1.5 block cursor-pointer rounded-lg border border-slate-100 bg-white p-2 select-none hover:bg-slate-50/60">
-                                <div className="flex items-center justify-between gap-2">
-                                  <span className="flex min-w-0 items-center gap-1 text-[11px] font-bold text-slate-800">{o.nama}<span title={o.info} className="inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-200 text-[8px] font-black text-slate-600">i</span></span>
-                                  <input type="checkbox" checked={risikoAsis === o.id} aria-label={o.nama}
-                                    onChange={(e) => {
-                                      setRisikoAsis(e.target.checked ? o.id : null)
-                                      if (e.target.checked) {
-                                        setRisikoPie(false)
-                                        if (!layers.choro) setLayers({ ...layers, choro: true })
-                                      }
-                                    }}
-                                    className="h-4 w-4 shrink-0 rounded border-slate-300 text-rose-600" />
-                                </div>
-                                <div className="mt-1 flex flex-wrap gap-1">
-                                  {o.lg.map((g) => <span key={g.label} className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-1.5 py-0.5 text-[9px] font-bold text-slate-600"><span className="h-2 w-2 rounded-full border border-slate-300" style={{ background: g.color }} />{g.label} {g.n}</span>)}
-                                </div>
-                              </label>
-                            ))}
-                            {risikoAsis ? <p className="mt-1 text-[10px] leading-tight text-slate-400">Arsiran ini menggantikan arsiran angka selama aktif.{risikoLevel === 'kabkota' && !provKode ? ' Kab/kota seluruh Indonesia (pilih provinsi di Filter Dasbor untuk memperbesar).' : ''}</p> : null}
-                          </>
-                        ) : (
-                          <ApiKosong compact pesan="Data belum tersedia dari API Asistensi" detail={raw?.asistensi?.error} pending={Boolean(raw?.asistensi?.pending)} />
-                        )}
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {o.lg.map((g) => <span key={g.label} className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-1.5 py-0.5 text-[9px] font-bold text-slate-600"><span className="h-2 w-2 rounded-full border border-slate-300" style={{ background: g.color }} />{g.label} {g.n}</span>)}
                       </div>
-                      {/* Lapisan Risiko Emerging (PIE) dari petarisikopie.id */}
-                      <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-2.5 transition select-none" data-testid="risiko-pie-card">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="flex min-w-0 items-center gap-1.5 text-xs font-bold text-slate-800">
-                            <span className="h-2.5 w-2.5 rounded-full" style={{ background: '#9333ea' }} />
-                            <span>Risiko Emerging (Peta PIE)</span>
-                          </span>
-                          <span className="flex items-center gap-1.5">
-                            {pieOk ? (
-                              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[9px] font-bold text-emerald-800">API Langsung</span>
-                            ) : pieState.loading ? (
-                              <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-bold text-slate-600">Memuat...</span>
-                            ) : (
-                              <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[9px] font-bold text-rose-700" title={pieState.error}>Tidak tersedia</span>
-                            )}
-                            <input
-                              type="checkbox"
-                              checked={risikoPie}
-                              onChange={(e) => {
-                                setRisikoPie(e.target.checked)
-                                if (e.target.checked) {
-                                  setRisikoAsis(null)
-                                  if (!layers.choro) setLayers({ ...layers, choro: true })
-                                }
-                              }}
-                              className="h-4 w-4 shrink-0 rounded border-slate-300 text-purple-600 focus:ring-purple-500"
-                              aria-label="Risiko Emerging (Peta PIE)"
-                            />
-                          </span>
-                        </div>
-                        <p className="mt-0.5 text-[10px] leading-tight text-slate-500">
-                          Tingkat risiko penyakit infeksi emerging per wilayah (Peta Risiko PIE Kemenkes {pieYear}).
-                        </p>
+                    </label>
+                  ))}
+                  {risikoAsis ? <p className="mt-1 text-[10px] leading-tight text-slate-400">Arsiran ini menggantikan arsiran angka selama aktif.{risikoLevel === 'kabkota' && !provKode ? ' Kab/kota seluruh Indonesia (pilih provinsi di Filter Dasbor untuk memperbesar).' : ''}</p> : null}
+                </>
+              ) : (
+                <ApiKosong compact pesan="Data belum tersedia dari API Asistensi" detail={raw?.asistensi?.error} pending={Boolean(raw?.asistensi?.pending)} />
+              )}
+            </div>
+            {/* Lapisan Risiko Emerging (PIE) dari petarisikopie.id */}
+            <div className="rounded-xl border border-slate-200 bg-slate-50/60 p-2.5 transition select-none" data-testid="risiko-pie-card">
+              <div className="flex items-center justify-between gap-2">
+                <span className="flex min-w-0 items-center gap-1.5 text-xs font-bold text-slate-800">
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ background: '#9333ea' }} />
+                  <span>Risiko Emerging (Peta PIE)</span>
+                </span>
+                <span className="flex items-center gap-1.5">
+                  {pieOk ? (
+                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[9px] font-bold text-emerald-800">API Langsung</span>
+                  ) : pieState.loading ? (
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[9px] font-bold text-slate-600">Memuat...</span>
+                  ) : (
+                    <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[9px] font-bold text-rose-700" title={pieState.error}>Tidak tersedia</span>
+                  )}
+                  <input
+                    type="checkbox"
+                    checked={risikoPie}
+                    onChange={(e) => {
+                      setRisikoPie(e.target.checked)
+                      if (e.target.checked) {
+                        setRisikoAsis(null)
+                        if (!layers.choro) setLayers({ ...layers, choro: true })
+                      }
+                    }}
+                    className="h-4 w-4 shrink-0 rounded border-slate-300 text-purple-600 focus:ring-purple-500"
+                    aria-label="Risiko Emerging (Peta PIE)"
+                  />
+                </span>
+              </div>
+              <p className="mt-0.5 text-[10px] leading-tight text-slate-500">
+                Tingkat risiko penyakit infeksi emerging per wilayah (Peta Risiko PIE Kemenkes {pieYear}).
+              </p>
 
-                        {risikoPie ? (
-                          <div className="mt-2.5 space-y-2 border-t border-slate-200/80 pt-2">
-                            {/* Pilihan Tahun (sama dengan SKDR); data diambil ulang dari API per tahun */}
-                            <div className="flex items-center justify-between text-[10px]" data-testid="pie-tahun">
-                              <span className="font-bold text-slate-500">Tahun:</span>
-                              <div className="flex items-center gap-1">
-                                {PIE_YEARS.map((yr) => (
-                                  <button
-                                    key={yr}
-                                    type="button"
-                                    data-testid={`pie-tahun-${yr}`}
-                                    onClick={() => setPieYear(yr)}
-                                    className={`rounded-full px-2 py-0.5 font-bold transition ${
-                                      pieYear === yr
-                                        ? 'bg-purple-700 text-white shadow-xs'
-                                        : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-100'
-                                    }`}
-                                  >
-                                    {yr}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                            {!pieOk ? (
-                              pieState.loading ? (
-                                <p className="text-[10px] text-slate-500">Memuat data Peta Risiko PIE {pieYear} dari API…</p>
-                              ) : (
-                                <ApiKosong compact pesan={`Data belum tersedia dari API (Peta Risiko PIE ${pieYear})`} detail={pieState.error || (pieState.data ? 'API mengembalikan 0 rekaman untuk tahun ini' : null)} />
-                              )
-                            ) : (
-                            <>
-                            {/* Pilihan Tingkat Wilayah */}
-                            <div className="flex items-center justify-between text-[10px]">
-                              <span className="font-bold text-slate-500">Tingkat wilayah:</span>
-                              <div className="flex items-center gap-1">
-                                {(['provinsi', 'kabkota'] as const).map((lv) => (
-                                  <button
-                                    key={lv}
-                                    type="button"
-                                    onClick={() => setRisikoLevel(lv)}
-                                    className={`rounded-full px-2 py-0.5 font-bold transition ${
-                                      risikoLevel === lv
-                                        ? 'bg-purple-700 text-white shadow-xs'
-                                        : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-100'
-                                    }`}
-                                  >
-                                    {lv === 'provinsi' ? 'Provinsi' : 'Kab/Kota'}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-
-                            {/* Pilihan Penyakit */}
-                            <div>
-                              <label className="mb-1 block text-[10px] font-bold text-slate-500">Penyakit Emerging:</label>
-                              <select
-                                value={pieDisease}
-                                onChange={(e) => setPieDisease(e.target.value as PieDiseaseOption)}
-                                className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-800 shadow-xs focus:border-purple-500 focus:outline-none"
-                              >
-                                {pieOpsi.map((d) => (
-                                  <option key={d.id} value={d.id}>
-                                    {d.label} ({d.n})
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-
-                            {/* Legend pills */}
-                            <div className="flex flex-wrap gap-1 pt-1">
-                              {legendPie.map((g) => (
-                                <span
-                                  key={g.label}
-                                  className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-1.5 py-0.5 text-[9px] font-bold text-slate-700"
-                                >
-                                  <span className="h-2 w-2 rounded-full" style={{ background: g.color }} />
-                                  <span>{g.label}</span>
-                                  <span className="font-normal text-slate-400">({g.n})</span>
-                                </span>
-                              ))}
-                            </div>
-                            <p className="text-[10px] leading-tight text-slate-400">
-                              Skala risiko: TINGGI (merah), SEDANG (jingga), RENDAH (hijau). Menimpa arsiran angka selama aktif.
-                            </p>
-                            <p className="text-[10px] leading-tight text-slate-400" data-testid="pie-ringkas">
-                              API {pieYear}: {pieData!.summary.api_total} rekaman{pieData!.summary.tanpa_status || pieData!.summary.tanpa_kode ? ` · ${pieData!.summary.tanpa_status} tanpa status & ${pieData!.summary.tanpa_kode} kab/kota tak terpetakan tidak ditampilkan` : ''}.
-                            </p>
-                            </>
-                            )}
-                          </div>
-                        ) : null}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="mb-2 flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-slate-400">
-                      <span>API Intelijen Eksternal</span>
-                      <Link href="/dashboard/open-data" className="normal-case tracking-normal text-primary hover:underline">Lihat Open Data</Link>
-                    </div>
-                    <div className="space-y-1.5">
-                      {INTEL_LAYER_APIS.map((api) => {
-                        const active = Boolean((intelLayers as any)[api.id])
-                        const st = intelStatus[api.id]
-                        return (
-                          <label key={api.id}
-                            className={`block cursor-pointer rounded-xl border p-2.5 transition select-none ${active ? 'border-teal-300 bg-teal-50/50' : 'border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50/60'}`}
-                            data-testid={`intel-${api.id}`}>
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="flex min-w-0 items-center gap-1.5 text-xs font-bold text-slate-800">
-                                <span>{api.icon}</span><span className="truncate">{api.nama}</span>
-                              </span>
-                              <input
-                                type="checkbox"
-                                checked={active}
-                                onChange={(e) => setIntelLayers((prev) => ({ ...prev, [api.id]: e.target.checked }))}
-                                className="h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 text-teal-700 focus:ring-teal-500"
-                                aria-label={api.nama}
-                              />
-                            </div>
-                            <p className="mt-0.5 line-clamp-2 text-[10px] leading-tight text-slate-500">{api.deskripsi}</p>
-                            {active && st ? (
-                              <p className={`mt-1 text-[10px] font-bold leading-tight ${st.state === 'error' ? 'text-red-700' : st.state === 'empty' ? 'text-amber-700' : st.state === 'loading' ? 'text-slate-500' : 'text-emerald-700'}`} data-testid={`intel-status-${api.id}`}>
-                                {st.state === 'loading' ? 'Memuat data langsung…' : st.state === 'error' ? st.message : st.message || `${(st.count || 0).toLocaleString('id-ID')} titik dimuat`}
-                                {st.at && st.state !== 'error' ? <span className="font-medium text-slate-400"> · {st.at}</span> : null}
-                              </p>
-                            ) : null}
-                          </label>
-                        )
-                      })}
-                    </div>
-                  </div>
-
-                  <div data-testid="bnpb-group">
-                    <div className="mb-2 flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-slate-400">
-                      <span className="inline-flex items-center gap-1">BNPB InaRISK
-                        <InfoHint text="InaRISK: peta indeks bahaya bencana resmi dari BNPB (Badan Nasional Penanggulangan Bencana). Diambil langsung dari gis.bnpb.go.id; server BNPB kadang lambat." label="Penjelasan BNPB InaRISK" />
-                      </span>
-                      <span className="normal-case tracking-normal text-slate-400">{Object.values(bnpbLayers).filter(Boolean).length} aktif</span>
-                    </div>
-                    <div className="space-y-1">
-                      {BNPB_LAYERS.map((l) => {
-                        const on = Boolean(bnpbLayers[l.id])
-                        const st = bnpbStatus[l.id]
-                        return (
-                          <label key={l.id} data-testid={`bnpb-${l.id}`}
-                            className={`block cursor-pointer rounded-lg border px-2.5 py-1.5 transition select-none ${on ? 'border-teal-300 bg-teal-50/50' : 'border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50/60'}`}>
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="min-w-0">
-                                <span className="block truncate text-[11px] font-bold text-slate-800">{l.nama}</span>
-                                <span className="block truncate text-[9.5px] leading-tight text-slate-500">{l.deskripsi}</span>
-                              </span>
-                              <input
-                                type="checkbox"
-                                checked={on}
-                                onChange={(e) => setBnpbLayers((p) => ({ ...p, [l.id]: e.target.checked }))}
-                                className="h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 text-teal-700 focus:ring-teal-500"
-                                aria-label={l.nama}
-                              />
-                            </div>
-                            {on && st ? (
-                              <p className={`mt-0.5 text-[9.5px] font-bold ${st.state === 'error' ? 'text-red-700' : st.state === 'loading' ? 'text-slate-500' : 'text-emerald-700'}`} data-testid={`bnpb-status-${l.id}`}>
-                                {st.state === 'loading' ? 'Memuat citra dari gis.bnpb.go.id…' : st.message}
-                              </p>
-                            ) : null}
-                          </label>
-                        )
-                      })}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="mb-2 text-[10px] font-black uppercase tracking-wider text-slate-400">Konteks Spasial &amp; Risiko</div>
-                    <div className="space-y-1.5">
-                      <label className="flex cursor-pointer items-start justify-between gap-2.5 rounded-lg border border-slate-100 bg-white p-2.5 hover:bg-slate-50">
-                        <div className="flex min-w-0 items-start gap-2">
-                          <Layers className="mt-0.5 h-4 w-4 shrink-0 text-slate-600" />
-                          <div>
-                            <span className="block text-xs font-bold text-slate-800">Batas Administrasi</span>
-                            <span className="block text-[10px] leading-tight text-slate-500">Garis batas provinsi dan kabupaten/kota (GeoJSON) di atas arsiran</span>
-                          </div>
-                        </div>
-                        <input type="checkbox" checked={adminBoundaries} onChange={(e) => setAdminBoundaries(e.target.checked)} className="mt-1 h-4 w-4 cursor-pointer rounded border-slate-300 text-teal-700 focus:ring-teal-500" />
-                      </label>
-                      <label className="flex cursor-pointer items-start justify-between gap-2.5 rounded-lg border border-slate-100 bg-white p-2.5 hover:bg-slate-50">
-                        <div className="flex min-w-0 items-start gap-2">
-                          <Wind className="mt-0.5 h-4 w-4 shrink-0 text-slate-600" />
-                          <div>
-                            <span className="block text-xs font-bold text-slate-800">Aliran Angin</span>
-                            <span className="block text-[10px] leading-tight text-slate-500">Partikel angin bergerak (animasi) model GFS (NOAA, Badan Kelautan dan Atmosfer AS) sebagai konteks sebaran asap/abu</span>
-                          </div>
-                        </div>
-                        <input type="checkbox" checked={windFlow} onChange={(e) => setWindFlow(e.target.checked)} className="mt-1 h-4 w-4 cursor-pointer rounded border-slate-300 text-teal-700 focus:ring-teal-500" />
-                      </label>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="mb-2 text-[10px] font-black uppercase tracking-wider text-slate-400">Peta Dasar</div>
-                    <div className="grid grid-cols-2 gap-2">
-                      {[{ id: 'osm', label: 'OpenStreetMap' }, { id: 'terrain', label: 'Medan' }, { id: 'satellite', label: 'Satelit' }, { id: 'light', label: 'Terang' }].map((b) => (
-                        <button key={b.id} type="button" onClick={() => setLayers({ ...layers, base: b.id as any })}
-                          className={`rounded-xl border px-3 py-2 text-left text-xs font-bold transition ${layers.base === b.id ? 'border-teal-700 bg-teal-50/70 text-teal-800 shadow-2xs ring-1 ring-teal-700/30' : 'border-slate-200 bg-slate-50/60 text-slate-600 hover:border-slate-300 hover:bg-white'}`}>
-                          {b.label}
+              {risikoPie ? (
+                <div className="mt-2.5 space-y-2 border-t border-slate-200/80 pt-2">
+                  {/* Pilihan Tahun (sama dengan SKDR); data diambil ulang dari API per tahun */}
+                  <div className="flex items-center justify-between text-[10px]" data-testid="pie-tahun">
+                    <span className="font-bold text-slate-500">Tahun:</span>
+                    <div className="flex items-center gap-1">
+                      {PIE_YEARS.map((yr) => (
+                        <button
+                          key={yr}
+                          type="button"
+                          data-testid={`pie-tahun-${yr}`}
+                          onClick={() => setPieYear(yr)}
+                          className={`rounded-full px-2 py-0.5 font-bold transition ${pieYear === yr
+                              ? 'bg-purple-700 text-white shadow-xs'
+                              : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-100'
+                            }`}
+                        >
+                          {yr}
                         </button>
                       ))}
                     </div>
                   </div>
+                  {!pieOk ? (
+                    pieState.loading ? (
+                      <p className="text-[10px] text-slate-500">Memuat data Peta Risiko PIE {pieYear} dari API…</p>
+                    ) : (
+                      <ApiKosong compact pesan={`Data belum tersedia dari API (Peta Risiko PIE ${pieYear})`} detail={pieState.error || (pieState.data ? 'API mengembalikan 0 rekaman untuk tahun ini' : null)} />
+                    )
+                  ) : (
+                    <>
+                      {/* Pilihan Tingkat Wilayah */}
+                      <div className="flex items-center justify-between text-[10px]">
+                        <span className="font-bold text-slate-500">Tingkat wilayah:</span>
+                        <div className="flex items-center gap-1">
+                          {(['provinsi', 'kabkota'] as const).map((lv) => (
+                            <button
+                              key={lv}
+                              type="button"
+                              onClick={() => setRisikoLevel(lv)}
+                              className={`rounded-full px-2 py-0.5 font-bold transition ${risikoLevel === lv
+                                  ? 'bg-purple-700 text-white shadow-xs'
+                                  : 'border border-slate-200 bg-white text-slate-600 hover:bg-slate-100'
+                                }`}
+                            >
+                              {lv === 'provinsi' ? 'Provinsi' : 'Kab/Kota'}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
 
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-[10px] leading-relaxed text-slate-600">
-                    <p className="font-semibold text-slate-700">Observasi {periodeLabel(f)} · Seluruh Indonesia</p>
-                    <p className="mt-0.5 text-slate-500">Arahkan kursor ke wilayah untuk melihat angka; klik untuk memperbesar dan memfilter detail di panel kiri. Putar slider bawah untuk melihat tren bulanan nasional.</p>
-                  </div>
+                      {/* Pilihan Penyakit */}
+                      <div>
+                        <label className="mb-1 block text-[10px] font-bold text-slate-500">Penyakit Emerging:</label>
+                        <select
+                          value={pieDisease}
+                          onChange={(e) => setPieDisease(e.target.value as PieDiseaseOption)}
+                          className="w-full rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-800 shadow-xs focus:border-purple-500 focus:outline-none"
+                        >
+                          {pieOpsi.map((d) => (
+                            <option key={d.id} value={d.id}>
+                              {d.label} ({d.n})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Legend pills */}
+                      <div className="flex flex-wrap gap-1 pt-1">
+                        {legendPie.map((g) => (
+                          <span
+                            key={g.label}
+                            className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-white px-1.5 py-0.5 text-[9px] font-bold text-slate-700"
+                          >
+                            <span className="h-2 w-2 rounded-full" style={{ background: g.color }} />
+                            <span>{g.label}</span>
+                            <span className="font-normal text-slate-400">({g.n})</span>
+                          </span>
+                        ))}
+                      </div>
+                      <p className="text-[10px] leading-tight text-slate-400">
+                        Skala risiko: TINGGI (merah), SEDANG (jingga), RENDAH (hijau). Menimpa arsiran angka selama aktif.
+                      </p>
+                      <p className="text-[10px] leading-tight text-slate-400" data-testid="pie-ringkas">
+                        API {pieYear}: {pieData!.summary.api_total} rekaman{pieData!.summary.tanpa_status || pieData!.summary.tanpa_kode ? ` · ${pieData!.summary.tanpa_status} tanpa status & ${pieData!.summary.tanpa_kode} kab/kota tak terpetakan tidak ditampilkan` : ''}.
+                      </p>
+                    </>
+                  )}
                 </div>
-                {mode === 'kejadian' ? (
-                  <div className="mx-3 mb-3 rounded-xl border border-slate-200 bg-white p-2.5" data-testid="lapisan-sekitar-kejadian">
-                    <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Konteks kejadian di peta</p>
-                    <p className="mb-1.5 text-[10px] text-slate-500">Titik dan kisi di sekitar lokasi. PSC, ambulans, titik panas, dan peringatan BMKG/GDACS diatur di bagian lapisan masing-masing. TCK dan gudang logistik tidak punya koordinat di API.</p>
-                    {([['rs', 'RS jejaring'], ['riwayat', 'Riwayat 12 bulan'], ['cuaca', 'Cuaca lokasi'], ['hujan', 'Kisi hujan']] as const).map(([key, label]) => (
-                      <label key={key} className="mt-1 flex items-center justify-between gap-2 text-[11px] font-semibold text-slate-700">
-                        <span>{label}</span>
-                        <input type="checkbox" checked={sekitar[key]} onChange={(e) => setSekitar((p) => ({ ...p, [key]: e.target.checked }))} className="h-4 w-4 cursor-pointer rounded border-slate-300 text-teal-700 focus:ring-teal-500" />
-                      </label>
-                    ))}
+              ) : null}
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div className="mb-2 flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-slate-400">
+            <span>API Intelijen Eksternal</span>
+            <Link href="/dashboard/open-data" className="normal-case tracking-normal text-primary hover:underline">Lihat Open Data</Link>
+          </div>
+          <div className="space-y-1.5">
+            {INTEL_LAYER_APIS.map((api) => {
+              const active = Boolean((intelLayers as any)[api.id])
+              const st = intelStatus[api.id]
+              return (
+                <label key={api.id}
+                  className={`block cursor-pointer rounded-xl border p-2.5 transition select-none ${active ? 'border-teal-300 bg-teal-50/50' : 'border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50/60'}`}
+                  data-testid={`intel-${api.id}`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="flex min-w-0 items-center gap-1.5 text-xs font-bold text-slate-800">
+                      <span>{api.icon}</span><span className="truncate">{api.nama}</span>
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={active}
+                      onChange={(e) => setIntelLayers((prev) => ({ ...prev, [api.id]: e.target.checked }))}
+                      className="h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 text-teal-700 focus:ring-teal-500"
+                      aria-label={api.nama}
+                    />
                   </div>
-                ) : null}
-                                <div className="shrink-0 border-t border-slate-100 bg-white p-3">
-                  <button type="button"
-                    onClick={() => {
-                      setLayers({ ...DEFAULT_LAYERS, base: 'osm' })
-                      setPointOpacity(1)
-                      setAdminBoundaries(true)
-                      setWindFlow(false)
-                      setBnpbLayers({})
-                      setBnpbStatus({})
-                      setIntelLayers({ fires: false, hazards: false })
-                      setIntelStatus({})
-                      setRadiusOn(true)
-                      setInternal(DEFAULT_INTERNAL); setFaskes(DEFAULT_FASKES)
-                      setKatOff(new Set())
-                      setJenisOff(new Set())
-                      setRisikoAsis(null)
-                      setRisikoLevel('provinsi')
-                      setPill('kasus', 'kejadian')
-                    }}
-                    className="w-full rounded-xl bg-[#00705a] py-2.5 text-center text-xs font-bold text-white shadow-sm transition hover:bg-[#005a48] active:scale-[0.99]">
-                    Atur Ulang Pengaturan Lapisan
-                  </button>
+                  <p className="mt-0.5 line-clamp-2 text-[10px] leading-tight text-slate-500">{api.deskripsi}</p>
+                  {active && st ? (
+                    <p className={`mt-1 text-[10px] font-bold leading-tight ${st.state === 'error' ? 'text-red-700' : st.state === 'empty' ? 'text-amber-700' : st.state === 'loading' ? 'text-slate-500' : 'text-emerald-700'}`} data-testid={`intel-status-${api.id}`}>
+                      {st.state === 'loading' ? 'Memuat data langsung…' : st.state === 'error' ? st.message : st.message || `${(st.count || 0).toLocaleString('id-ID')} titik dimuat`}
+                      {st.at && st.state !== 'error' ? <span className="font-medium text-slate-400"> · {st.at}</span> : null}
+                    </p>
+                  ) : null}
+                </label>
+              )
+            })}
+          </div>
+        </div>
+
+        <div data-testid="bnpb-group">
+          <div className="mb-2 flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-slate-400">
+            <span className="inline-flex items-center gap-1">BNPB InaRISK
+              <InfoHint text="InaRISK: peta indeks bahaya bencana resmi dari BNPB (Badan Nasional Penanggulangan Bencana). Diambil langsung dari gis.bnpb.go.id; server BNPB kadang lambat." label="Penjelasan BNPB InaRISK" />
+            </span>
+            <span className="normal-case tracking-normal text-slate-400">{Object.values(bnpbLayers).filter(Boolean).length} aktif</span>
+          </div>
+          <div className="space-y-1">
+            {BNPB_LAYERS.map((l) => {
+              const on = Boolean(bnpbLayers[l.id])
+              const st = bnpbStatus[l.id]
+              return (
+                <label key={l.id} data-testid={`bnpb-${l.id}`}
+                  className={`block cursor-pointer rounded-lg border px-2.5 py-1.5 transition select-none ${on ? 'border-teal-300 bg-teal-50/50' : 'border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50/60'}`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="min-w-0">
+                      <span className="block truncate text-[11px] font-bold text-slate-800">{l.nama}</span>
+                      <span className="block truncate text-[9.5px] leading-tight text-slate-500">{l.deskripsi}</span>
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={on}
+                      onChange={(e) => setBnpbLayers((p) => ({ ...p, [l.id]: e.target.checked }))}
+                      className="h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 text-teal-700 focus:ring-teal-500"
+                      aria-label={l.nama}
+                    />
+                  </div>
+                  {on && st ? (
+                    <p className={`mt-0.5 text-[9.5px] font-bold ${st.state === 'error' ? 'text-red-700' : st.state === 'loading' ? 'text-slate-500' : 'text-emerald-700'}`} data-testid={`bnpb-status-${l.id}`}>
+                      {st.state === 'loading' ? 'Memuat citra dari gis.bnpb.go.id…' : st.message}
+                    </p>
+                  ) : null}
+                </label>
+              )
+            })}
+          </div>
+        </div>
+
+        <div>
+          <div className="mb-2 text-[10px] font-black uppercase tracking-wider text-slate-400">Konteks Spasial &amp; Risiko</div>
+          <div className="space-y-1.5">
+            <label className="flex cursor-pointer items-start justify-between gap-2.5 rounded-lg border border-slate-100 bg-white p-2.5 hover:bg-slate-50">
+              <div className="flex min-w-0 items-start gap-2">
+                <Layers className="mt-0.5 h-4 w-4 shrink-0 text-slate-600" />
+                <div>
+                  <span className="block text-xs font-bold text-slate-800">Batas Administrasi</span>
+                  <span className="block text-[10px] leading-tight text-slate-500">Garis batas provinsi dan kabupaten/kota (GeoJSON) di atas arsiran</span>
                 </div>
               </div>
+              <input type="checkbox" checked={adminBoundaries} onChange={(e) => setAdminBoundaries(e.target.checked)} className="mt-1 h-4 w-4 cursor-pointer rounded border-slate-300 text-teal-700 focus:ring-teal-500" />
+            </label>
+            <label className="flex cursor-pointer items-start justify-between gap-2.5 rounded-lg border border-slate-100 bg-white p-2.5 hover:bg-slate-50">
+              <div className="flex min-w-0 items-start gap-2">
+                <Wind className="mt-0.5 h-4 w-4 shrink-0 text-slate-600" />
+                <div>
+                  <span className="block text-xs font-bold text-slate-800">Aliran Angin</span>
+                  <span className="block text-[10px] leading-tight text-slate-500">Partikel angin bergerak (animasi) model GFS (NOAA, Badan Kelautan dan Atmosfer AS) sebagai konteks sebaran asap/abu</span>
+                </div>
+              </div>
+              <input type="checkbox" checked={windFlow} onChange={(e) => setWindFlow(e.target.checked)} className="mt-1 h-4 w-4 cursor-pointer rounded border-slate-300 text-teal-700 focus:ring-teal-500" />
+            </label>
+          </div>
+        </div>
+
+        <div>
+          <div className="mb-2 text-[10px] font-black uppercase tracking-wider text-slate-400">Peta Dasar</div>
+          <div className="grid grid-cols-2 gap-2">
+            {[{ id: 'osm', label: 'OpenStreetMap' }, { id: 'terrain', label: 'Medan' }, { id: 'satellite', label: 'Satelit' }, { id: 'light', label: 'Terang' }].map((b) => (
+              <button key={b.id} type="button" onClick={() => setLayers({ ...layers, base: b.id as any })}
+                className={`rounded-xl border px-3 py-2 text-left text-xs font-bold transition ${layers.base === b.id ? 'border-teal-700 bg-teal-50/70 text-teal-800 shadow-2xs ring-1 ring-teal-700/30' : 'border-slate-200 bg-slate-50/60 text-slate-600 hover:border-slate-300 hover:bg-white'}`}>
+                {b.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-slate-200 bg-slate-50 p-2.5 text-[10px] leading-relaxed text-slate-600">
+          <p className="font-semibold text-slate-700">Observasi {periodeLabel(f)} · Seluruh Indonesia</p>
+          <p className="mt-0.5 text-slate-500">Arahkan kursor ke wilayah untuk melihat angka; klik untuk memperbesar dan memfilter detail di panel kiri.</p>
+        </div>
+      </div>
+      {mode === 'kejadian' ? (
+        <div className="mx-3 mb-3 rounded-xl border border-slate-200 bg-white p-2.5" data-testid="lapisan-sekitar-kejadian">
+          <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Konteks kejadian di peta</p>
+          <p className="mb-1.5 text-[10px] text-slate-500">Titik dan kisi di sekitar lokasi. PSC, ambulans, titik panas, dan peringatan BMKG/GDACS diatur di bagian lapisan masing-masing. TCK dan gudang logistik tidak punya koordinat di API.</p>
+          {([['rs', 'RS jejaring'], ['riwayat', 'Riwayat 12 bulan'], ['cuaca', 'Cuaca lokasi'], ['hujan', 'Kisi hujan']] as const).map(([key, label]) => (
+            <label key={key} className="mt-1 flex items-center justify-between gap-2 text-[11px] font-semibold text-slate-700">
+              <span>{label}</span>
+              <input type="checkbox" checked={sekitar[key]} onChange={(e) => setSekitar((p) => ({ ...p, [key]: e.target.checked }))} className="h-4 w-4 cursor-pointer rounded border-slate-300 text-teal-700 focus:ring-teal-500" />
+            </label>
+          ))}
+        </div>
+      ) : null}
+      <div className="shrink-0 border-t border-slate-100 bg-white p-3">
+        <button type="button"
+          onClick={() => {
+            setLayers({ ...DEFAULT_LAYERS, base: 'osm' })
+            setPointOpacity(1)
+            setAdminBoundaries(true)
+            setWindFlow(false)
+            setBnpbLayers({})
+            setBnpbStatus({})
+            setIntelLayers({ fires: false, hazards: false })
+            setIntelStatus({})
+            setRadiusOn(false)
+            setInternal(DEFAULT_INTERNAL); setFaskes(DEFAULT_FASKES)
+            setKatOff(new Set())
+            setJenisOff(new Set())
+            setRisikoAsis(null)
+            setRisikoLevel('provinsi')
+            setPill('kasus', 'kejadian')
+          }}
+          className="w-full rounded-xl bg-[#00705a] py-2.5 text-center text-xs font-bold text-white shadow-sm transition hover:bg-[#005a48] active:scale-[0.99]">
+          Atur Ulang Pengaturan Lapisan
+        </button>
+      </div>
+    </div>
   )
 
   const renderMap = (extra: Record<string, any>) => (
-            <SpasialMap
-              data={data}
-              titik={[]}
-              metric={activeMetric}
-              setMetric={(m) => {
-                setMetric(m)
-                const pill = METRIC_PILLS.find((p) => p.key === m)
-                if (pill) setChoro(pill.choro)
-              }}
-              layers={layers}
-              setLayers={setLayers}
-              choroCfg={choroCfg}
-              sumber="ebs"
-              selectedId={sel?.id ?? null}
-              onSelectArea={(a) => { if (mode === 'kejadian') { setSel(a || null); return } if (a) { pickArea(a, true); if (mapPack.data?.level !== 'kabkota') setDrillProv(String(a.code).padStart(2, '0')) } else setSel(null) }}
-              onDrill={onDrill}
-              onUp={onUp}
-              focus={focus}
-              panelOpen={false}
-              setPanelOpen={() => {}}
-              height={640}
-              fullHeight={true}
-              rightPanel={null}
-              intelLayers={intelLayers}
-              extraLayers={mapExtraLayers}
-              onIntelStatus={onIntelStatus as any}
-              pointOpacity={pointOpacity}
-              showBoundaries={adminBoundaries}
-              windFlow={windFlow}
-              bnpbLayers={bnpbLayers}
-              onBnpbStatus={onBnpbStatus}
-              metricLabel={choroLabel}
-              catChoro={drillCat || catChoro || (mode === 'kejadian' ? { id: 'kejadian-fokus', level: 'provinsi' as const, judul: 'Fokus satu kejadian', sumber: 'Halaman detail', items: {}, legend: [], catatan: 'Arsiran angka nasional dimatikan pada halaman detail. Aktifkan lapisan risiko untuk melihat arsiran wilayah.' } : null)}
-              drill={drillWilayah}
-              drillOnClick={mode === 'dasbor'}
-              skipAutoFit={mode === 'kejadian' || mode === 'wilayah'}
-              keepDrillFit={mode === 'wilayah'}
-              areaExtra={(a) => a?.code ? (
-                <div className="mt-2 flex flex-col gap-1">
-                  {(() => {
-                    const code = String(a.code).replace(/\D/g, '')
-                    const row = faskesLookup.get(code) || faskesLookup.get(code.padStart(code.length <= 2 ? 2 : 4, '0'))
-                    if (!row) return null
-                    return (
-                      <div className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-[10px] text-slate-700" data-testid="peta-faskes-rekap">
-                        <p className="font-bold text-slate-800">Fasyankes di wilayah ini</p>
-                        <p>Rumah Sakit: <span className="font-black tabular-nums">{row.rs.toLocaleString('id-ID')}</span></p>
-                        <p>Puskesmas: <span className="font-black tabular-nums">{row.puskesmas.toLocaleString('id-ID')}</span></p>
-                      </div>
-                    )
-                  })()}
-                  <a href={wilayahHref(String(a.code), { tahun: f.tahun, jenis: f.jenis })} className="block rounded-lg bg-[#00705a] px-2 py-1.5 text-center text-[11px] font-bold text-white hover:bg-[#005a48]" data-testid="peta-link-detail-wilayah">Lihat detail wilayah</a>
-                </div>
-              ) : null}
-              radiusSupport={{ enabled: radiusOn && Boolean(radiusCenter) && (mode === 'kejadian' || !drillProv), center: radiusCenter, ringsKm: [50, 100, 200] }}
-              {...extra}
-            />
+    <SpasialMap
+      data={data}
+      titik={[]}
+      metric={activeMetric}
+      setMetric={(m) => {
+        setMetric(m)
+        const pill = METRIC_PILLS.find((p) => p.key === m)
+        if (pill) setChoro(pill.choro)
+      }}
+      layers={layers}
+      setLayers={setLayers}
+      choroCfg={choroCfg}
+      sumber="ebs"
+      selectedId={sel?.id ?? null}
+      onSelectArea={(a) => { if (mode === 'kejadian') { setSel(a || null); return } if (a) { pickArea(a, true); if (mapPack.data?.level !== 'kabkota') setDrillProv(String(a.code).padStart(2, '0')) } else setSel(null) }}
+      onDrill={onDrill}
+      onUp={onUp}
+      focus={focus}
+      panelOpen={false}
+      setPanelOpen={() => { }}
+      height={640}
+      fullHeight={true}
+      rightPanel={null}
+      intelLayers={intelLayers}
+      extraLayers={mapExtraLayers}
+      onIntelStatus={onIntelStatus as any}
+      pointOpacity={pointOpacity}
+      showBoundaries={adminBoundaries}
+      windFlow={windFlow}
+      bnpbLayers={bnpbLayers}
+      onBnpbStatus={onBnpbStatus}
+      metricLabel={choroLabel}
+      catChoro={drillCat || catChoro || (mode === 'kejadian' ? { id: 'kejadian-fokus', level: 'provinsi' as const, judul: 'Fokus satu kejadian', sumber: 'Halaman detail', items: {}, legend: [], catatan: 'Arsiran angka nasional dimatikan pada halaman detail. Aktifkan lapisan risiko untuk melihat arsiran wilayah.' } : null)}
+      drill={drillWilayah}
+      drillOnClick={mode === 'dasbor'}
+      skipAutoFit={mode === 'kejadian' || mode === 'wilayah'}
+      keepDrillFit={mode === 'wilayah'}
+      areaExtra={(a) => a?.code ? (
+        <div className="mt-2 flex flex-col gap-1">
+          {(() => {
+            const code = String(a.code).replace(/\D/g, '')
+            const row = faskesLookup.get(code) || faskesLookup.get(code.padStart(code.length <= 2 ? 2 : 4, '0'))
+            if (!row) return null
+            return (
+              <div className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-[10px] text-slate-700" data-testid="peta-faskes-rekap">
+                <p className="font-bold text-slate-800">Fasyankes di wilayah ini</p>
+                <p>Rumah Sakit: <span className="font-black tabular-nums">{row.rs.toLocaleString('id-ID')}</span></p>
+                <p>Puskesmas: <span className="font-black tabular-nums">{row.puskesmas.toLocaleString('id-ID')}</span></p>
+              </div>
+            )
+          })()}
+          <a href={wilayahHref(String(a.code), { tahun: f.tahun, jenis: f.jenis })} className="block rounded-lg bg-[#00705a] px-2 py-1.5 text-center text-[11px] font-bold text-white hover:bg-[#005a48]" data-testid="peta-link-detail-wilayah">Lihat detail wilayah</a>
+        </div>
+      ) : null}
+      radiusSupport={{ enabled: radiusOn && Boolean(radiusCenter) && (mode === 'kejadian' || !drillProv), center: radiusCenter, ringsKm: [50, 100, 200] }}
+      {...extra}
+    />
   )
 
   if (full) {
@@ -1144,56 +1145,56 @@ export default function PuskrisPetaTerpadu({
   }
 
   return (
-      <div className={embed ? 'flex h-full w-full flex-col' : 'skdr-card flex w-full flex-col p-4'} data-testid={embed ? 'peta-kejadian-embed' : 'peta-skdr-terpadu'}>
-        <div className={embed ? 'hidden' : 'flex flex-col gap-3 border-b border-slate-100 pb-3 sm:flex-row sm:items-center sm:justify-between'}>
-          <div>
-            <div className="skdr-eyebrow flex items-center gap-1.5">
-              <MapPin className="h-3.5 w-3.5" /> Peta spasial
-            </div>
-            <h2 className="skdr-section-title">
-              Sebaran kejadian, korban, layanan 119, dan kapasitas respons
-            </h2>
+    <div className={embed ? 'flex h-full w-full flex-col' : 'skdr-card flex w-full flex-col p-4'} data-testid={embed ? 'peta-kejadian-embed' : 'peta-skdr-terpadu'}>
+      <div className={embed ? 'hidden' : 'flex flex-col gap-3 border-b border-slate-100 pb-3 sm:flex-row sm:items-center sm:justify-between'}>
+        <div>
+          <div className="skdr-eyebrow flex items-center gap-1.5">
+            <MapPin className="h-3.5 w-3.5" /> Peta spasial
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            {controls}
-          </div>
+          <h2 className="skdr-section-title">
+            Sebaran kejadian, korban, layanan 119, dan kapasitas respons
+          </h2>
         </div>
-
-        <div className={embed ? 'relative flex min-h-0 w-full flex-1 overflow-hidden rounded-xl border border-slate-200 bg-slate-50' : 'relative mt-3 flex h-[500px] w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-50'}>
-          {!embed && leftDockOpen ? (
-            <div className="z-20 flex h-full w-[340px] shrink-0 flex-col overflow-hidden border-r border-slate-200 bg-white transition-all duration-300" data-testid="peta-left-dock">
-              {leftBody}
-            </div>
-          ) : !embed ? (
-            <aside className="z-20 flex h-full w-10 shrink-0 flex-col border-r border-slate-200 bg-white/95 backdrop-blur transition-all duration-300" data-testid="peta-left-dock-collapsed">
-              <button type="button" onClick={() => setLeftDockOpen(true)}
-                className="flex h-full w-full flex-col items-center justify-start gap-3 py-3 text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-                title="Buka Analisa & Detail Wilayah" aria-label="Buka Analisa & Detail Wilayah">
-                <ChevronRight className="h-4 w-4 text-slate-400" />
-                <MapPin className="h-4 w-4 text-primary" />
-                <span className="whitespace-nowrap text-[10px] font-bold uppercase tracking-wider text-slate-600" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>Analisa Wilayah</span>
-              </button>
-            </aside>
-          ) : null}
-
-          <div className="relative h-full min-w-0 flex-1">
-            {renderMap({})}
-          </div>
-
-          <aside className={`z-20 flex h-full shrink-0 flex-col border-l border-slate-200 bg-white/95 backdrop-blur transition-all duration-300 ${rightDockOpen ? 'w-[280px] sm:w-[320px]' : 'w-10'}`} data-testid="peta-right-dock">
-            {rightDockOpen ? (
-              rightBody
-            ) : (
-              <button type="button" onClick={() => setRightDockOpen(true)}
-                className="flex h-full w-full flex-col items-center justify-start gap-3 py-3 text-slate-500 hover:bg-slate-50 hover:text-slate-900"
-                title="Buka Pengaturan Peta & Lapisan" aria-label="Buka Pengaturan Peta & Lapisan">
-                <ChevronLeft className="h-4 w-4 text-slate-400" />
-                <Settings className="h-4 w-4 text-emerald-700" />
-                <span className="whitespace-nowrap text-[10px] font-bold uppercase tracking-wider text-slate-600" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>Pengaturan Lapisan</span>
-              </button>
-            )}
-          </aside>
+        <div className="flex flex-wrap items-center gap-2">
+          {controls}
         </div>
       </div>
+
+      <div className={embed ? 'relative flex min-h-0 w-full flex-1 overflow-hidden rounded-xl border border-slate-200 bg-slate-50' : 'relative mt-3 flex h-[500px] w-full overflow-hidden rounded-xl border border-slate-200 bg-slate-50'}>
+        {!embed && leftDockOpen ? (
+          <div className="z-20 flex h-full w-[340px] shrink-0 flex-col overflow-hidden border-r border-slate-200 bg-white transition-all duration-300" data-testid="peta-left-dock">
+            {leftBody}
+          </div>
+        ) : !embed ? (
+          <aside className="z-20 flex h-full w-10 shrink-0 flex-col border-r border-slate-200 bg-white/95 backdrop-blur transition-all duration-300" data-testid="peta-left-dock-collapsed">
+            <button type="button" onClick={() => setLeftDockOpen(true)}
+              className="flex h-full w-full flex-col items-center justify-start gap-3 py-3 text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+              title="Buka Analisa & Detail Wilayah" aria-label="Buka Analisa & Detail Wilayah">
+              <ChevronRight className="h-4 w-4 text-slate-400" />
+              <MapPin className="h-4 w-4 text-primary" />
+              <span className="whitespace-nowrap text-[10px] font-bold uppercase tracking-wider text-slate-600" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>Analisa Wilayah</span>
+            </button>
+          </aside>
+        ) : null}
+
+        <div className="relative h-full min-w-0 flex-1">
+          {renderMap({})}
+        </div>
+
+        <aside className={`z-20 flex h-full shrink-0 flex-col border-l border-slate-200 bg-white/95 backdrop-blur transition-all duration-300 ${rightDockOpen ? 'w-[280px] sm:w-[320px]' : 'w-10'}`} data-testid="peta-right-dock">
+          {rightDockOpen ? (
+            rightBody
+          ) : (
+            <button type="button" onClick={() => setRightDockOpen(true)}
+              className="flex h-full w-full flex-col items-center justify-start gap-3 py-3 text-slate-500 hover:bg-slate-50 hover:text-slate-900"
+              title="Buka Pengaturan Peta & Lapisan" aria-label="Buka Pengaturan Peta & Lapisan">
+              <ChevronLeft className="h-4 w-4 text-slate-400" />
+              <Settings className="h-4 w-4 text-emerald-700" />
+              <span className="whitespace-nowrap text-[10px] font-bold uppercase tracking-wider text-slate-600" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>Pengaturan Lapisan</span>
+            </button>
+          )}
+        </aside>
+      </div>
+    </div>
   )
 }

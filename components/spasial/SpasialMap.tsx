@@ -167,11 +167,11 @@ function DrillBar({ drill }: {
   )
 }
 
-export default function SpasialMap({ data, titik, metric, setMetric, layers, setLayers, choroCfg, sumber, selectedId, onSelectArea, onDrill, onUp, focus, rightPanel, panelOpen, setPanelOpen, height = 680, fullHeight = false, topHud, leftDock, topOffset, hideDefaultToolbar = false, intelLayers, radiusSupport, onIntelStatus, pointOpacity = 1, showBoundaries = true, windFlow = false, metricLabel, bnpbLayers, onBnpbStatus, fitPadding, legendDefaultOpen = true, extraLayers, catChoro, drill = null, drillOnClick = false, skipAutoFit = false, keepDrillFit = false, areaExtra }: {
+export default function SpasialMap({ data, titik, metric, setMetric, layers, setLayers, choroCfg, sumber, selectedId, onSelectArea, onDrill, onUp, focus, rightPanel, panelOpen, setPanelOpen, height = 680, fullHeight = false, topHud, leftDock, topOffset, hideDefaultToolbar = false, hidePlayback = true, intelLayers, radiusSupport, onIntelStatus, pointOpacity = 1, showBoundaries = true, windFlow = false, metricLabel, bnpbLayers, onBnpbStatus, fitPadding, legendDefaultOpen = true, extraLayers, catChoro, drill = null, drillOnClick = false, skipAutoFit = false, keepDrillFit = false, areaExtra }: {
   data: SpasialResp | null; titik: Titik[]; metric: Metric; setMetric: (m: Metric) => void; layers: Layers; setLayers: (l: Layers) => void
   choroCfg: ChoroConfig | null; sumber: string; selectedId: number | null; onSelectArea: (a: Area | null) => void; onDrill: (a: Area) => void; onUp: (() => void) | null
   focus: Focus | null; rightPanel: ReactNode; panelOpen: boolean; setPanelOpen: (v: boolean) => void; height?: number
-  fullHeight?: boolean; topHud?: ReactNode | ((ctrl: MapHudCtrl) => ReactNode); leftDock?: ReactNode; topOffset?: number; hideDefaultToolbar?: boolean
+  fullHeight?: boolean; topHud?: ReactNode | ((ctrl: MapHudCtrl) => ReactNode); leftDock?: ReactNode; topOffset?: number; hideDefaultToolbar?: boolean; hidePlayback?: boolean
   intelLayers?: ExternalIntelLayers
   radiusSupport?: RadiusSupport
   /** Status muat tiap lapisan API intelijen (untuk ditampilkan di panel pengaturan). */
@@ -1165,7 +1165,7 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
                   <DrillBar drill={drill} />
                 </div>
               ) : null}
-              {weeks.length > 1 ? (
+              {!hidePlayback && weeks.length > 1 ? (
                 <div className="pointer-events-auto flex w-[min(560px,100%)] items-center gap-2 rounded-xl border border-slate-200 bg-white/95 px-3 py-2 shadow-lg backdrop-blur" data-testid="spasial-playback">
                   <button type="button" disabled={!data?.seri} onClick={() => { if (!playing && wi >= weeks.length - 1) setWi(0); else if (!playing && wi < 0) setWi(0); setPlaying(!playing) }}
                     className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-teal-700 text-white disabled:opacity-40" aria-label={playing ? 'Jeda' : 'Putar per minggu epid'} data-testid="spasial-play">
@@ -1236,7 +1236,7 @@ export default function SpasialMap({ data, titik, metric, setMetric, layers, set
           {panelOpen ? <div className="absolute bottom-3 right-3 z-30 w-[350px] max-w-[calc(100%-24px)] transition-all duration-200" style={{ top: topOffset ?? 64 }} data-testid="spasial-panel">{rightPanel}</div> : null}
 
           {/* playback */}
-          {weeks.length > 1 ? (
+          {!hidePlayback && weeks.length > 1 ? (
             <div className={`absolute bottom-3 left-1/2 z-30 flex w-[min(560px,calc(100%-24px))] -translate-x-1/2 items-center gap-2 rounded-xl border border-slate-200 bg-white/95 px-3 py-2 shadow-lg backdrop-blur ${panelOpen ? 'lg:-ml-[175px]' : ''}`} data-testid="spasial-playback">
               <button type="button" disabled={!data?.seri} onClick={() => { if (!playing && wi >= weeks.length - 1) setWi(0); else if (!playing && wi < 0) setWi(0); setPlaying(!playing) }}
                 className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-teal-700 text-white disabled:opacity-40" aria-label={playing ? 'Jeda' : 'Putar per minggu epid'} data-testid="spasial-play">

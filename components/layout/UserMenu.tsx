@@ -13,23 +13,35 @@ import { routeArea } from '@/lib/access'
 import { useTranslation } from '@/lib/i18n/LanguageContext'
 import { PUBLIC_BASE_PATH } from '@/lib/public-path'
 
-export function AreaSwitch() {
+export function AreaSwitch({ onBrand = false }: { onBrand?: boolean }) {
   const { user, can } = useAuth()
   const pathname = usePathname() || '/'
   const { t } = useTranslation()
   if (!user || !can('tatakelola')) return null
   const area = routeArea(pathname)
   const cls = (on: boolean) =>
-    `flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold uppercase tracking-wider transition ${on ? 'bg-primary text-white shadow-sm' : 'text-slate-600 hover:bg-white hover:text-primary'}`
+    `flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold uppercase tracking-wider transition ${on
+      ? onBrand
+        ? 'bg-white text-brand-700 shadow-sm'
+        : 'bg-primary text-white shadow-sm'
+      : onBrand
+        ? 'text-white/90 hover:bg-white/15 hover:text-white'
+        : 'text-slate-600 hover:bg-white hover:text-primary'
+    }`
   return (
-    <nav aria-label={t('skdr.auth.areaSwitch')} data-testid="area-switch" className="hidden items-center rounded-2xl border border-white/45 bg-white/90 p-1 shadow-sm backdrop-blur-sm sm:flex">
+    <nav
+      aria-label={t('skdr.auth.areaSwitch')}
+      data-testid="area-switch"
+      className={`hidden items-center rounded-2xl border p-1 shadow-sm backdrop-blur-sm sm:flex ${onBrand ? 'border-white/25 bg-white/15' : 'border-white/45 bg-white/90'
+        }`}
+    >
       <Link href="/dashboard" className={cls(area === 'dashboard')}><LayoutDashboard className="h-3.5 w-3.5" />{t('skdr.auth.areaDashboard')}</Link>
       <Link href="/tatakelola" className={cls(area === 'tatakelola')}><Shield className="h-3.5 w-3.5" />{t('skdr.auth.areaTatakelola')}</Link>
     </nav>
   )
 }
 
-export default function UserMenu() {
+export default function UserMenu({ onBrand = false }: { onBrand?: boolean }) {
   const { user, loading, logout, can } = useAuth()
   const pathname = usePathname() || '/'
   const router = useRouter()
@@ -52,7 +64,8 @@ export default function UserMenu() {
     const redirect = pathname === '/login' ? '' : `?redirect=${encodeURIComponent(pathname)}`
     return (
       <Link href={`/login${redirect}`} data-testid="login-link"
-        className="inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-dark">
+        className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold shadow-sm transition ${onBrand ? 'bg-white text-brand-700 hover:bg-brand-50' : 'bg-primary text-white hover:bg-primary-dark'
+          }`}>
         <LogIn className="h-4 w-4" /> {t('skdr.auth.signInShort')}
       </Link>
     )
@@ -68,13 +81,17 @@ export default function UserMenu() {
   return (
     <div className="relative" ref={ref}>
       <button type="button" onClick={() => setOpen((v) => !v)} aria-haspopup="menu" aria-expanded={open} data-testid="user-menu"
-        className="flex items-center gap-2.5 rounded-2xl border border-white/45 bg-white/90 py-1.5 pl-1.5 pr-3 shadow-sm backdrop-blur-sm transition hover:bg-white">
-        <span className="grid h-8 w-8 place-items-center rounded-xl bg-primary text-xs font-bold text-white">{initials}</span>
+        className={`flex items-center gap-2.5 rounded-2xl border py-1.5 pl-1.5 pr-3 shadow-sm backdrop-blur-sm transition ${onBrand
+            ? 'border-white/25 bg-white/15 hover:bg-white/25'
+            : 'border-white/45 bg-white/90 hover:bg-white'
+          }`}>
+        <span className={`grid h-8 w-8 place-items-center rounded-xl text-xs font-bold ${onBrand ? 'bg-white text-brand-700' : 'bg-primary text-white'
+          }`}>{initials}</span>
         <span className="hidden min-w-0 text-left sm:block">
-          <span className="block max-w-[160px] truncate text-sm font-bold text-slate-800">{name}</span>
-          <span className="block max-w-[160px] truncate text-[11px] font-medium text-slate-500">{user.role_name}</span>
+          <span className={`block max-w-[160px] truncate text-sm font-bold ${onBrand ? 'text-white' : 'text-slate-800'}`}>{name}</span>
+          <span className={`block max-w-[160px] truncate text-[11px] font-medium ${onBrand ? 'text-white/80' : 'text-slate-500'}`}>{user.role_name}</span>
         </span>
-        <ChevronDown className="h-4 w-4 text-slate-400" />
+        <ChevronDown className={`h-4 w-4 ${onBrand ? 'text-white/80' : 'text-slate-400'}`} />
       </button>
       {open && (
         <div role="menu" className="absolute right-0 z-[70] mt-2 w-64 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl shadow-slate-900/10">

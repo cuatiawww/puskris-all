@@ -60,7 +60,7 @@ export default function DashboardSidebar({ open, collapsed, menuGroups, match, o
   ) : null;
 
   const linkCls = (active: boolean) =>
-    `group relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold outline-none transition-all focus-visible:ring-2 focus-visible:ring-primary/40 ${rail ? "justify-center px-0" : ""} ${active ? "bg-primary/10 text-primary" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"}`;
+    `group relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold outline-none transition-all focus-visible:ring-2 focus-visible:ring-primary/40 ${rail ? "justify-center px-0" : ""} ${active ? "bg-brand-100/80 text-brand-700" : "text-slate-600 hover:bg-brand-50/70 hover:text-slate-900"}`;
 
   const isExternal = (href?: string) => !!href && /^https?:\/\//i.test(href);
 
@@ -98,7 +98,7 @@ export default function DashboardSidebar({ open, collapsed, menuGroups, match, o
       className={`fixed left-0 top-0 z-[60] flex h-screen flex-col border-r border-slate-100 bg-white text-slate-800 shadow-[2px_0_12px_rgba(0,0,0,0.03)] transition-[transform,width] duration-300
         ${open ? "w-[280px] translate-x-0" : "w-[280px] -translate-x-full lg:translate-x-0"} ${rail ? "lg:w-[72px]" : "lg:w-[280px]"}`}>
       <div className="h-[4px] shrink-0 bg-primary" />
-      <div className={`flex shrink-0 items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/50 py-4 ${rail ? "px-2" : "px-4"}`}>
+      <div className={`flex shrink-0 items-center justify-between gap-3 border-b border-brand-100 bg-brand-50/45 py-4 ${rail ? "px-2" : "px-4"}`}>
         <div className={`flex min-w-0 items-center gap-3 ${rail ? "mx-auto" : ""}`}>
           <div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 shadow-sm">
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -169,7 +169,7 @@ export default function DashboardSidebar({ open, collapsed, menuGroups, match, o
                             {item.subItems!.map((sub) => {
                               const SubIcon = sub.icon; const on = !!match && match.sub === sub;
                               const ext = isExternal(sub.href);
-                              const flyCls = `flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold ${on ? "bg-primary/10 text-primary" : "text-slate-600 hover:bg-slate-50"}`;
+                              const flyCls = `flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-semibold ${on ? "bg-brand-100/80 text-brand-700" : "text-slate-600 hover:bg-brand-50/70"}`;
                               return ext ? (
                                 <a key={sub.id || sub.href} href={sub.href} target="_blank" rel="noopener" role="menuitem" data-nav-item onClick={() => { setFlyout(null); onClose(); }} className={flyCls}>
                                   {SubIcon && <SubIcon className={`h-4 w-4 ${on ? "text-primary" : "text-slate-400"}`} />}

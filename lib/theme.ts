@@ -17,7 +17,7 @@ export type ThemePalette = {
 /** CSS colour usable in style props and SVG attributes (Chromium/Firefox resolve var() there). */
 export const cssv = (name: string) => `rgb(var(--${name}))`
 export const SOURCE_COLOR = { ebs: cssv('src-ebs'), pe: cssv('src-pe') } as const
-export const BRAND = { primary: cssv('brand-700'), dark: cssv('brand-800'), light: cssv('brand-500'), soft: cssv('brand-100') } as const
+export const BRAND = { primary: cssv('brand-500'), dark: cssv('brand-600'), light: cssv('brand-400'), soft: cssv('brand-100') } as const
 
 const toChannels = (hex: string) => {
   const h = hex.replace('#', '').trim()
@@ -27,8 +27,8 @@ const toChannels = (hex: string) => {
 
 /** Resolve a theme variable to a concrete colour (for canvas renderers such as OpenLayers). */
 export function themeRgb(name: string, alpha = 1): string {
-  if (typeof window === 'undefined') return `rgba(13, 107, 103, ${alpha})`
-  const v = getComputedStyle(document.documentElement).getPropertyValue(`--${name}`).trim() || '13 107 103'
+  if (typeof window === 'undefined') return `rgba(22, 179, 172, ${alpha})`
+  const v = getComputedStyle(document.documentElement).getPropertyValue(`--${name}`).trim() || '22 179 172'
   const [r, g, b] = v.split(/\s+/)
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
@@ -40,7 +40,7 @@ export function applyPalette(p?: ThemePalette | null) {
   const set = (k: string, hex?: string) => { const c = hex && toChannels(hex); if (c) root.setProperty(`--${k}`, c) }
   for (const s of BRAND_STEPS) set(`brand-${s}`, p.brand?.[s])
   set('brand-accent', p.accent); set('brand-lime', p.lime); set('src-ebs', p.ebs); set('src-pe', p.pe)
-  ;(['ebs', 'pe', 'all'] as const).forEach((k) => (p[`${k}_scale`] || []).slice(0, 5).forEach((hex, i) => set(`scale-${k}-${i}`, hex)))
+    ; (['ebs', 'pe', 'all'] as const).forEach((k) => (p[`${k}_scale`] || []).slice(0, 5).forEach((hex, i) => set(`scale-${k}-${i}`, hex)))
 }
 
 /** Sequential 5-step scale (light → dark) per series; 0 stays neutral. */

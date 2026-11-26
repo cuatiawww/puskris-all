@@ -43,29 +43,37 @@ export default function DashboardHeader({
 
   const rawLogo = settings.sidebar_logo_url || `${PUBLIC_BASE_PATH}/Logo-Kemenkes.png`;
   const logoSrc = rawLogo.replace(/^\/nlp\//, '/');
-  
+
 
   const appTitle = title ? title : consoleMode
     ? tr("skdr.layout.console")
     : (settings.app_name || tr("skdr.layout.appName"));
-    
+
   const appSubtitle = subtitle ? subtitle : consoleMode
     ? tr("skdr.layout.consoleSub")
     : (settings.app_tagline || tr("skdr.layout.appTagline"));
 
+  const onBrand = !transparent;
+
   return (
-    <header className={`w-full ${transparent ? "bg-transparent" : "border-b border-rule bg-white"}`} data-testid="app-header">
-      <div className={`relative flex ${compact ? "min-h-[84px]" : "min-h-[118px]"} items-stretch overflow-visible ${transparent ? "bg-transparent" : "bg-white"}`}>
+    <header
+      className={`w-full ${transparent ? "bg-transparent" : "border-b border-brand-600/50 shadow-sm"}`}
+      style={onBrand ? { backgroundColor: "var(--ttdk-color-brand-green-500, #16B3AC)" } : undefined}
+      data-testid="app-header"
+    >
+      <div className={`relative flex ${compact ? "min-h-[84px]" : "min-h-[118px]"} items-stretch overflow-visible ${transparent ? "bg-transparent" : ""}`}>
         {transparent ? null : (
           <>
-            {/* Banner header (public/bg-header.jpg), right-aligned so the map/illustrations stay visible;
-                a white fade on the left keeps the title readable. */}
+            {/* Banner header texture subtly blended over SATUSEHAT Brand Green 500 (#16B3AC) */}
             <div
               aria-hidden
-              className="absolute inset-0 bg-cover bg-no-repeat bg-[position:right_center]"
+              className="absolute inset-0 bg-cover bg-no-repeat bg-[position:right_center] opacity-[0.14] mix-blend-luminosity"
               style={{ backgroundImage: `url(${PUBLIC_BASE_PATH}/bg-header.jpg)` }}
             />
-            <div aria-hidden className="absolute inset-0 bg-gradient-to-r from-white via-white/85 to-white/10 md:via-white/50 md:to-transparent" />
+            <div
+              aria-hidden
+              className="absolute inset-0 bg-gradient-to-r from-[#16B3AC] via-[#16B3AC]/90 to-[#128F8A]/95"
+            />
           </>
         )}
         <div className={`relative grid w-full gap-5 px-4 md:px-6 ${compact ? "py-2.5" : "py-4"} lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center`}>
@@ -75,7 +83,10 @@ export default function DashboardHeader({
               data-testid="nav-toggle"
               onClick={onToggleSidebar}
               aria-label={t("header.openMenu")}
-              className="inline-flex h-11 w-11 shrink-0 lg:hidden items-center justify-center rounded-xl border border-brand-200 bg-white/90 text-slate-700 shadow-sm transition hover:bg-white"
+              className={`inline-flex h-11 w-11 shrink-0 lg:hidden items-center justify-center rounded-xl border shadow-sm transition ${onBrand
+                  ? "border-white/30 bg-white/15 text-white hover:bg-white/25"
+                  : "border-brand-200 bg-white/90 text-slate-700 hover:bg-white"
+                }`}
             >
               <Menu className="h-5 w-5" />
             </button>
@@ -87,23 +98,26 @@ export default function DashboardHeader({
               <img
                 src={logoSrc}
                 alt={tr("skdr.layout.logo")}
-                className={`h-auto shrink-0 object-contain ${compact ? "max-h-[52px] w-[120px] md:w-[140px]" : "max-h-[62px] w-[132px] md:w-[168px]"}`}
+                className={`h-auto shrink-0 object-contain ${compact ? "max-h-[52px] w-[120px] md:w-[140px]" : "max-h-[62px] w-[132px] md:w-[168px]"} ${onBrand ? "brightness-0 invert" : ""}`}
                 onError={(e) => {
                   e.currentTarget.style.display = 'none';
                 }}
               />
-              <div className="min-w-0 border-brand-200 md:border-l md:pl-5">
+              <div className={`min-w-0 md:border-l md:pl-5 ${onBrand ? "border-white/30" : "border-brand-200"}`}>
                 <div className="flex items-center gap-2">
-                  <h1 className={`whitespace-nowrap font-extrabold leading-none text-brand-900 ${title ? "text-lg sm:text-xl lg:text-2xl" : "text-lg sm:text-xl lg:text-[1.65rem] xl:text-2xl"}`} data-testid="app-header-title">
+                  <h1 className={`whitespace-nowrap font-extrabold leading-none ${onBrand ? "text-white" : "text-brand-900"} ${title ? "text-lg sm:text-xl lg:text-2xl" : "text-lg sm:text-xl lg:text-[1.65rem] xl:text-2xl"}`} data-testid="app-header-title">
                     {appTitle}
                   </h1>
                   {consoleMode && (
-                    <span className="hidden items-center rounded-md border border-brand-200 bg-brand-50 px-2 py-0.5 text-xs font-bold text-brand-800 sm:inline-flex">
+                    <span className={`hidden items-center rounded-md border px-2 py-0.5 text-xs font-bold sm:inline-flex ${onBrand
+                        ? "border-white/35 bg-white/15 text-white"
+                        : "border-brand-200 bg-brand-50 text-brand-800"
+                      }`}>
                       ADMIN CONSOLE
                     </span>
                   )}
                 </div>
-                <p className={`mt-1 hidden truncate text-xs leading-snug text-slate-600 sm:block md:text-sm ${subtitle ? "max-w-[980px]" : "max-w-[760px]"}`} data-testid="app-header-subtitle">
+                <p className={`mt-1 hidden truncate text-xs leading-snug sm:block md:text-sm ${onBrand ? "text-white/85" : "text-slate-600"} ${subtitle ? "max-w-[980px]" : "max-w-[760px]"}`} data-testid="app-header-subtitle">
                   {appSubtitle}
                 </p>
               </div>
@@ -114,54 +128,52 @@ export default function DashboardHeader({
 
             {/* In Console Mode: Show Console Tabs (Settings, Users, Configuration Modul) + Button to return to Surveillance Dashboard */}
             {consoleMode ? (
-              <div className="hidden items-center rounded-2xl border border-white/45 bg-white/90 p-1.5 shadow-sm backdrop-blur-sm sm:flex">
+              <div className={`hidden items-center rounded-2xl border p-1.5 shadow-sm backdrop-blur-sm sm:flex ${onBrand ? "border-white/25 bg-white/15" : "border-white/45 bg-white/90"
+                }`}>
                 <Link
                   href="/console/settings"
-                  className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
-                    pathname?.startsWith("/console/settings")
-                      ? "bg-primary text-white hover:bg-primary-dark"
-                      : "text-slate-700 hover:bg-white hover:text-primary"
-                  }`}
+                  className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${pathname?.startsWith("/console/settings")
+                      ? onBrand ? "bg-white text-brand-700 shadow-sm" : "bg-primary text-white hover:bg-primary-dark"
+                      : onBrand ? "text-white/90 hover:bg-white/15 hover:text-white" : "text-slate-700 hover:bg-white hover:text-primary"
+                    }`}
                 >
                   <SettingsIcon className="h-4 w-4" />
                   {tr("skdr.layout.settings")}
                 </Link>
                 <Link
                   href="/console/configuration-modul"
-                  className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
-                    pathname?.startsWith("/console/configuration-modul")
-                      ? "bg-primary text-white hover:bg-primary-dark"
-                      : "text-slate-700 hover:bg-white hover:text-primary"
-                  }`}
+                  className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${pathname?.startsWith("/console/configuration-modul")
+                      ? onBrand ? "bg-white text-brand-700 shadow-sm" : "bg-primary text-white hover:bg-primary-dark"
+                      : onBrand ? "text-white/90 hover:bg-white/15 hover:text-white" : "text-slate-700 hover:bg-white hover:text-primary"
+                    }`}
                 >
                   <SlidersHorizontal className="h-4 w-4" />
                   {tr("skdr.layout.modules")}
                 </Link>
                 <Link
                   href="/console/users"
-                  className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
-                    pathname?.startsWith("/console/users")
-                      ? "bg-primary text-white hover:bg-primary-dark"
-                      : "text-slate-700 hover:bg-white hover:text-primary"
-                  }`}
+                  className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${pathname?.startsWith("/console/users")
+                      ? onBrand ? "bg-white text-brand-700 shadow-sm" : "bg-primary text-white hover:bg-primary-dark"
+                      : onBrand ? "text-white/90 hover:bg-white/15 hover:text-white" : "text-slate-700 hover:bg-white hover:text-primary"
+                    }`}
                 >
                   <UsersIcon className="h-4 w-4" />
                   {tr("skdr.layout.users")}
                 </Link>
                 <Link
                   href="/reports/drafts"
-                    className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
-                    pathname?.startsWith("/reports/drafts") || pathname?.startsWith("/reports/new") || pathname?.startsWith("/reports/edit")
-                      ? "bg-primary text-white hover:bg-primary-dark"
-                      : "text-slate-700 hover:bg-white hover:text-primary"
-                  }`}
+                  className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${pathname?.startsWith("/reports/drafts") || pathname?.startsWith("/reports/new") || pathname?.startsWith("/reports/edit")
+                      ? onBrand ? "bg-white text-brand-700 shadow-sm" : "bg-primary text-white hover:bg-primary-dark"
+                      : onBrand ? "text-white/90 hover:bg-white/15 hover:text-white" : "text-slate-700 hover:bg-white hover:text-primary"
+                    }`}
                 >
                   <FileText className="h-4 w-4" />
                   {tr("skdr.layout.reports")}
                 </Link>
                 <Link
                   href="/main-dashboard"
-                  className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-white hover:text-primary"
+                  className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition ${onBrand ? "text-white/90 hover:bg-white/15 hover:text-white" : "text-slate-700 hover:bg-white hover:text-primary"
+                    }`}
                 >
                   <LayoutDashboard className="h-4 w-4" />
                   {tr("skdr.layout.dashboardLink")}
@@ -170,8 +182,8 @@ export default function DashboardHeader({
             ) : null}
 
             {/* PR 029: Dasbor ↔ Tata Kelola switch + user menu (or Masuk button) */}
-            <AreaSwitch />
-            <UserMenu />
+            <AreaSwitch onBrand={onBrand} />
+            <UserMenu onBrand={onBrand} />
           </div>
         </div>
       </div>

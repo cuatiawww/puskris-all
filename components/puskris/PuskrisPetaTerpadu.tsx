@@ -464,6 +464,8 @@ export default function PuskrisPetaTerpadu({
                     className="h-full rounded-none border-none bg-slate-50/70 shadow-none"
                     closeIcon="left"
                     metricLabel={choroLabel}
+                    curveMode="eoc-bulanan"
+                    tahun={f.tahun}
                   />
                 )}
                 <div className={dockTab === 'terbaru' ? 'h-full' : 'hidden'}>

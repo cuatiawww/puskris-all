@@ -12,7 +12,7 @@ import { wilayahHref } from '@/lib/puskris/eoc-event-layer'
 
 type Tab = 'ringkasan' | 'hotspot' | 'detail'
 
-function Curve({ rows, h = 120 }: { rows: { label: string; kasus: number; alert?: number }[]; h?: number }) {
+function Curve({ rows, h = 120, barName = 'Kasus' }: { rows: { label: string; kasus: number; alert?: number }[]; h?: number; barName?: string }) {
   return (
     <div style={{ height: h }}>
       <ResponsiveContainer width="100%" height="100%">
@@ -21,7 +21,7 @@ function Curve({ rows, h = 120 }: { rows: { label: string; kasus: number; alert?
           <XAxis dataKey="label" tick={{ fontSize: 9 }} interval="preserveStartEnd" />
           <YAxis tick={{ fontSize: 9 }} allowDecimals={false} />
           <Tooltip formatter={(v: any) => nf(v)} labelStyle={{ fontSize: 11 }} contentStyle={{ fontSize: 11 }} />
-          <Bar dataKey="kasus" name="Kasus" fill="#0f766e" isAnimationActive={false} />
+          <Bar dataKey="kasus" name={barName} fill="#0f766e" isAnimationActive={false} />
         </BarChart>
       </ResponsiveContainer>
     </div>
@@ -30,9 +30,12 @@ function Curve({ rows, h = 120 }: { rows: { label: string; kasus: number; alert?
 
 const chgCls = (v: number | null) => (v === null ? 'text-slate-400' : v > 0 ? 'text-red-600' : v < 0 ? 'text-emerald-600' : 'text-slate-500')
 
-export default function SpasialPanel({ f, data, titik, metric, selected, onPickArea, onPickTitik, onClose, onClear, className, closeIcon = 'right', metricLabel }: {
+export default function SpasialPanel({ f, data, titik, metric, selected, onPickArea, onPickTitik, onClose, onClear, className, closeIcon = 'right', metricLabel, curveMode, tahun }: {
   f: AFilter; data: SpasialResp | null; titik: Titik[]; metric: Metric; selected: Area | null
   onPickArea: (a: Area) => void; onPickTitik: (t: Titik) => void; onClose: () => void; onClear: () => void; className?: string; closeIcon?: 'left' | 'right'; metricLabel?: string
+  /** eoc-bulanan: grafik Analisa > Ringkasan adalah jumlah kejadian EOC per bulan, bukan kasus per minggu epid. */
+  curveMode?: 'eoc-bulanan' | 'skdr'
+  tahun?: number | string | null
 }) {
   const [tab, setTab] = useState<Tab>('ringkasan')
   const [hs, setHs] = useState<'wilayah' | 'unit'>('wilayah')
@@ -98,8 +101,8 @@ export default function SpasialPanel({ f, data, titik, metric, selected, onPickA
               <ul className="list-disc space-y-1 pl-4 leading-snug">{(data.interpretasi || []).map((x, i) => <li key={i}>{x}</li>)}</ul>
             </section>
             <section className="rounded-xl border border-slate-200 bg-white p-3">
-              <p className="mb-1 flex items-center gap-1 text-[10px] font-black uppercase tracking-wide text-slate-500">Kurva epidemi (kasus per minggu epid)<InfoTip text="Jumlah kasus per minggu epid pada wilayah & filter terpilih." /></p>
-              <Curve rows={r?.kurva || []} />
+              <p className="mb-1 flex items-center gap-1 text-[10px] font-black uppercase tracking-wide text-slate-500">{curveMode === 'eoc-bulanan' ? `Tren pantauan kejadian selama tahun ${tahun}` : 'Kurva epidemi (kasus per minggu epid)'}<InfoTip text={curveMode === 'eoc-bulanan' ? `Jumlah kejadian terpantau per bulan sepanjang tahun ${tahun} dari API EOC. Perbandingan di bawah membandingkan bulan terakhir dengan bulan sebelumnya.` : 'Jumlah kasus per minggu epid pada wilayah & filter terpilih.'} /></p>
+              <Curve rows={r?.kurva || []} barName={curveMode === 'eoc-bulanan' ? 'Kejadian' : 'Kasus'} />
               <div className="mt-1 grid grid-cols-3 gap-1 text-center">
                 <div><p className="text-slate-400">{data.minggu_lalu}</p><b className="tabular-nums">{nf(r?.minggu_lalu)}</b></div>
                 <div><p className="text-slate-400">{data.minggu_ini}</p><b className="tabular-nums">{nf(r?.minggu_ini)}</b></div>
@@ -132,7 +135,7 @@ export default function SpasialPanel({ f, data, titik, metric, selected, onPickA
           </section>
         ) : null}
         {data && tab === 'detail' ? (
-          !selected ? <p className="rounded-xl border border-dashed border-slate-300 bg-white p-3 text-slate-500">Klik wilayah atau baris peringkat untuk melihat detail: penyakit teratas, {data.level === 'kabkota' ? 'kecamatan' : 'kab/kota'} dan unit pelapor teratas, serta kurva mingguan.</p> : (
+          !selected ? <p className="rounded-xl border border-dashed border-slate-300 bg-white p-3 text-slate-500">{curveMode === 'eoc-bulanan' ? 'Klik wilayah atau baris peringkat untuk melihat detail wilayah dan tren bulanan.' : <>Klik wilayah atau baris peringkat untuk melihat detail: penyakit teratas, {data.level === 'kabkota' ? 'kecamatan' : 'kab/kota'} dan unit pelapor teratas, serta kurva mingguan.</>}</p> : (
             <>
               <section className="rounded-xl border-2 border-teal-700/20 bg-white p-3" data-testid="spasial-detail">
                 <div className="grid grid-cols-3 gap-2 text-center">
@@ -144,7 +147,7 @@ export default function SpasialPanel({ f, data, titik, metric, selected, onPickA
                   <div><p className="text-slate-400">KLB</p><b className={selected.klb ? 'text-red-600' : ''}>{nf(selected.klb)}</b></div>
                 </div>
                 {detLoading ? <p className="mt-2 flex items-center gap-2 text-slate-500"><Loader2 className="h-4 w-4 animate-spin" />Memuat detail…</p> : null}
-                {det?.kurva ? <div className="mt-2"><Curve rows={det.kurva} h={110} /></div> : null}
+                {det?.kurva ? <div className="mt-2"><Curve rows={det.kurva} h={110} barName={curveMode === 'eoc-bulanan' ? 'Kejadian' : 'Kasus'} /></div> : null}
                 <Link href={matriksHref} className="mt-2 block rounded-lg border border-teal-200 bg-teal-50 px-2 py-1.5 text-center text-[11px] font-bold text-teal-800 hover:bg-teal-100">Buka wilayah ini di Matriks Analisa</Link>
                 {selected?.code ? <Link href={wilayahHref(String(selected.code))} className="mt-1.5 block rounded-lg bg-[#00705a] px-2 py-1.5 text-center text-[11px] font-bold text-white hover:bg-[#005a48]" data-testid="spasial-link-detail-wilayah">Lihat detail wilayah</Link> : null}
               </section>

@@ -16,7 +16,7 @@ export const LIMITED_PREFIXES = ['/dashboard/spasial', '/dashboard/matriks-anali
 
 export function routeArea(pathname: string): Area {
   const p = pathname || '/'
-  if (p === '/login') return 'bare'
+  if (p === '/login' || p === '/register') return 'bare'
   if (p === '/' || p === '/beranda') return 'home'
   if (TATAKELOLA_PREFIXES.some((x) => under(p, x))) return 'tatakelola'
   if (DASHBOARD_PREFIXES.some((x) => under(p, x))) return 'dashboard'
@@ -25,7 +25,7 @@ export function routeArea(pathname: string): Area {
 
 export function routeNeed(pathname: string): Need {
   const p = pathname || '/'
-  if (p === '/' || p === '/login') return { kind: 'public' }
+  if (p === '/' || p === '/login' || p === '/register') return { kind: 'public' }
   if (LIMITED_PREFIXES.some((x) => under(p, x))) return { kind: 'perm', perm: 'dashboard_limited' }
   if (['/tatakelola/pengguna', '/tatakelola/peran', '/tatakelola/log-akses'].some((x) => under(p, x))) return { kind: 'perm', perm: 'user_management' }
   if (under(p, '/master')) return { kind: 'perm', perm: 'master_data' }

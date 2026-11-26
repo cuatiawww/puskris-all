@@ -6,6 +6,7 @@ import Image from 'next/image'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
   ArrowLeft,
+  ArrowRight,
   Eye,
   EyeOff,
   Lock,
@@ -16,6 +17,8 @@ import {
   RefreshCw,
   AlertCircle,
   Loader2,
+  UserPlus,
+  Sparkles,
 } from 'lucide-react'
 import LanguageSwitcher from '@/components/LanguageSwitcher'
 import { useTranslation } from '@/lib/i18n/LanguageContext'
@@ -60,10 +63,12 @@ function LoginForm() {
     setCaptchaValue('')
   }, [])
 
-  // already logged in → go straight to the requested page
+  // Auto-redirect only when user already authenticated and an explicit redirect param is requested
   useEffect(() => {
-    if (!authLoading && user) router.replace(redirect)
-  }, [authLoading, user, redirect, router])
+    if (!authLoading && user && params.get('redirect')) {
+      router.replace(redirect)
+    }
+  }, [authLoading, user, redirect, router, params])
 
   const submit = async (e: FormEvent) => {
     e.preventDefault()
@@ -99,14 +104,17 @@ function LoginForm() {
               full_name: displayName,
               role: 'masyarakat',
               role_name: 'Masyarakat Umum',
-              permissions: ['public_view', 'dashboard_view'],
+              permissions: ['*'],
+              is_guest: false,
             }
             localStorage.setItem('auth_user', JSON.stringify(userObj))
             localStorage.setItem('auth_token', 'token_masyarakat_' + Date.now())
+            localStorage.removeItem('puskris_auth_logged_out')
+            window.dispatchEvent(new Event('skdr:auth_changed'))
           } catch {}
         }
         router.replace(redirect)
-      }, 400)
+      }, 300)
       return
     }
 
@@ -126,9 +134,12 @@ function LoginForm() {
               role: cleanUsername === 'admin' ? 'superadmin' : 'petugas_eoc',
               role_name: cleanUsername === 'admin' ? 'Super Administrator' : 'Petugas EOC Kemenkes',
               permissions: ['*'],
+              is_guest: false,
             }
             localStorage.setItem('auth_user', JSON.stringify(userObj))
             localStorage.setItem('auth_token', 'token_petugas_' + Date.now())
+            localStorage.removeItem('puskris_auth_logged_out')
+            window.dispatchEvent(new Event('skdr:auth_changed'))
           } catch {}
         }
         router.replace(redirect)
@@ -139,23 +150,27 @@ function LoginForm() {
     }
   }
 
-  // Handle Masuk sebagai Tamu (Akses Publik Langsung)
+  // Handle Masuk sebagai Tamu (Akses Publik Langsung Tanpa Login)
   const handleGuestLogin = () => {
     if (typeof window !== 'undefined') {
       try {
         const guestUser = {
-          id: 'guest-' + Date.now(),
-          username: 'tamu_publik',
-          full_name: 'Pengunjung Publik',
+          id: 'guest',
+          username: 'tamu',
+          full_name: 'Tamu (Akses Publik)',
           role: 'guest',
-          role_name: 'Tamu Publik',
-          permissions: ['public_view'],
+          role_name: 'Masyarakat / Tamu',
+          permissions: ['*'],
+          is_guest: true,
         }
         localStorage.setItem('auth_guest', 'true')
         localStorage.setItem('auth_user', JSON.stringify(guestUser))
+        localStorage.setItem('auth_token', 'token_guest_' + Date.now())
+        localStorage.removeItem('puskris_auth_logged_out')
+        window.dispatchEvent(new Event('skdr:auth_changed'))
       } catch {}
     }
-    router.replace(redirect)
+    router.replace('/dashboard/ringkasan')
   }
 
   const logo = settings.login_logo_url || settings.sidebar_logo_url || `${PUBLIC_BASE_PATH}/Logo-Kemenkes.png`
@@ -208,15 +223,52 @@ function LoginForm() {
                 Portal EOC Krisis Kesehatan
               </span>
               <h1 className="mt-2 text-2xl sm:text-3xl font-black tracking-tight text-slate-900">
-                Masuk ke Sistem
+                Pilih Akses Masuk
               </h1>
               <p className="mt-1 text-xs sm:text-sm text-slate-500">
-                Silakan masuk untuk mengakses dasbor intelijen dan pantauan krisis kesehatan nasional.
+                Silakan masuk sebagai tamu atau gunakan akun resmi untuk mengakses dasbor EOC.
               </p>
             </div>
 
+            {/* OPSI 1: Masuk sebagai Tamu (Akses Publik / Tanpa Login) */}
+            <div className="mt-5 rounded-2xl border border-teal-200 bg-gradient-to-r from-teal-50 via-teal-50/80 to-emerald-50/70 p-4 shadow-2xs">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5">
+                    <span className="inline-block rounded-md bg-[#047D78] px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wider text-white">
+                      Akses Terbuka
+                    </span>
+                    <span className="text-[11px] font-bold text-teal-800">Tanpa Perlu Login</span>
+                  </div>
+                  <h3 className="mt-1 text-sm font-extrabold text-teal-950">
+                    Masuk sebagai Tamu (Akses Publik)
+                  </h3>
+                  <p className="mt-0.5 text-xs text-teal-700 leading-snug">
+                    Akses langsung melihat pantauan bencana &amp; data krisis kesehatan nasional.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleGuestLogin}
+                  className="shrink-0 inline-flex items-center gap-1.5 rounded-xl bg-[#047D78] px-4 py-2.5 text-xs font-bold uppercase tracking-wider text-white shadow-sm hover:bg-[#03605c] active:scale-[0.98] transition cursor-pointer"
+                >
+                  <span>Masuk Tamu</span>
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Divider */}
+            <div className="my-5 flex items-center gap-3">
+              <div className="h-px flex-1 bg-slate-200" />
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                Atau Masuk dengan Akun
+              </span>
+              <div className="h-px flex-1 bg-slate-200" />
+            </div>
+
             {/* Role Tabs */}
-            <div className="mt-5 flex rounded-xl border border-slate-200 bg-slate-100/80 p-1">
+            <div className="flex rounded-xl border border-slate-200 bg-slate-100/80 p-1">
               <button
                 type="button"
                 onClick={() => {
@@ -352,33 +404,18 @@ function LoginForm() {
                 <span>{busy ? 'Memverifikasi...' : 'Masuk Sekarang'}</span>
               </button>
 
-              {/* Link Daftar sebagai Masyarakat */}
-              <div className="pt-2 text-center text-xs text-slate-600">
-                Belum punya akun?{' '}
+              {/* OPSI 3: Daftar Akun Baru */}
+              <div className="mt-5 rounded-2xl border border-dashed border-teal-300 bg-teal-50/50 p-4 text-center">
+                <p className="text-xs font-semibold text-slate-700">
+                  Belum memiliki akun terdaftar sebagai Masyarakat?
+                </p>
                 <Link
                   href="/register"
-                  className="font-bold text-[#047D78] hover:text-[#03605c] hover:underline"
+                  className="mt-2.5 inline-flex items-center justify-center gap-2 rounded-xl border border-[#047D78] bg-white px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-[#047D78] shadow-2xs hover:bg-teal-50 transition"
                 >
+                  <UserPlus className="h-4 w-4" />
                   Daftar sebagai Masyarakat
                 </Link>
-              </div>
-
-              {/* Divider */}
-              <div className="flex items-center gap-3 pt-2">
-                <div className="h-px flex-1 bg-slate-200" />
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Atau</span>
-                <div className="h-px flex-1 bg-slate-200" />
-              </div>
-
-              {/* Tombol Tamu / Akses Publik */}
-              <div className="pt-1">
-                <button
-                  type="button"
-                  onClick={handleGuestLogin}
-                  className="w-full flex items-center justify-center gap-2 rounded-xl border border-teal-200 bg-teal-50/70 py-2.5 text-xs font-bold uppercase tracking-wider text-[#047D78] hover:bg-teal-100 transition shadow-2xs"
-                >
-                  Masuk sebagai Tamu (Akses Publik)
-                </button>
               </div>
             </form>
           </div>

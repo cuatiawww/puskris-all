@@ -3,12 +3,14 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import {
   AlertCircle,
   CheckCircle2,
   Loader2,
   UserPlus,
   ArrowLeft,
+  ArrowRight,
   Building2,
   Briefcase,
   MapPin,
@@ -20,6 +22,7 @@ import {
   Check,
   X,
   RefreshCw,
+  Sparkles,
 } from 'lucide-react'
 import { PUBLIC_BASE_PATH } from '@/lib/public-path'
 
@@ -126,6 +129,8 @@ function generateMathCaptcha() {
 }
 
 export default function RegisterPage() {
+  const router = useRouter()
+
   // Flow State: 'form' | 'otp' | 'success'
   const [step, setStep] = useState<'form' | 'otp' | 'success'>('form')
 
@@ -356,6 +361,29 @@ export default function RegisterPage() {
     }, 400)
   }
 
+  // Handle Masuk sebagai Tamu (Langsung tanpa daftar)
+  const handleGuestAccess = () => {
+    if (typeof window !== 'undefined') {
+      try {
+        const guestUser = {
+          id: 'guest',
+          username: 'tamu',
+          full_name: 'Tamu (Akses Publik)',
+          role: 'guest',
+          role_name: 'Masyarakat / Tamu',
+          permissions: ['*'],
+          is_guest: true,
+        }
+        localStorage.setItem('auth_guest', 'true')
+        localStorage.setItem('auth_user', JSON.stringify(guestUser))
+        localStorage.setItem('auth_token', 'token_guest_' + Date.now())
+        localStorage.removeItem('puskris_auth_logged_out')
+        window.dispatchEvent(new Event('skdr:auth_changed'))
+      } catch {}
+    }
+    router.replace('/dashboard/ringkasan')
+  }
+
   return (
     <div className="relative min-h-screen overflow-hidden py-10 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
       {/* Background image */}
@@ -384,15 +412,25 @@ export default function RegisterPage() {
       />
 
       <div className="relative z-10 w-full max-w-[820px] bg-white rounded-3xl border border-[#c8dedd] shadow-[0_25px_70px_rgba(0,0,0,0.30)] p-6 sm:p-10 my-4">
-        {/* Back Link */}
+        {/* Top Navigation Bar */}
         {step !== 'otp' && (
-          <Link
-            href="/login"
-            className="inline-flex items-center gap-2 text-teal-700 hover:text-teal-800 font-bold text-xs uppercase tracking-wider mb-6 transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Kembali ke Halaman Masuk
-          </Link>
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
+            <Link
+              href="/login"
+              className="inline-flex items-center gap-2 text-teal-700 hover:text-teal-800 font-bold text-xs uppercase tracking-wider transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Kembali ke Halaman Masuk
+            </Link>
+            <button
+              type="button"
+              onClick={handleGuestAccess}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-teal-200 bg-teal-50 px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider text-[#047D78] hover:bg-teal-100 transition shadow-2xs cursor-pointer"
+            >
+              <span>Masuk sebagai Tamu (Tanpa Daftar)</span>
+              <ArrowRight className="h-3.5 w-3.5" />
+            </button>
+          </div>
         )}
 
         {/* ── STEP 1: FORM PENDAFTARAN ─────────────────────────────────── */}
@@ -1022,6 +1060,13 @@ export default function RegisterPage() {
               >
                 Lanjut ke Halaman Login
               </Link>
+              <button
+                type="button"
+                onClick={handleGuestAccess}
+                className="inline-flex h-12 items-center justify-center rounded-xl border border-teal-300 bg-teal-50 px-8 text-xs font-bold uppercase tracking-wider text-[#047D78] hover:bg-teal-100 transition-colors shadow-2xs cursor-pointer"
+              >
+                Langsung Masuk sebagai Tamu
+              </button>
             </div>
           </div>
         )}

@@ -143,7 +143,7 @@ function pairTrend(cur: number | null | undefined, prev: number | null | undefin
 }
 
 function KpiCardItem({
-  label, value, unit, sub, icon: Icon, tone = 'primary', href, note, trend,
+  label, value, unit, sub, icon: Icon, tone = 'primary', href, note, trend, source,
 }: {
   label: string
   value: React.ReactNode
@@ -154,6 +154,7 @@ function KpiCardItem({
   href?: string
   note?: string | null
   trend?: KpiTrend | null
+  source?: string | null
 }) {
   const toneClasses = {
     primary: { border: 'border-l-primary hover:border-primary/60', bg: 'bg-primary/10 text-primary' },
@@ -187,10 +188,10 @@ function KpiCardItem({
   })() : null
 
   const content = (
-    <div className={`skdr-card relative block overflow-hidden border-l-4 ${toneClasses.border} p-3 transition`}>
-      <div className="flex items-center justify-between text-slate-500">
-        <span className="text-[11px] font-black uppercase tracking-wider">{label}</span>
-        <div className={`rounded-lg p-1.5 ${toneClasses.bg}`}><Icon className="h-4 w-4" /></div>
+    <div className={`skdr-card relative flex h-full flex-col overflow-hidden border-l-4 ${toneClasses.border} p-3 transition`}>
+      <div className="flex items-start justify-between gap-2 text-slate-500">
+        <span className={`text-[11px] font-black uppercase leading-tight tracking-wider ${source ? 'min-h-[2.25rem]' : ''}`}>{label}</span>
+        <div className={`shrink-0 rounded-lg p-1.5 ${toneClasses.bg}`}><Icon className="h-4 w-4" /></div>
       </div>
       <div className="mt-1.5 flex items-baseline gap-2">
         <span className="text-2xl font-black tracking-tight text-slate-900">{value}</span>
@@ -199,11 +200,12 @@ function KpiCardItem({
       {sub ? <div className="mt-2 text-xs font-bold text-slate-600">{sub}</div> : null}
       {trendBadge}
       {note ? <div className="mt-2 text-[10px] font-medium text-amber-800">{note}</div> : null}
+      {source ? <div className="mt-auto pt-2 text-[10px] font-medium leading-snug text-slate-400">{source}</div> : null}
     </div>
   )
 
   if (href) {
-    return <Link href={href} className="no-underline">{content}</Link>
+    return <Link href={href} className="block h-full no-underline">{content}</Link>
   }
   return content
 }
@@ -662,7 +664,7 @@ function DynamicKpiCards({
       <SectionHead eyebrow="Indikator utama" title="Kinerja nasional krisis kesehatan" />
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCardItem
-          label="Kejadian Krisis"
+          label="Pantauan Bencana/Krisis Kesehatan"
           value={nf(situasi.terpantau)}
           unit="kejadian"
           sub={`${nf(situasi.berdampak_krisis)} berdampak krisis`}
@@ -670,9 +672,10 @@ function DynamicKpiCards({
           tone="primary"
           trend={trendKejadian}
           href={withQuery('/dashboard/situasi-krisis', f)}
+          source="Sumber: Sistem Informasi Penanggulangan Krisis Kesehatan"
         />
         <KpiCardItem
-          label="Panggilan 119"
+          label="Panggilan NCC 119"
           value={nf(layanan.panggilan)}
           unit="panggilan"
           sub={
@@ -687,9 +690,10 @@ function DynamicKpiCards({
           trend={trendPanggilan}
           href={withQuery('/dashboard/layanan-gawat-darurat/panggilan-119', f)}
           note={isWilayah ? NASIONAL_NOTE : null}
+          source="Sumber: NCC 119 melalui Aplikasi SIAP PSC 119"
         />
         <KpiCardItem
-          label="Kapasitas Respons"
+          label="PSC"
           value={
             <div className="flex items-baseline gap-3">
               <div>
@@ -707,9 +711,10 @@ function DynamicKpiCards({
           icon={Ambulance}
           tone="emerald"
           href={withQuery('/dashboard/layanan-gawat-darurat', f)}
+          source="Sumber: Aplikasi SIAP PSC 119"
         />
         <KpiCardItem
-          label="Kesiapsiagaan SDM"
+          label="Tenaga Cadangan Kesehatan"
           value={
             <div className="flex items-baseline gap-3">
               <div>
@@ -729,6 +734,7 @@ function DynamicKpiCards({
           trend={trendTckIndividu}
           href={withQuery('/dashboard/kesiapsiagaan/tenaga-cadangan', f)}
           note={isWilayah && sdm.tim == null ? NASIONAL_NOTE : null}
+          source="Sumber: Sistem Informasi Tenaga Cadangan Kesehatan (SITCK)"
         />
       </div>
       <DampakPendudukStrip raw={raw} situasi={situasi} f={f} />

@@ -1,7 +1,7 @@
 import type { Periode, PuskrisFilter } from './types'
 
 export type Pilar = 'semua' | 'krisis' | 'layanan' | 'kesiapsiagaan'
-export type PuskrisTab = 'ringkasan' | 'krisis' | 'layanan' | 'kesiapsiagaan' | 'asistensi' | 'analisis'
+export type PuskrisTab = 'ringkasan' | 'krisis' | 'hidrometeorologi' | 'layanan' | 'kesiapsiagaan' | 'asistensi' | 'analisis'
 
 export type PuskrisUiFilter = PuskrisFilter & {
   pilar: Pilar

@@ -4,13 +4,16 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { usePuskrisRaw } from '@/components/puskris/usePuskrisRaw'
 import { activeFilterCount, defaultUiFilter, toDeriveFilter, type PuskrisUiFilter } from '@/lib/puskris/ui-filter'
-import { jenisOptions } from '@/lib/puskris/to-spasial'
 import { buildFilterOptions, tahunTersedia } from '@/lib/puskris/filter-options'
 import { filterQuery, matchPuskrisPath, parseFilterQuery } from '@/lib/puskris/pages'
 import PuskrisFilterPanel from '@/components/puskris/PuskrisFilterPanel'
 import PuskrisRingkasanView from '@/components/puskris/PuskrisRingkasanView'
 import PuskrisAnalisisView from '@/components/puskris/PuskrisAnalisisView'
+import HidrometeorologiView from '@/components/puskris/HidrometeorologiView'
 import PuskrisPageShell from '@/components/puskris/PuskrisPageShell'
+import { jenisOptions } from '@/lib/puskris/to-spasial'
+import { allJenisNames } from '@/lib/puskris/jenis-kejadian'
+import { isHidrometJenis } from '@/lib/puskris/jenis-meta'
 
 const PANEL_KEY = 'puskris-dasbor-filter-panel-open'
 
@@ -57,7 +60,14 @@ export default function PuskrisDasborClient() {
   }
 
   const router = useRouter()
-  const jenisList = useMemo(() => (raw ? jenisOptions(raw) : []), [raw])
+  const jenisList = useMemo(() => {
+    if (!raw) return []
+    if (item.key === 'hidrometeorologi') {
+      const names = allJenisNames(raw).filter(isHidrometJenis)
+      return names.length ? names : jenisOptions(raw).filter(isHidrometJenis)
+    }
+    return jenisOptions(raw)
+  }, [raw, item.key])
   const options = useCallback((d: PuskrisUiFilter) => buildFilterOptions(raw, d, item.key, bagian, jenisList), [raw, item.key, bagian, jenisList])
   const years = useMemo(() => tahunTersedia(raw), [raw])
   const bagianOptions = item.children?.length ? [{ key: null, label: item.key === 'asistensi' ? 'Provinsi & Kab/Kota' : `Semua bagian ${item.label}` }, ...item.children.map((c) => ({ key: c.key, label: c.label }))] : undefined
@@ -96,7 +106,9 @@ export default function PuskrisDasborClient() {
     >
       {item.key === 'analisis'
         ? <PuskrisAnalisisView raw={raw} f={f} onApply={handleApply} years={years} />
-        : <PuskrisRingkasanView raw={raw} f={f} tab={item.key} bagian={bagian} onApply={handleApply} />}
+        : item.key === 'hidrometeorologi'
+          ? <HidrometeorologiView raw={raw} f={f} onApply={handleApply} />
+          : <PuskrisRingkasanView raw={raw} f={f} tab={item.key} bagian={bagian} onApply={handleApply} />}
     </PuskrisPageShell>
   )
 }

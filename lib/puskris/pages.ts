@@ -1,4 +1,4 @@
-export type PuskrisPageKey = 'ringkasan' | 'krisis' | 'layanan' | 'kesiapsiagaan' | 'asistensi' | 'analisis'
+export type PuskrisPageKey = 'ringkasan' | 'krisis' | 'hidrometeorologi' | 'layanan' | 'kesiapsiagaan' | 'asistensi' | 'analisis'
 
 export type SourceLink = { label: string; href: string }
 
@@ -45,6 +45,16 @@ export const PUSKRIS_NAV: PuskrisNavItem[] = [
     eyebrow: 'Pantauan bencana',
     title: 'Pantauan Krisis Kesehatan',
     desc: 'Kejadian terpantau dan yang berdampak krisis, korban, pengungsi, penduduk terdampak, jenis kejadian, tren, dan peta sebaran.',
+    sources: [SOURCE.eocResmi, SOURCE.eocVercel],
+  },
+  {
+    key: 'hidrometeorologi',
+    href: '/dashboard/hidrometeorologi',
+    label: 'Hidrometeorologi',
+    shortLabel: 'Hidrometeorologi',
+    eyebrow: 'Hidrometeorologi & karhutla',
+    title: 'Hidrometeorologi',
+    desc: 'Pantauan kejadian hidrometeorologi (banjir, longsor, cuaca ekstrem, gelombang, kekeringan) bersama karhutla, karena keterkaitan musim. Peta, tren musiman, dampak kesehatan, dan kesiapan di provinsi terdampak — dari API EOC, bukan data curah hujan BMKG.',
     sources: [SOURCE.eocResmi, SOURCE.eocVercel],
   },
   {
@@ -123,6 +133,13 @@ export const PUSKRIS_TOP_BAR_TABS: PuskrisTopBarTab[] = [
     href: '/dashboard/situasi-krisis',
     label: 'Pantauan Krisis',
     pageKey: 'krisis',
+    bagian: null,
+  },
+  {
+    id: 'hidrometeorologi',
+    href: '/dashboard/hidrometeorologi',
+    label: 'Hidrometeorologi',
+    pageKey: 'hidrometeorologi',
     bagian: null,
   },
   {

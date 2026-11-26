@@ -12,6 +12,12 @@ export function jenisCategory(nama: string): string {
   return 'LAINNYA'
 }
 
+/** Hidrometeorologi + karhutla (ditampilkan bersama karena keterkaitan musim kemarau). */
+export function isHidrometJenis(nama: string | null | undefined): boolean {
+  const c = jenisCategory(String(nama || ''))
+  return c === 'ALAM · HIDROMETEOROLOGI' || c === 'ALAM · KARHUTLA'
+}
+
 export function deltaOf(values: number[]): { last4: number; prev4: number } | null {
   if (!values.length) return { last4: 0, prev4: 0 }
   const last4 = values.slice(-4).reduce((a, b) => a + b, 0)

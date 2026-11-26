@@ -2,6 +2,7 @@
 import type { FilterOptions } from '@/components/puskris/PuskrisFilterPanel'
 import type { PuskrisTab, PuskrisUiFilter } from './ui-filter'
 import { tahunIni } from './ui-filter'
+import { isHidrometJenis } from './jenis-meta'
 
 const uniq = (xs: string[]) => Array.from(new Set(xs.map((x) => String(x || '').trim()).filter((x) => x && x !== '-'))).sort((a, b) => a.localeCompare(b, 'id'))
 const cap = (s: string) => String(s || '').toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase()).replace(/^Kab\.?\s+/i, 'Kab. ')
@@ -34,6 +35,11 @@ export function buildFilterOptions(raw: any, f: PuskrisUiFilter, page: PuskrisTa
     catatan.push(`Asistensi Risiko adalah rekapitulasi tahun ${raw?.asistensi?.tahun || tahunIni()} (tidak mengikuti periode harian/bulanan).`)
   } else if (page === 'ringkasan') {
     catatan.push('Kejadian (EOC) dan NCC mengikuti periode; PSC panggilan per tahun; stok logistik, TCK, dan Asistensi adalah posisi terkini.')
+  } else if (page === 'hidrometeorologi') {
+    kab = prov ? uniq(((raw?.eoc?.events || []) as any[]).filter((e) => e.p === prov && isHidrometJenis(e.n)).map((e) => e.bn)) : []
+    catatan.push('Halaman ini hanya menampilkan kejadian hidrometeorologi dan karhutla dari API EOC.')
+    catatan.push('PSC, TCK, dan stok logistik adalah kapasitas berdiri di provinsi terdampak, bukan penugasan per jenis.')
+    catatan.push('Curah hujan dan peringatan dini BMKG belum tersedia di dasbor ini.')
   }
   const L = raw?.logistik || {}
   const regional = (L.regional || []).map((r: any) => ({ value: String(r.id), label: r.nama }))

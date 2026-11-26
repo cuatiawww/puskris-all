@@ -26,7 +26,7 @@ export type BagianOpt = { key: string | null; label: string }
 /** Bidang filter yang dipakai tiap halaman / bagian. */
 export function fieldsFor(page: PuskrisTab, bagian: string | null) {
   const F = { periode: true, provinsi: true, kab: true, jenis: false, regional: false, kategori: false, kedaluwarsa: false, profesi: false, tim: false, status: false, nccKategori: false }
-  if (page === 'ringkasan' || page === 'krisis' || page === 'analisis') F.jenis = true
+  if (page === 'ringkasan' || page === 'krisis' || page === 'analisis' || page === 'hidrometeorologi') F.jenis = true
   if (page === 'layanan') {
     if (!bagian || bagian === 'psc' || bagian === 'ambulans') F.status = true
     if (bagian === 'panggilan-119') { F.nccKategori = true; F.kab = false }

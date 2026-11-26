@@ -84,6 +84,7 @@ export function trendBulanan(list: any[]) {
       kejadian: items.length,
       krisis: items.filter((k) => k.krisis).length,
       meninggal: items.reduce((s, k) => s + Number(k.meninggal || 0), 0),
+      hilang: items.reduce((s, k) => s + Number(k.hilang || 0), 0),
       luka: items.reduce((s, k) => s + Number(k.luka_berat || 0) + Number(k.luka_ringan || 0), 0),
       pengungsi: items.reduce((s, k) => s + Number(k.pengungsi || 0), 0),
       terdampak: items.reduce((s, k) => s + Number(k.terdampak || 0), 0),

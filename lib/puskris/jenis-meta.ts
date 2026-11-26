@@ -12,10 +12,9 @@ export function jenisCategory(nama: string): string {
   return 'LAINNYA'
 }
 
-/** Hidrometeorologi + karhutla (ditampilkan bersama karena keterkaitan musim kemarau). */
+/** Jenis kejadian hidrometeorologi (banjir, longsor, cuaca ekstrem, gelombang, kekeringan). Tidak termasuk karhutla. */
 export function isHidrometJenis(nama: string | null | undefined): boolean {
-  const c = jenisCategory(String(nama || ''))
-  return c === 'ALAM · HIDROMETEOROLOGI' || c === 'ALAM · KARHUTLA'
+  return jenisCategory(String(nama || '')) === 'ALAM · HIDROMETEOROLOGI'
 }
 
 export function deltaOf(values: number[]): { last4: number; prev4: number } | null {

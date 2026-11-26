@@ -435,7 +435,7 @@ export function ensureHidrometMenu(config: SidebarGroupConfig[]): SidebarGroupCo
   )
   if (has) return config
   const item = it('mod_hidrometeorologi', 'Hidrometeorologi', '/dashboard/hidrometeorologi', 'CloudRain', 2.6, {
-    description: 'Pantauan kejadian hidrometeorologi dan karhutla: peta, tren musiman, dampak, dan kesiapan di provinsi terdampak',
+    description: 'Pantauan kejadian hidrometeorologi: peta, tren musiman, dampak, dan kesiapan di provinsi terdampak',
   })
   return (config || []).map((g) => {
     if (g.id !== 'grp_dasbor' && g.area !== 'dashboard') return g
@@ -487,7 +487,7 @@ export const DEFAULT_NAVIGATION_CONFIG: SidebarGroupConfig[] = [
       description: 'Dashboard nasional per jenis kejadian: peta, dampak, chart, dan kesiapan di provinsi terdampak',
     }),
     it('mod_hidrometeorologi', 'Hidrometeorologi', '/dashboard/hidrometeorologi', 'CloudRain', 2.6, {
-      description: 'Pantauan kejadian hidrometeorologi dan karhutla: peta, tren musiman, dampak, dan kesiapan di provinsi terdampak',
+      description: 'Pantauan kejadian hidrometeorologi: peta, tren musiman, dampak, dan kesiapan di provinsi terdampak',
     }),
     it('mod_layanan', 'Layanan Gawat Darurat', '/dashboard/layanan-gawat-darurat', 'PhoneCall', 3, {
       description: 'PSC, ambulans, dan panggilan 119',

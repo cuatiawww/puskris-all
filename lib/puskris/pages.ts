@@ -52,9 +52,9 @@ export const PUSKRIS_NAV: PuskrisNavItem[] = [
     href: '/dashboard/hidrometeorologi',
     label: 'Hidrometeorologi',
     shortLabel: 'Hidrometeorologi',
-    eyebrow: 'Hidrometeorologi & karhutla',
+    eyebrow: 'Hidrometeorologi',
     title: 'Hidrometeorologi',
-    desc: 'Pantauan kejadian hidrometeorologi (banjir, longsor, cuaca ekstrem, gelombang, kekeringan) bersama karhutla, karena keterkaitan musim. Peta, tren musiman, dampak kesehatan, dan kesiapan di provinsi terdampak — dari API EOC, bukan data curah hujan BMKG.',
+    desc: 'Pantauan kejadian hidrometeorologi (banjir, longsor, cuaca ekstrem, gelombang, kekeringan). Peta, tren musiman, dampak kesehatan, dan kesiapan di provinsi terdampak — dari API EOC, bukan data curah hujan BMKG.',
     sources: [SOURCE.eocResmi, SOURCE.eocVercel],
   },
   {
@@ -136,13 +136,6 @@ export const PUSKRIS_TOP_BAR_TABS: PuskrisTopBarTab[] = [
     bagian: null,
   },
   {
-    id: 'hidrometeorologi',
-    href: '/dashboard/hidrometeorologi',
-    label: 'Hidrometeorologi',
-    pageKey: 'hidrometeorologi',
-    bagian: null,
-  },
-  {
     id: 'psc',
     href: '/dashboard/layanan-gawat-darurat/psc',
     label: 'PSC 119',
@@ -189,6 +182,13 @@ export const PUSKRIS_TOP_BAR_TABS: PuskrisTopBarTab[] = [
     href: '/dashboard/analisis',
     label: 'Analisis & Matriks',
     pageKey: 'analisis',
+    bagian: null,
+  },
+  {
+    id: 'hidrometeorologi',
+    href: '/dashboard/hidrometeorologi',
+    label: 'Hidrometeorologi',
+    pageKey: 'hidrometeorologi',
     bagian: null,
   },
 ]

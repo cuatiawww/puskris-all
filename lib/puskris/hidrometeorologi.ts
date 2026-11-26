@@ -2,7 +2,7 @@ import { isHidrometJenis } from '@/lib/puskris/jenis-meta'
 
 export { isHidrometJenis }
 
-/** Salin payload API, tapi hanya kejadian hidrometeorologi (+ karhutla). PSC/TCK/logistik tetap utuh. */
+/** Salin payload API, tapi hanya kejadian hidrometeorologi (tanpa karhutla). PSC/TCK/logistik tetap utuh. */
 export function scopeRawHidromet(raw: any, jenisNama?: string | null) {
   if (!raw) return raw
   const want = jenisNama && isHidrometJenis(jenisNama) ? jenisNama : null

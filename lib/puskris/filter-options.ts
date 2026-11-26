@@ -37,7 +37,7 @@ export function buildFilterOptions(raw: any, f: PuskrisUiFilter, page: PuskrisTa
     catatan.push('Kejadian (EOC) dan NCC mengikuti periode; PSC panggilan per tahun; stok logistik, TCK, dan Asistensi adalah posisi terkini.')
   } else if (page === 'hidrometeorologi') {
     kab = prov ? uniq(((raw?.eoc?.events || []) as any[]).filter((e) => e.p === prov && isHidrometJenis(e.n)).map((e) => e.bn)) : []
-    catatan.push('Halaman ini hanya menampilkan kejadian hidrometeorologi dan karhutla dari API EOC.')
+    catatan.push('Halaman ini hanya menampilkan kejadian hidrometeorologi dari API EOC.')
     catatan.push('PSC, TCK, dan stok logistik adalah kapasitas berdiri di provinsi terdampak, bukan penugasan per jenis.')
     catatan.push('Curah hujan dan peringatan dini BMKG belum tersedia di dasbor ini.')
   }

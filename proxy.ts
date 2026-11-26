@@ -7,7 +7,7 @@ import { routeNeed } from '@/lib/access'
 
 const COOKIE = process.env.SESSION_COOKIE_NAME || 'skdr_session'
 
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   if (process.env.NEXT_PUBLIC_BYPASS_AUTH === 'true' || process.env.BYPASS_AUTH === 'true') {
     return NextResponse.next()
   }

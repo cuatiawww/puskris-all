@@ -70,10 +70,11 @@ export default function UserMenu({ onBrand = false }: { onBrand?: boolean }) {
     )
   }
   const name = user.full_name || user.username
-  const initials = name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase()
+  const isGuest = user.is_guest || user.role === 'guest' || user.username === 'tamu'
+  const initials = isGuest ? 'TM' : name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase()
   const doLogout = async () => {
     await logout()
-    toast.success(t('skdr.auth.loggedOut'))
+    toast.success(isGuest ? 'Keluar dari sesi tamu' : t('skdr.auth.loggedOut'))
     router.replace('/login')
   }
   const isBypass = process.env.NEXT_PUBLIC_BYPASS_AUTH === 'true'
@@ -85,7 +86,7 @@ export default function UserMenu({ onBrand = false }: { onBrand?: boolean }) {
             ? 'border-white/25 bg-white/15 hover:bg-white/25'
             : 'border-white/45 bg-white/90 hover:bg-white'
           }`}>
-        <span className={`grid h-8 w-8 place-items-center rounded-xl text-xs font-bold ${onBrand ? 'bg-white text-brand-700' : 'bg-primary text-white'
+        <span className={`grid h-8 w-8 place-items-center rounded-xl text-xs font-bold ${onBrand ? (isGuest ? 'bg-amber-400 text-teal-950' : 'bg-white text-brand-700') : 'bg-primary text-white'
           }`}>{initials}</span>
         <span className="hidden min-w-0 text-left sm:block">
           <span className={`block max-w-[160px] truncate text-sm font-bold ${onBrand ? 'text-white' : 'text-slate-800'}`}>{name}</span>
@@ -97,14 +98,22 @@ export default function UserMenu({ onBrand = false }: { onBrand?: boolean }) {
         <div role="menu" className="absolute right-0 z-[70] mt-2 w-64 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl shadow-slate-900/10">
           <div className="border-b border-slate-100 px-3 pb-2 pt-1">
             <p className="truncate text-sm font-bold text-slate-900">{name}</p>
-            <p className="truncate text-xs text-slate-500">@{user.username} · {user.role_name}</p>
+            <p className="truncate text-xs text-slate-500">{isGuest ? 'Akses Publik Tanpa Login' : `@${user.username} · ${user.role_name}`}</p>
           </div>
           <div className="pt-1">
             <Link href="/dashboard/ringkasan" role="menuitem" className={item}><LayoutDashboard className="h-4 w-4 text-slate-400" />{t('skdr.auth.areaDashboard')}</Link>
             <Link href="/dashboard/open-data" role="menuitem" className={item}><Database className="h-4 w-4 text-slate-400" />Open Data &amp; API</Link>
-            {!isBypass && (
+            {isGuest ? (
               <>
-                <button type="button" role="menuitem" className={item} onClick={() => { setOpen(false); setPwOpen(true) }}><KeyRound className="h-4 w-4 text-slate-400" />{t('skdr.auth.changePassword')}</button>
+                <Link href="/login" role="menuitem" className={item}><LogIn className="h-4 w-4 text-teal-600" />Masuk Akun Resmi</Link>
+                <Link href="/register" role="menuitem" className={item}><KeyRound className="h-4 w-4 text-teal-600" />Daftar sebagai Masyarakat</Link>
+                <button type="button" role="menuitem" data-testid="logout" className={`${item} text-red-600 hover:bg-red-50`} onClick={doLogout}><LogOut className="h-4 w-4" />Keluar Akses Tamu</button>
+              </>
+            ) : (
+              <>
+                {!isBypass && user.role !== 'masyarakat' && (
+                  <button type="button" role="menuitem" className={item} onClick={() => { setOpen(false); setPwOpen(true) }}><KeyRound className="h-4 w-4 text-slate-400" />{t('skdr.auth.changePassword')}</button>
+                )}
                 <button type="button" role="menuitem" data-testid="logout" className={`${item} text-red-600 hover:bg-red-50`} onClick={doLogout}><LogOut className="h-4 w-4" />{t('skdr.auth.logout')}</button>
               </>
             )}

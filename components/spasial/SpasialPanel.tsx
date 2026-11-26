@@ -75,7 +75,7 @@ export default function SpasialPanel({ f, data, titik, metric, selected, onPickA
 
       <div className="flex items-center justify-between border-b border-slate-200 bg-white px-3 py-2.5">
         <div className="min-w-0">
-          <p className="truncate text-sm font-black text-slate-800">{selected ? selected.nama : (data?.meta?.breadcrumb || []).map((c: any) => c.label).slice(-1)[0] || 'Indonesia'}</p>
+          <p className="truncate text-sm font-black text-slate-800">{selected ? selected.nama : (data?.meta?.breadcrumb || []).map((c: any) => c.label).slice(-1)[0] || 'Nasional'}</p>
           <p className="text-[11px] text-slate-500">{data?.meta?.periode_label} · {data?.meta?.sumber_label}</p>
         </div>
         <div className="flex items-center gap-1">

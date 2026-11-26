@@ -18,6 +18,7 @@ import { toDeriveFilter, type PuskrisUiFilter } from '@/lib/puskris/ui-filter'
 import KejadianTerpaduCard from '@/components/puskris/KejadianTerpaduCard'
 import KejadianTerbaruList from '@/components/puskris/KejadianTerbaruList'
 import PetaAnalitikPanel from '@/components/puskris/PetaAnalitikPanel'
+import PuskrisAiDock from '@/components/puskris/PuskrisAiDock'
 import KejadianSituasiDock, { KejadianAnalitikDock, KejadianKesiapanDock, KejadianRisikoDock } from '@/components/puskris/KejadianDock'
 import { buildKejadianMapLayers, DEFAULT_SEKITAR, type SekitarToggles } from '@/lib/puskris/kejadian-map-layers'
 import InfoHint from '@/components/puskris/InfoHint'
@@ -105,7 +106,7 @@ export default function PuskrisPetaTerpadu({
   const [bnpbLayers, setBnpbLayers] = useState<Partial<Record<BnpbLayerId, boolean>>>({})
   const [bnpbStatus, setBnpbStatus] = useState<Partial<Record<BnpbLayerId, BnpbStatus>>>({})
   const onBnpbStatus = useCallback((id: BnpbLayerId, st: BnpbStatus) => setBnpbStatus((prev) => (prev[id]?.state === st.state && prev[id]?.message === st.message ? prev : { ...prev, [id]: st })), [])
-  const [dockTab, setDockTab] = useState<'analisa' | 'terbaru' | 'terpadu' | 'analitik' | 'situasi' | 'kesiapan' | 'risiko'>(mode === 'kejadian' ? 'situasi' : 'analisa')
+  const [dockTab, setDockTab] = useState<'ai' | 'analisa' | 'terbaru' | 'terpadu' | 'analitik' | 'situasi' | 'kesiapan' | 'risiko'>(mode === 'kejadian' ? 'situasi' : 'ai')
   const [sekitar, setSekitar] = useState<SekitarToggles>(mode === 'kejadian' ? { ...DEFAULT_SEKITAR, riwayat: false } : DEFAULT_SEKITAR)
   const [terbaruCount, setTerbaruCount] = useState<number | null>(null)
   const [radiusOn, setRadiusOn] = useState(true)
@@ -417,7 +418,7 @@ export default function PuskrisPetaTerpadu({
               <div className="flex shrink-0 gap-1 border-b border-slate-200 bg-white px-2 py-1.5">
                 {(mode === 'kejadian'
                   ? ([['situasi', 'Situasi'], ['analitik', 'Analitik'], ['kesiapan', 'Kesiapan'], ['risiko', 'Risiko']] as const)
-                  : ([['analisa', 'Analisa'], ['analitik', 'Analitik'], ['terbaru', `Terbaru${terbaruCount ? ` (${terbaruCount})` : ''}`], ['terpadu', 'Terpadu']] as const)
+                  : ([['ai', 'Analisa AI'], ['analitik', 'Tren'], ['terbaru', `Terbaru${terbaruCount ? ` (${terbaruCount})` : ''}`], ['terpadu', 'Detail'], ['analisa', 'Nasional']] as const)
                 ).map(([key, l]) => (
                   <button key={key} type="button" onClick={() => setDockTab(key)}
                     className={`flex-1 rounded-lg px-1.5 py-1 text-[10px] font-bold ${dockTab === key ? 'bg-teal-50 text-teal-800' : 'text-slate-500 hover:bg-slate-100'}`}>
@@ -437,6 +438,14 @@ export default function PuskrisPetaTerpadu({
                 </div>
               ) : null}
               <div className="min-h-0 flex-1 overflow-y-auto">
+                {dockTab === 'ai' && (
+                  <PuskrisAiDock
+                    raw={raw}
+                    f={f}
+                    derived={derived}
+                    regionLabel={drillNama || (f.provinsi ? `Provinsi ${f.provinsi}` : 'Nasional')}
+                  />
+                )}
                 {dockTab === 'analisa' && (
                   <SpasialPanel
                     f={aFilter}

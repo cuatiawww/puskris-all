@@ -165,7 +165,7 @@ export default function JenisKejadianClient({
     >
       <div className={`flex shrink-0 items-start justify-between gap-3 ${mapFull ? 'border-b border-slate-200 px-4 py-3' : 'mb-3 border-b border-slate-100 pb-2'}`}>
         <div className="min-w-0">
-          <h4 className="text-xl sm:text-2xl font-black text-slate-900">Pemetaan Spasial Kejadian Bencana - {jenis.toUpperCase()} · INDONESIA</h4>
+          <h4 className="text-xl sm:text-2xl font-black uppercase text-slate-900">Pemetaan Spasial Kejadian Bencana - {jenis.toUpperCase()} · INDONESIA</h4>
           <p className="mt-1 text-sm sm:text-base font-normal text-slate-600">
             Peta hanya menampilkan kejadian {jenis} di seluruh Indonesia pada tahun {f.tahun}. Warna provinsi mengikuti jumlah kejadian; klik titik untuk membuka detail kejadian, atau buka halaman wilayah dari poligon.
           </p>

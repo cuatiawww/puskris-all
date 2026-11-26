@@ -590,6 +590,7 @@ body {
     font-weight: 700;
     color: rgb(var(--brand-900, 0 61 54));
     letter-spacing: -0.01em;
+    text-transform: uppercase;
   }
 
   .skdr-section-desc {

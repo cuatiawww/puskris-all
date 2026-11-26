@@ -74,7 +74,7 @@ export default function KejadianFaskesDirectory({
           <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-[#00705a]">
             <Hospital className="h-3.5 w-3.5" /> Jejaring Rujukan &amp; Gawat Darurat (≤ 80 km)
           </div>
-          <h3 className="mt-0.5 text-base font-black text-slate-900">PSC 119, Ambulans &amp; RS Sekitar Kota</h3>
+          <h3 className="mt-0.5 text-base font-black uppercase text-slate-900">PSC 119, Ambulans &amp; RS Sekitar Kota</h3>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 text-center text-xs">

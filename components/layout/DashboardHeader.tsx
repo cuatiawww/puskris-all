@@ -105,7 +105,7 @@ export default function DashboardHeader({
               />
               <div className={`min-w-0 md:border-l md:pl-5 ${onBrand ? "border-white/30" : "border-brand-200"}`}>
                 <div className="flex items-center gap-2">
-                  <h1 className={`whitespace-nowrap font-extrabold leading-none ${onBrand ? "text-white" : "text-brand-900"} ${title ? "text-lg sm:text-xl lg:text-2xl" : "text-lg sm:text-xl lg:text-[1.65rem] xl:text-2xl"}`} data-testid="app-header-title">
+                  <h1 className={`whitespace-nowrap font-extrabold uppercase leading-none tracking-tight ${onBrand ? "text-white" : "text-brand-900"} ${title ? "text-lg sm:text-xl lg:text-2xl" : "text-lg sm:text-xl lg:text-[1.65rem] xl:text-2xl"}`} data-testid="app-header-title">
                     {appTitle}
                   </h1>
                   {consoleMode && (
@@ -117,7 +117,7 @@ export default function DashboardHeader({
                     </span>
                   )}
                 </div>
-                <p className={`mt-1 hidden truncate text-xs leading-snug sm:block md:text-sm ${onBrand ? "text-white/85" : "text-slate-600"} ${subtitle ? "max-w-[980px]" : "max-w-[760px]"}`} data-testid="app-header-subtitle">
+                <p className={`mt-1 hidden truncate text-xs uppercase tracking-wide leading-snug sm:block md:text-sm ${onBrand ? "text-white/85" : "text-slate-600"} ${subtitle ? "max-w-[980px]" : "max-w-[760px]"}`} data-testid="app-header-subtitle">
                   {appSubtitle}
                 </p>
               </div>

@@ -143,7 +143,7 @@ export default function WilayahDetailClient({
     >
       <div className={`flex shrink-0 items-start justify-between gap-3 ${mapFull ? 'border-b border-slate-200 px-4 py-3' : 'mb-3 border-b border-slate-100 pb-2'}`}>
         <div className="min-w-0">
-          <h4 className="text-xl sm:text-2xl font-black text-slate-900">Pemetaan Spasial Kejadian Bencana - {packed.nama.nama.toUpperCase()}</h4>
+          <h4 className="text-xl sm:text-2xl font-black uppercase text-slate-900">Pemetaan Spasial Kejadian Bencana - {packed.nama.nama.toUpperCase()}</h4>
           <p className="mt-1 text-sm sm:text-base font-normal text-slate-600">
             Peta hanya menampilkan kejadian EOC di wilayah ini. Batas wilayah disorot; kejadian di luar wilayah disembunyikan. Klik titik untuk membuka detail kejadian.
           </p>

@@ -229,12 +229,12 @@ export function WilayahIndikatorSections({
       {heroMap}
 
       <div className="rounded-2xl border border-slate-200 bg-white px-5 py-4 shadow-[0_4px_12px_rgba(0,0,0,0.02)] sm:px-6">
-        <h3 className="text-xl font-black text-slate-900 sm:text-2xl">Analisis Dampak Kejadian - {nf(kabRows.length)} Kabupaten/Kota Terdampak</h3>
+        <h3 className="text-xl font-black uppercase text-slate-900 sm:text-2xl">Analisis Dampak Kejadian - {nf(kabRows.length)} Kabupaten/Kota Terdampak</h3>
         <p className="mt-1 text-sm text-slate-600">Visualisasi seluruh indikator dari API EOC di wilayah ini, dilengkapi agregat PSC, TCK, logistik, dan Asistensi bila tersedia.</p>
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_4px_12px_rgba(0,0,0,0.02)] sm:p-5" data-testid="wilayah-sec-indikator">
-        <h3 className="text-xl font-black text-slate-900">Data Situasi Wilayah per Indikator</h3>
+        <h3 className="text-xl font-black uppercase text-slate-900">Data Situasi Wilayah per Indikator</h3>
         <p className="mt-1 text-sm text-slate-600">Seluruh angka di bawah dihitung dari rekaman EOC di wilayah dan periode ini, serta agregat provinsi dari API terkait bila statusnya langsung.</p>
         <div className="mt-4 flex items-center gap-2">
           <Activity className="h-4 w-4 text-[#047D78]" />
@@ -346,7 +346,7 @@ export function WilayahIndikatorSections({
       ) : null}
 
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-[0_4px_12px_rgba(0,0,0,0.02)] sm:p-6" data-testid="wilayah-sec-kesiapan">
-        <h3 className="text-xl font-black text-slate-900 sm:text-2xl">Kesiapan &amp; Respons Wilayah</h3>
+        <h3 className="text-xl font-black uppercase text-slate-900 sm:text-2xl">Kesiapan &amp; Respons Wilayah</h3>
         <p className="mt-1 text-sm text-slate-600">Agregat tingkat provinsi dari API PSC 119, Tenaga Cadangan, Logistik, dan Asistensi, bila tersedia.</p>
         <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
           <div className="rounded-2xl border border-teal-200 bg-teal-50/40 p-4">

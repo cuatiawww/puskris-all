@@ -38,7 +38,7 @@ export default function PuskrisPageShell({
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           <div className="skdr-eyebrow">{item.eyebrow}</div>
-          <h1 className="mt-0.5 text-2xl font-black tracking-tight text-slate-900">{title}</h1>
+          <h1 className="mt-0.5 text-2xl font-black uppercase tracking-tight text-slate-900">{title}</h1>
           <p className="mt-1 max-w-4xl text-xs text-slate-500">{item.desc}</p>
         </div>
         {filterPanel ? (

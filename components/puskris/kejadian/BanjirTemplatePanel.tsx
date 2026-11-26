@@ -48,7 +48,7 @@ export default function BanjirTemplatePanel({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <span className="text-[10px] font-black uppercase tracking-wider text-sky-700">Template Hidrologi & Kesehatan Banjir</span>
-          <h2 className="text-base font-black text-slate-900">
+          <h2 className="text-base font-black uppercase text-slate-900">
             Pemantauan Debit Sungai, Kejenuhan Tanah, Laporan Warga & Kewaspadaan Penyakit
           </h2>
         </div>
@@ -76,7 +76,7 @@ export default function BanjirTemplatePanel({
               <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-sky-700">
                 <Waves className="h-3.5 w-3.5" /> Open-Meteo Flood API (GloFAS v4)
               </div>
-              <h3 className="text-sm font-black text-slate-900">Debit Aliran Sungai Harian (m³/s)</h3>
+              <h3 className="text-sm font-black uppercase text-slate-900">Debit Aliran Sungai Harian (m³/s)</h3>
             </div>
             {glofas ? (
               <div className="flex gap-2 text-right text-[11px]">
@@ -123,7 +123,7 @@ export default function BanjirTemplatePanel({
               <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-teal-700">
                 <CloudRain className="h-3.5 w-3.5" /> Open-Meteo Presipitasi Harian
               </div>
-              <h3 className="text-sm font-black text-slate-900">Curah Hujan & Penguapan Harian (mm)</h3>
+              <h3 className="text-sm font-black uppercase text-slate-900">Curah Hujan & Penguapan Harian (mm)</h3>
             </div>
             <div className="rounded-lg bg-teal-50 px-2.5 py-1 text-right text-[11px]">
               <div className="text-[9.5px] text-teal-700">Total 7 Hari</div>

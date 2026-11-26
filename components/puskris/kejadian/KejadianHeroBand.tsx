@@ -311,7 +311,7 @@ export default function KejadianHeroBand({
             {/* Col 1: Disaster Identity & City */}
             <div className="flex flex-col justify-between space-y-3 md:col-span-4 md:border-r md:border-slate-200/80 md:pr-4">
               <div>
-                <h1 className="text-xl font-black leading-tight text-slate-900 sm:text-2xl" data-testid="kejadian-judul">
+                <h1 className="text-xl font-black uppercase leading-tight text-slate-900 sm:text-2xl" data-testid="kejadian-judul">
                   {kejadian.jenis}
                 </h1>
 

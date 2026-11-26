@@ -113,8 +113,37 @@ function TrenJenisCard({ kejadian, f }: { kejadian: any[] | null; f: PuskrisUiFi
   )
 }
 
+type KpiTrend = {
+  pct: number
+  vsLabel: string
+  /** true untuk metrik bencana/korban (turun = hijau/baik, naik = merah/waspada) */
+  invertGood?: boolean
+}
+
+function seriesTrend(arr?: { tahun: number; jumlah: number }[], invertGood = true): KpiTrend | null {
+  if (!arr || arr.length < 2) return null
+  const prev = arr[arr.length - 2]
+  const cur = arr[arr.length - 1]
+  if (!prev || !prev.jumlah || prev.jumlah <= 0 || cur == null) return null
+  const pct = Math.round(((cur.jumlah - prev.jumlah) * 1000) / prev.jumlah) / 10
+  return { pct, vsLabel: `vs ${prev.tahun}`, invertGood }
+}
+
+function sumSeriesTrend(a?: { tahun: number; jumlah: number }[], b?: { tahun: number; jumlah: number }[], invertGood = true): KpiTrend | null {
+  if (!a || a.length < 2) return null
+  const mapB = new Map((b || []).map((x) => [x.tahun, Number(x.jumlah || 0)]))
+  const combined = a.map((x) => ({ tahun: x.tahun, jumlah: Number(x.jumlah || 0) + (mapB.get(x.tahun) || 0) }))
+  return seriesTrend(combined, invertGood)
+}
+
+function pairTrend(cur: number | null | undefined, prev: number | null | undefined, vsLabel: string, invertGood = false): KpiTrend | null {
+  if (cur == null || prev == null || prev <= 0) return null
+  const pct = Math.round(((cur - prev) * 1000) / prev) / 10
+  return { pct, vsLabel, invertGood }
+}
+
 function KpiCardItem({
-  label, value, unit, sub, icon: Icon, tone = 'primary', href, note,
+  label, value, unit, sub, icon: Icon, tone = 'primary', href, note, trend,
 }: {
   label: string
   value: React.ReactNode
@@ -124,6 +153,7 @@ function KpiCardItem({
   tone?: 'primary' | 'amber' | 'emerald' | 'blue' | 'rose' | 'orange' | 'teal'
   href?: string
   note?: string | null
+  trend?: KpiTrend | null
 }) {
   const toneClasses = {
     primary: { border: 'border-l-primary hover:border-primary/60', bg: 'bg-primary/10 text-primary' },
@@ -134,6 +164,27 @@ function KpiCardItem({
     orange: { border: 'border-l-orange-500 hover:border-orange-400', bg: 'bg-orange-50 text-orange-600' },
     teal: { border: 'border-l-teal-600 hover:border-teal-500', bg: 'bg-teal-50 text-teal-700' },
   }[tone] || { border: 'border-l-primary', bg: 'bg-primary/10 text-primary' }
+
+  const trendBadge = trend ? (() => {
+    const up = trend.pct > 0
+    const down = trend.pct < 0
+    const good = trend.invertGood ? down : up
+    const bad = trend.invertGood ? up : down
+    const cls = good
+      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+      : bad
+        ? 'border-rose-200 bg-rose-50 text-rose-700'
+        : 'border-slate-200 bg-slate-50 text-slate-600'
+    const dir = up ? '▲ Naik' : down ? '▼ Turun' : '● Stabil'
+    return (
+      <div className="mt-2">
+        <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-extrabold tabular-nums ${cls}`}>
+          <span>{dir} {Math.abs(trend.pct).toLocaleString('id-ID')}%</span>
+          <span className="font-semibold opacity-80">{trend.vsLabel}</span>
+        </span>
+      </div>
+    )
+  })() : null
 
   const content = (
     <div className={`skdr-card relative block overflow-hidden border-l-4 ${toneClasses.border} p-3 transition`}>
@@ -146,6 +197,7 @@ function KpiCardItem({
         {unit ? <span className="text-xs font-semibold text-slate-500">{unit}</span> : null}
       </div>
       {sub ? <div className="mt-2 text-xs font-bold text-slate-600">{sub}</div> : null}
+      {trendBadge}
       {note ? <div className="mt-2 text-[10px] font-medium text-amber-800">{note}</div> : null}
     </div>
   )
@@ -169,6 +221,27 @@ function DynamicKpiCards({
   derived: any
 }) {
   const isWilayah = Boolean(f.provinsi || f.kabupaten)
+  const nasionalTahun = !isWilayah && !f.jenis && f.periode === 'tahun' && f.tahun === tahunIni() && !raw?.eoc?.rentang
+  const eocNas = raw?.eoc?.nasional || {}
+  const pscSum = raw?.psc?.summary || {}
+  const tckSum = raw?.tck?.summary || {}
+
+  const trendKejadian = nasionalTahun ? seriesTrend(eocNas.tren_5_tahun_terpantau, true) : null
+  const trendKorbanJiwa = nasionalTahun ? sumSeriesTrend(eocNas.tren_5_tahun_meninggal, eocNas.tren_5_tahun_hilang, true) : null
+  const trendKorbanLuka = nasionalTahun ? sumSeriesTrend(eocNas.tren_5_tahun_luka_berat, eocNas.tren_5_tahun_luka_ringan, true) : null
+  const trendTerdampak = nasionalTahun ? sumSeriesTrend(eocNas.tren_5_tahun_pengungsi, eocNas.tren_5_tahun_terdampak, true) : null
+  const trendPanggilan = !isWilayah
+    ? pairTrend(pscSum.total_panggilan, pscSum.total_panggilan_tahun_lalu, `vs ${(pscSum.tahun_panggilan || tahunIni()) - 1}`, false)
+    : null
+  const trendTckIndividu = !isWilayah && typeof tckSum.individu_delta_pct === 'number' && Number.isFinite(tckSum.individu_delta_pct)
+    ? { pct: Math.round(tckSum.individu_delta_pct * 10) / 10, vsLabel: 'vs bulan lalu', invertGood: false }
+    : null
+  const trendTckTim = !isWilayah && typeof tckSum.tim_delta_pct === 'number' && Number.isFinite(tckSum.tim_delta_pct)
+    ? { pct: Math.round(tckSum.tim_delta_pct * 10) / 10, vsLabel: 'vs bulan lalu', invertGood: false }
+    : null
+  const trendTckEmt = !isWilayah && typeof tckSum.emt_delta_pct === 'number' && Number.isFinite(tckSum.emt_delta_pct)
+    ? { pct: Math.round(tckSum.emt_delta_pct * 10) / 10, vsLabel: 'vs bulan lalu', invertGood: false }
+    : null
 
   if (tab === 'krisis') {
     return (
@@ -182,6 +255,7 @@ function DynamicKpiCards({
             sub={`${nf(situasi.berdampak_krisis)} berdampak krisis kesehatan`}
             icon={AlertTriangle}
             tone="primary"
+            trend={trendKejadian}
           />
           <KpiCardItem
             label="Korban Jiwa"
@@ -190,6 +264,7 @@ function DynamicKpiCards({
             sub={`${nf(situasi.meninggal)} meninggal · ${nf(situasi.hilang)} hilang`}
             icon={Users}
             tone="rose"
+            trend={trendKorbanJiwa}
           />
           <KpiCardItem
             label="Korban Luka"
@@ -198,6 +273,7 @@ function DynamicKpiCards({
             sub={`${nf(situasi.luka_berat)} rawat inap · ${nf(situasi.luka_ringan)} rawat jalan`}
             icon={HeartPulse}
             tone="orange"
+            trend={trendKorbanLuka}
           />
           <KpiCardItem
             label="Penduduk Terdampak"
@@ -206,6 +282,7 @@ function DynamicKpiCards({
             sub={`${nf(situasi.pengungsi)} mengungsi · ${nf(situasi.terdampak)} terdampak`}
             icon={Users}
             tone="blue"
+            trend={trendTerdampak}
           />
         </div>
         <DampakPendudukStrip raw={raw} situasi={situasi} f={f} />
@@ -269,6 +346,7 @@ function DynamicKpiCards({
               sub={layanan.panggilanTahun ? `Tahun ${layanan.panggilanTahun}, langsung dari API PSC 119` : 'Data belum tersedia dari API PSC 119'}
               icon={PhoneCall}
               tone="amber"
+              trend={trendPanggilan}
               note={isWilayah ? NASIONAL_NOTE : null}
             />
             <KpiCardItem
@@ -353,6 +431,7 @@ function DynamicKpiCards({
             sub={`${layanan.panggilanTahun ? `Tahun ${layanan.panggilanTahun} · ` : ''}${layanan.emergencyShare != null ? `darurat ${layanan.emergencyPerkiraan ? '≈ ' : ''}${pf(layanan.emergencyShare, 1)}` : 'Panggilan masyarakat'}`}
             icon={PhoneCall}
             tone="amber"
+            trend={trendPanggilan}
             href={withQuery('/dashboard/layanan-gawat-darurat/panggilan-119', f)}
             note={isWilayah ? NASIONAL_NOTE : null}
           />
@@ -447,6 +526,7 @@ function DynamicKpiCards({
               sub={`${nf(sdm.nakes || 0)} nakes · ${nf(sdm.nonNakes || 0)} non-kesehatan`}
               icon={Users}
               tone="blue"
+              trend={trendTckIndividu}
             />
             <KpiCardItem
               label="Tenaga Kesehatan (Nakes)"
@@ -463,6 +543,7 @@ function DynamicKpiCards({
               sub="Tim cadangan siap mobilisasi"
               icon={ShieldCheck}
               tone="teal"
+              trend={trendTckTim}
               note={isWilayah && sdm.tim == null ? NASIONAL_NOTE : null}
             />
             <KpiCardItem
@@ -472,6 +553,7 @@ function DynamicKpiCards({
               sub={(() => { const rs = isWilayah && derived.selected ? [derived.selected] : derived.rows || []; const st = rs.some((r: any) => r.tckEmtStandar != null) ? rs.reduce((a: number, r: any) => a + (r.tckEmtStandar || 0), 0) : null; return st != null ? `${nf(st)} memenuhi standar EMT` : 'Terdaftar di Tenaga Cadangan' })()}
               icon={CheckCircle}
               tone="teal"
+              trend={trendTckEmt}
               note={isWilayah && sdm.emt == null ? NASIONAL_NOTE : null}
             />
           </div>
@@ -490,6 +572,7 @@ function DynamicKpiCards({
             sub={`${nf(sdm.nakes || 0)} tenaga kesehatan · ${nf(sdm.nonNakes || 0)} non-kesehatan`}
             icon={Users}
             tone="blue"
+            trend={trendTckIndividu}
             href={withQuery('/dashboard/kesiapsiagaan/tenaga-cadangan', f)}
           />
           <KpiCardItem
@@ -499,6 +582,7 @@ function DynamicKpiCards({
             sub="Tim cadangan siap mobilisasi"
             icon={ShieldCheck}
             tone="teal"
+            trend={trendTckTim}
             note={isWilayah && sdm.tim == null ? NASIONAL_NOTE : null}
           />
           <KpiCardItem
@@ -508,6 +592,7 @@ function DynamicKpiCards({
             sub={(() => { const rs = isWilayah && derived.selected ? [derived.selected] : derived.rows || []; const st = rs.some((r: any) => r.tckEmtStandar != null) ? rs.reduce((a: number, r: any) => a + (r.tckEmtStandar || 0), 0) : null; return st != null ? `${nf(st)} memenuhi standar EMT` : 'terdaftar di Tenaga Cadangan' })()}
             icon={HeartPulse}
             tone="emerald"
+            trend={trendTckEmt}
             note={isWilayah && sdm.emt == null ? NASIONAL_NOTE : null}
           />
           <KpiCardItem
@@ -583,6 +668,7 @@ function DynamicKpiCards({
           sub={`${nf(situasi.berdampak_krisis)} berdampak krisis`}
           icon={AlertTriangle}
           tone="primary"
+          trend={trendKejadian}
           href={withQuery('/dashboard/situasi-krisis', f)}
         />
         <KpiCardItem
@@ -598,6 +684,7 @@ function DynamicKpiCards({
           }
           icon={PhoneCall}
           tone="amber"
+          trend={trendPanggilan}
           href={withQuery('/dashboard/layanan-gawat-darurat/panggilan-119', f)}
           note={isWilayah ? NASIONAL_NOTE : null}
         />
@@ -639,6 +726,7 @@ function DynamicKpiCards({
           sub={sdm.emt == null ? `${EMT_LABEL} hanya di angka nasional` : `${nf(sdm.emt)} ${EMT_LABEL}`}
           icon={Users}
           tone="blue"
+          trend={trendTckIndividu}
           href={withQuery('/dashboard/kesiapsiagaan/tenaga-cadangan', f)}
           note={isWilayah && sdm.tim == null ? NASIONAL_NOTE : null}
         />

@@ -413,7 +413,7 @@ export default function KejadianDetailClient({
           <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-[#00705a]">
             <MapPin className="h-3.5 w-3.5" /> Peta Situasi Spasial &amp; Pengaturan Lapisan
           </div>
-          <h2 className="mt-0.5 text-base font-black text-slate-900 sm:text-lg">
+          <h2 className="mt-0.5 text-base font-black uppercase text-slate-900 sm:text-lg">
             Peta Situasi — {k.jenis} ({k.kabupaten}{k.provinsi ? `, ${k.provinsi}` : ''})
           </h2>
           <p className="mt-0.5 text-xs text-slate-500">

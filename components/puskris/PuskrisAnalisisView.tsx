@@ -924,7 +924,7 @@ export default function PuskrisAnalisisView({
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
                 <FileSpreadsheet className="h-4 w-4 text-primary" />
-                <h3 className="text-sm font-black text-slate-900">Filter Matriks</h3>
+                <h3 className="text-sm font-black uppercase text-slate-900">Filter Matriks</h3>
               </div>
               {activeFiltersCount > 0 && (
                 <button
@@ -1258,7 +1258,7 @@ export default function PuskrisAnalisisView({
             {/* Header Toolbar */}
             <div className="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between print:hidden">
               <div>
-                <h2 className="text-base font-black text-slate-900">
+                <h2 className="text-base font-black uppercase text-slate-900">
                   {genericDef?.title}
                   {activeTab === 'ambulans' && 'Matriks Data Armada Ambulans & PSC 119 per Provinsi'}
                   {activeTab === 'kejadian' && 'Matriks Laporan Kejadian Krisis & Bencana'}
@@ -1906,7 +1906,7 @@ export default function PuskrisAnalisisView({
                   <div className="text-[10px] font-black uppercase tracking-widest text-primary">
                     Kementerian Kesehatan RI · Pusat Krisis Kesehatan
                   </div>
-                  <h3 className="mt-1 text-lg font-black text-slate-900">{previewData.title}</h3>
+                  <h3 className="mt-1 text-lg font-black uppercase text-slate-900">{previewData.title}</h3>
                   <p className="text-xs font-semibold text-slate-600">{previewData.subtitle}</p>
                 </div>
                 <button

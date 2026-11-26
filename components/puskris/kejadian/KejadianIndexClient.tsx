@@ -69,7 +69,7 @@ export default function KejadianIndexClient() {
         </span>
         <div className="mt-1 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h1 className="text-xl font-black text-slate-900">Detail Kejadian per Kota & Template Bencana</h1>
+            <h1 className="text-xl font-black uppercase text-slate-900">Detail Kejadian per Kota & Template Bencana</h1>
             <p className="mt-0.5 text-xs text-slate-600">
               Pilih kejadian di bawah ini untuk membuka rute detail <code className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[11px]">/kejadian/&lt;kode-api&gt;</code> dengan template khusus Banjir, Gempa, atau Karhutla.
             </p>
@@ -139,7 +139,7 @@ export default function KejadianIndexClient() {
                     {meta.shortLabel}
                   </span>
                 </div>
-                <h2 className="mt-2.5 text-sm font-black text-slate-900 group-hover:text-[#00705a]">{ev.jenis}</h2>
+                <h2 className="mt-2.5 text-sm font-black uppercase text-slate-900 group-hover:text-[#00705a]">{ev.jenis}</h2>
                 <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-slate-700">
                   <MapPin className="h-3.5 w-3.5 shrink-0 text-[#00705a]" />
                   <span className="truncate">{ev.kabupaten}{ev.provinsi ? `, ${ev.provinsi}` : ''}</span>

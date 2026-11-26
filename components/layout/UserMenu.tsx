@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { ChevronDown, KeyRound, LayoutDashboard, LogIn, LogOut, Shield } from 'lucide-react'
+import { ChevronDown, KeyRound, LayoutDashboard, LogIn, LogOut } from 'lucide-react'
 import { toast } from 'sonner'
 import Modal from '@/components/Modal'
 import { Field, FormActions, inputCls } from '@/components/master/MasterUi'
@@ -14,10 +14,10 @@ import { useTranslation } from '@/lib/i18n/LanguageContext'
 import { PUBLIC_BASE_PATH } from '@/lib/public-path'
 
 export function AreaSwitch({ onBrand = false }: { onBrand?: boolean }) {
-  const { user, can } = useAuth()
+  const { user } = useAuth()
   const pathname = usePathname() || '/'
   const { t } = useTranslation()
-  if (!user || !can('tatakelola')) return null
+  if (!user) return null
   const area = routeArea(pathname)
   const cls = (on: boolean) =>
     `flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold uppercase tracking-wider transition ${on
@@ -36,13 +36,12 @@ export function AreaSwitch({ onBrand = false }: { onBrand?: boolean }) {
         }`}
     >
       <Link href="/dashboard" className={cls(area === 'dashboard')}><LayoutDashboard className="h-3.5 w-3.5" />{t('skdr.auth.areaDashboard')}</Link>
-      <Link href="/tatakelola" className={cls(area === 'tatakelola')}><Shield className="h-3.5 w-3.5" />{t('skdr.auth.areaTatakelola')}</Link>
     </nav>
   )
 }
 
 export default function UserMenu({ onBrand = false }: { onBrand?: boolean }) {
-  const { user, loading, logout, can } = useAuth()
+  const { user, loading, logout } = useAuth()
   const pathname = usePathname() || '/'
   const router = useRouter()
   const { t } = useTranslation()
@@ -101,7 +100,6 @@ export default function UserMenu({ onBrand = false }: { onBrand?: boolean }) {
           </div>
           <div className="pt-1">
             <Link href="/dashboard" role="menuitem" className={item}><LayoutDashboard className="h-4 w-4 text-slate-400" />{t('skdr.auth.areaDashboard')}</Link>
-            {can('tatakelola') && <Link href="/tatakelola" role="menuitem" className={item}><Shield className="h-4 w-4 text-slate-400" />{t('skdr.auth.areaTatakelola')}</Link>}
             <button type="button" role="menuitem" className={item} onClick={() => { setOpen(false); setPwOpen(true) }}><KeyRound className="h-4 w-4 text-slate-400" />{t('skdr.auth.changePassword')}</button>
             <button type="button" role="menuitem" data-testid="logout" className={`${item} text-red-600 hover:bg-red-50`} onClick={doLogout}><LogOut className="h-4 w-4" />{t('skdr.auth.logout')}</button>
           </div>

@@ -48,7 +48,7 @@ export default function KejadianSituasiDock({ k, status, rekomendasi }: { k: any
         <div className="flex items-center gap-2">
           {k?.icon?.src ? <img alt="" aria-hidden src={k.icon.src} className="h-8 w-7 object-contain" /> : null}
           <div className="min-w-0">
-            <h3 className="truncate text-sm font-black text-slate-900">{k?.jenis || 'Kejadian'}</h3>
+            <h3 className="truncate text-sm font-black uppercase text-slate-900">{k?.jenis || 'Kejadian'}</h3>
             <p className="truncate text-[11px] text-slate-500">{[k?.kabupaten, k?.provinsi].filter(Boolean).join(', ') || 'Lokasi belum tersedia dari API'}</p>
           </div>
         </div>

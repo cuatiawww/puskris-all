@@ -42,7 +42,7 @@ export function SeismicDetailModal({
           <div className="flex items-center gap-2.5">
             <Activity className="h-5 w-5 text-rose-700" />
             <div>
-              <h2 className="text-sm font-black text-slate-900">Katalog Seismik & Gempa Susulan — Sekitar {kabupaten}</h2>
+              <h2 className="text-sm font-black uppercase text-slate-900">Katalog Seismik & Gempa Susulan — Sekitar {kabupaten}</h2>
               <p className="text-[11px] text-slate-600">Data gabungan resmi BMKG & USGS FDSN dalam radius ±350 km sekitar tanggal kejadian</p>
             </div>
           </div>
@@ -172,7 +172,7 @@ export function HealthRiskModal({
           <div className="flex items-center gap-2">
             <ShieldAlert className="h-5 w-5 text-[#00705a]" />
             <div>
-              <h2 className="text-sm font-black text-slate-900">Rincian Skor Risiko Krisis Kesehatan</h2>
+              <h2 className="text-sm font-black uppercase text-slate-900">Rincian Skor Risiko Krisis Kesehatan</h2>
               <p className="text-[11px] text-slate-500">Dihitung otomatis hanya dari parameter API terukur</p>
             </div>
           </div>
@@ -233,7 +233,7 @@ export function SumberApiModal({
           <div className="flex items-center gap-2">
             <Info className="h-5 w-5 text-[#00705a]" />
             <div>
-              <h2 className="text-sm font-black text-slate-900">Status Integrasi Data API Resmi & Eksternal</h2>
+              <h2 className="text-sm font-black uppercase text-slate-900">Status Integrasi Data API Resmi & Eksternal</h2>
               <p className="text-[11px] text-slate-500">Semua angka pada halaman ini berasal langsung dari endpoint resmi (tanpa data contoh)</p>
             </div>
           </div>

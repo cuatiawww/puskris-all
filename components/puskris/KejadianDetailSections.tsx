@@ -119,7 +119,7 @@ export function SectionCard({ id, eyebrow, title, source, kpis, actions, childre
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 px-5 py-3">
         <div className="min-w-0">
           <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">{eyebrow}</p>
-          <h2 className="text-[15px] font-bold leading-tight text-slate-900 sm:text-base">{title}</h2>
+          <h2 className="text-[15px] font-bold uppercase leading-tight text-slate-900 sm:text-base">{title}</h2>
           {source ? <p className="mt-0.5 text-[10px] text-slate-400">{source}</p> : null}
         </div>
         {actions}
@@ -195,7 +195,7 @@ export function KejadianHeaderBand({ k, status, loadingRange }: { k: any; status
           <div className="mt-1.5 flex items-start gap-2.5">
             {k.icon?.src ? <img alt="" aria-hidden src={k.icon.src} className="mt-0.5 h-9 w-8 shrink-0 object-contain" /> : null}
             <div className="min-w-0">
-              <h1 className="text-xl font-bold leading-tight tracking-tight text-slate-900 sm:text-2xl">
+              <h1 className="text-xl font-bold uppercase leading-tight tracking-tight text-slate-900 sm:text-2xl">
                 {k.jenis} · {[k.kabupaten, k.provinsi].filter(Boolean).join(', ')}
               </h1>
               <p className="mt-0.5 text-sm font-semibold text-slate-600">

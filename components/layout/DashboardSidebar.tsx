@@ -106,8 +106,8 @@ export default function DashboardSidebar({ open, collapsed, menuGroups, match, o
           </div>
           {!rail && (
             <div className="min-w-0 flex-1">
-              <p className="text-[12px] font-bold leading-snug tracking-tight text-slate-800">{appTitle}</p>
-              <p className="mt-0.5 text-[10px] leading-snug text-slate-500">{appSubtitle}</p>
+              <p className="text-[12px] font-bold uppercase leading-snug tracking-tight text-slate-800">{appTitle}</p>
+              <p className="mt-0.5 text-[10px] uppercase leading-snug text-slate-500">{appSubtitle}</p>
             </div>
           )}
         </div>

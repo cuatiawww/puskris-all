@@ -215,7 +215,7 @@ export default function WilayahKarakteristik({
       <section data-testid="wilayah-karakteristik" className="min-w-0">
         <div className="mb-2">
           <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#047D78]">Karakteristik kejadian</div>
-          <h2 className="mt-0.5 text-lg font-black text-slate-900 sm:text-xl">Ringkasan per jenis kejadian</h2>
+          <h2 className="mt-0.5 text-lg font-black uppercase text-slate-900 sm:text-xl">Ringkasan per jenis kejadian</h2>
         </div>
         <div className="flex min-h-[120px] items-center justify-center rounded-xl border border-dashed border-slate-200 bg-slate-50 p-4 text-center text-xs font-semibold text-slate-500">
           Data belum tersedia dari API
@@ -229,7 +229,7 @@ export default function WilayahKarakteristik({
       <div className="mb-2 flex items-end justify-between gap-2">
         <div className="min-w-0">
           <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#047D78]">Karakteristik kejadian</div>
-          <h2 className="mt-0.5 text-lg font-black text-slate-900 sm:text-xl">Ringkasan per jenis kejadian</h2>
+          <h2 className="mt-0.5 text-lg font-black uppercase text-slate-900 sm:text-xl">Ringkasan per jenis kejadian</h2>
         </div>
         <div className="flex shrink-0 items-center gap-1">
           <button

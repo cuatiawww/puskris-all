@@ -30,7 +30,7 @@ export default function GempaTemplatePanel({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <span className="text-[10px] font-black uppercase tracking-wider text-rose-700">Template Gempa Bumi & Seismik Tektonik</span>
-          <h2 className="text-base font-black text-slate-900">
+          <h2 className="text-base font-black uppercase text-slate-900">
             Parameter BMKG/USGS, Peta Guncangan (Shakemap), Aktivitas Susulan & Kesiapan Rujukan Trauma
           </h2>
         </div>
@@ -110,7 +110,7 @@ export default function GempaTemplatePanel({
               <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-rose-700">
                 <Activity className="h-3.5 w-3.5" /> USGS FDSN Catalog (M2.5+ · Radius 350 km)
               </div>
-              <h3 className="text-sm font-black text-slate-900">Tren Harian Kejadian Gempa Utama & Susulan</h3>
+              <h3 className="text-sm font-black uppercase text-slate-900">Tren Harian Kejadian Gempa Utama & Susulan</h3>
             </div>
             <div className="flex gap-2 text-right text-[11px]">
               <div className="rounded-lg bg-slate-50 px-2.5 py-1">

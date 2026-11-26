@@ -39,7 +39,7 @@ export default function KarhutlaTemplatePanel({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <span className="text-[10px] font-black uppercase tracking-wider text-orange-700">Template Karhutla, Titik Panas & Kualitas Udara</span>
-          <h2 className="text-base font-black text-slate-900">
+          <h2 className="text-base font-black uppercase text-slate-900">
             Pemantauan ISPU KLHK, Titik Panas NASA FIRMS, Arah Sebaran Asap & Kesiagaan ISPA
           </h2>
         </div>

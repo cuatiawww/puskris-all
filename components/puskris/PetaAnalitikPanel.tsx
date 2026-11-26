@@ -29,7 +29,7 @@ export default function PetaAnalitikPanel({
     <div className={compact ? 'space-y-3 p-3' : 'space-y-3 p-3'} data-testid="peta-analitik">
       <div>
         <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Analitik kejadian</p>
-        <h3 className="text-sm font-black text-slate-900">{a.ruang}</h3>
+        <h3 className="text-sm font-black uppercase text-slate-900">{a.ruang}</h3>
         <p className="text-[11px] text-slate-500">Mengikuti filter dasbor dan telusur peta · {nf(a.n)} kejadian</p>
       </div>
 

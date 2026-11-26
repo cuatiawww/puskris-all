@@ -501,7 +501,7 @@ export default function PuskrisPetaTerpadu({
                 <div className="flex shrink-0 items-center justify-between border-b border-slate-100 bg-white p-3">
                   <div className="flex items-center gap-2">
                     <Settings className="h-4 w-4 text-emerald-700" />
-                    <span className="text-sm font-bold text-slate-800">Pengaturan Peta & Lapisan</span>
+                    <span className="text-sm font-bold uppercase text-slate-800">Pengaturan Peta & Lapisan</span>
                   </div>
                   <button type="button" onClick={() => setRightDockOpen(false)} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700" aria-label="Tutup pengaturan peta">
                     <X className="h-4 w-4" />

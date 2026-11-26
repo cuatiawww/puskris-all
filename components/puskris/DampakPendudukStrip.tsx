@@ -49,9 +49,9 @@ export default function DampakPendudukStrip({ raw, situasi, f }: { raw: any; sit
   const nasionalTahun = !f.provinsi && !f.kabupaten && !f.jenis && f.periode === 'tahun' && f.tahun === tahunIni() && !raw?.eoc?.rentang
   const provinsiScoped = Boolean(f.provinsi || f.kabupaten)
   const tiles: Tile[] = [
-    { key: 'korban', label: 'Korban total', hint: KORBAN_LABEL.totalHint, value: situasi.korban_total, tone: '#0D6B67', krisis: krisis.korban_total },
+    { key: 'korban', label: 'Korban total', hint: KORBAN_LABEL.totalHint, value: situasi.korban_total, tone: '#0D6B67', trend: resmi.tren_5_tahun_korban_total, krisis: krisis.korban_total },
     { key: 'meninggal', label: 'Meninggal', hint: 'Korban meninggal dunia akibat kejadian.', value: situasi.meninggal, tone: '#be123c', trend: resmi.tren_5_tahun_meninggal, krisis: krisis.meninggal },
-    { key: 'hilang', label: 'Hilang', hint: KORBAN_LABEL.hilangHint, value: situasi.hilang, tone: '#7c3aed' },
+    { key: 'hilang', label: 'Hilang', hint: KORBAN_LABEL.hilangHint, value: situasi.hilang, tone: '#7c3aed', trend: resmi.tren_5_tahun_hilang, krisis: krisis.hilang },
     { key: 'lb', label: KORBAN_LABEL.lbShort, hint: KORBAN_LABEL.lbHint, value: situasi.luka_berat, tone: '#ea580c', trend: resmi.tren_5_tahun_luka_berat, krisis: krisis.luka_berat },
     { key: 'lr', label: KORBAN_LABEL.lrShort, hint: KORBAN_LABEL.lrHint, value: situasi.luka_ringan, tone: '#d97706', trend: resmi.tren_5_tahun_luka_ringan, krisis: krisis.luka_ringan },
     { key: 'pengungsi', label: 'Pengungsi', hint: KORBAN_LABEL.pengungsiHint, value: situasi.pengungsi, tone: '#0284c7', trend: resmi.tren_5_tahun_pengungsi, krisis: krisis.pengungsi },
@@ -67,10 +67,12 @@ export default function DampakPendudukStrip({ raw, situasi, f }: { raw: any; sit
       </div>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
         {tiles.map((t) => {
-          const series = (t.trend || []).map((x) => Number(x.jumlah || 0))
+          const trendArr = t.trend || []
+          const series = trendArr.map((x) => Number(x.jumlah || 0))
           const prev = series.length >= 2 ? series[series.length - 2] : null
+          const prevYear = trendArr.length >= 2 ? trendArr[trendArr.length - 2]?.tahun : f.tahun - 1
           const cur = series.length ? series[series.length - 1] : null
-          const delta = nasionalTahun && prev && cur != null ? Math.round(((cur - prev) * 1000) / prev) / 10 : null
+          const delta = nasionalTahun && prev != null && prev > 0 && cur != null ? Math.round(((cur - prev) * 1000) / prev) / 10 : null
           const krisisPct = nasionalTahun && t.krisis != null && t.value ? Math.round((t.krisis * 1000) / t.value) / 10 : null
           const missing = t.value == null
           return (
@@ -85,11 +87,15 @@ export default function DampakPendudukStrip({ raw, situasi, f }: { raw: any; sit
                 <span className="text-lg font-black leading-tight tabular-nums text-slate-900">{missing ? '—' : nf(t.value as number)}</span>
                 {nasionalTahun && series.length > 1 ? <Spark values={series} color={t.tone} /> : null}
               </div>
-              <div className="mt-0.5 truncate text-[10px] font-semibold text-slate-500" title={missing && provinsiScoped ? NASIONAL_NOTE : undefined}>
+              <div className="mt-1 truncate text-[10px] font-bold text-slate-500" title={missing && provinsiScoped ? NASIONAL_NOTE : delta != null ? `${delta > 0 ? 'Mengalami kenaikan' : delta < 0 ? 'Mengalami penurunan' : 'Tetap'} ${Math.abs(delta).toLocaleString('id-ID')}% dibanding tahun ${prevYear}` : undefined}>
                 {missing
                   ? (provinsiScoped ? NASIONAL_NOTE : 'Belum tersedia untuk filter ini')
                   : delta != null
-                    ? <span className={delta > 0 ? 'text-red-600' : 'text-emerald-700'}>{delta > 0 ? '▲' : '▼'} {Math.abs(delta).toLocaleString('id-ID')}% vs 2025</span>
+                    ? (
+                      <span className={`inline-flex items-center gap-0.5 ${delta > 0 ? 'text-rose-600' : delta < 0 ? 'text-emerald-700' : 'text-slate-500'}`}>
+                        {delta > 0 ? '▲ Naik' : delta < 0 ? '▼ Turun' : '● Tetap'} {Math.abs(delta).toLocaleString('id-ID')}% vs {prevYear}
+                      </span>
+                    )
                     : krisisPct != null ? `${krisisPct.toLocaleString('id-ID')}% dari kejadian krisis` : '\u00a0'}
               </div>
             </Link>

@@ -123,7 +123,7 @@ export default function OpenDataClient() {
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
         <div className="min-w-0">
           <div className="skdr-eyebrow">Pusat Krisis Kesehatan · API Intelijen</div>
-          <h1 className="mt-0.5 text-2xl font-black tracking-tight text-slate-900">Open Data &amp; API Luar</h1>
+          <h1 className="mt-0.5 text-2xl font-black uppercase tracking-tight text-slate-900">Open Data &amp; API Luar</h1>
           <p className="mt-1 max-w-4xl text-xs text-slate-500">
             Daftar API publik yang dipakai lapisan peta “API Intelijen Eksternal” di Ringkasan. Semua diakses lewat proxy baca-saja (GET) aplikasi ini,
             tanpa kunci rahasia dan tanpa data pribadi. Status diperiksa langsung saat halaman dibuka.
@@ -153,7 +153,7 @@ export default function OpenDataClient() {
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-lg" aria-hidden>{api.icon}</span>
-                      <h3 className="truncate text-sm font-black text-slate-900">{api.nama}</h3>
+                      <h3 className="truncate text-sm font-black uppercase text-slate-900">{api.nama}</h3>
                       <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">{api.kategori}</span>
                     </div>
                     <p className="mt-1 text-xs text-slate-600">{api.deskripsi}</p>
@@ -227,7 +227,7 @@ export default function OpenDataClient() {
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex min-w-0 items-center gap-2">
                     <span className="text-lg" aria-hidden>{api.icon}</span>
-                    <h3 className="text-sm font-black text-slate-900">{api.nama}</h3>
+                    <h3 className="text-sm font-black uppercase text-slate-900">{api.nama}</h3>
                   </div>
                   <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold ${!c ? 'bg-slate-100 text-slate-500' : c.state === 'loading' ? 'bg-sky-50 text-sky-700' : c.state === 'ok' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-800'}`}>
                     {!c || c.state === 'loading' ? 'Memeriksa…' : c.state === 'ok' ? 'Langsung' : 'Belum tersedia'}
@@ -257,7 +257,7 @@ export default function OpenDataClient() {
         </div>
         <p className="mt-2 text-[11px] text-slate-500">Proksi NCC dan EOC menerima parameter tanggal1, tanggal2, prov, kab (contoh: /api/puskris/live/eoc?tanggal1=2026-11-01&tanggal2=2026-11-17&prov=32).</p>
         <div className="skdr-card mt-3 overflow-x-auto p-0" data-testid="open-data-lapisan-internal">
-          <p className="border-b border-slate-100 px-4 py-2.5 text-xs font-black text-slate-800">Lapisan peta API Internal &amp; Risiko <span className="font-medium text-slate-500">(Pengaturan Peta &amp; Lapisan)</span></p>
+          <p className="border-b border-slate-100 px-4 py-2.5 text-xs font-black uppercase text-slate-800">Lapisan peta API Internal &amp; Risiko <span className="font-medium text-slate-500">(Pengaturan Peta &amp; Lapisan)</span></p>
           <table className="w-full text-left text-[11px]">
             <thead className="bg-slate-50 text-[10px] uppercase tracking-wide text-slate-500"><tr><th className="px-4 py-2">Lapisan</th><th className="px-3 py-2">Sumber</th><th className="px-3 py-2">Isi</th><th className="px-3 py-2">Status</th></tr></thead>
             <tbody>

@@ -18,7 +18,7 @@ export default function UmumTemplatePanel({
     <section className="space-y-4" data-testid="template-umum-panel">
       <div>
         <span className="text-[10px] font-black uppercase tracking-wider text-teal-700">Pemantauan Cuaca & Lingkungan Kejadian</span>
-        <h2 className="text-base font-black text-slate-900">Kondisi Meteorologi Lokal & Kualitas Udara di Sekitar Wilayah Kejadian</h2>
+        <h2 className="text-base font-black uppercase text-slate-900">Kondisi Meteorologi Lokal & Kualitas Udara di Sekitar Wilayah Kejadian</h2>
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-12">

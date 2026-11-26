@@ -18,12 +18,12 @@ export interface SystemSettings {
 
 const DEFAULT_SETTINGS: SystemSettings = {
   // PR 014: SKDR branding defaults = first paint / SSR fallback (no legacy-branding flash before /console/settings loads).
-  app_name: 'Pusat Krisis Kesehatan',
-  app_tagline: 'Dasbor Terpadu Krisis Kesehatan',
+  app_name: 'PUSAT KRISIS KESEHATAN',
+  app_tagline: 'DASHBOARD TERPADU KRISIS KESEHATAN',
   sidebar_logo_url: '',
   login_logo_url: '',
   favicon_url: '',
-  footer_text: 'Pusat Krisis Kesehatan',
+  footer_text: 'PUSAT KRISIS KESEHATAN',
   ticker_text: '',
   navigation_menu: DEFAULT_NAVIGATION_CONFIG,
 };

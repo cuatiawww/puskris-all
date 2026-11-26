@@ -379,7 +379,7 @@ export function JenisKejadianSections({
       {jenis && rekap ? (
         <>
           <div data-testid="jenis-analisis-head">
-            <h3 className="text-xl font-black text-slate-900 sm:text-2xl">Analisis Dampak {jenis} - {nf(provRows.length)} Provinsi Terdampak</h3>
+            <h3 className="text-xl font-black uppercase text-slate-900 sm:text-2xl">Analisis Dampak {jenis} - {nf(provRows.length)} Provinsi Terdampak</h3>
             <p className="mt-1 text-sm text-slate-600">Visualisasi tren, sebaran, komposisi korban, dan perbandingan dari API EOC untuk jenis ini pada tahun {tahun}{prov ? ` di ${wilayahLabel}` : ''}.</p>
           </div>
 
@@ -564,7 +564,7 @@ export function JenisKejadianSections({
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-[0_4px_12px_rgba(0,0,0,0.02)] sm:p-5" data-testid="jenis-sec-indikator">
-            <h3 className="text-xl font-black text-slate-900">Data Situasi {jenis} per Indikator</h3>
+            <h3 className="text-xl font-black uppercase text-slate-900">Data Situasi {jenis} per Indikator</h3>
             <p className="mt-1 text-sm text-slate-600">Seluruh angka dihitung dari rekaman EOC jenis ini pada tahun {tahun}{prov ? ' di provinsi terpilih' : ' di seluruh Indonesia'}.</p>
             <div className="mt-3 flex flex-wrap gap-3">
               <KpiTile label="Kejadian" value={nf(rekap.terpantau)} sub={`${nf(rekap.berdampak_krisis)} krisis`} tone="teal" />

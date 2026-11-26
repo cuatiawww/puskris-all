@@ -33,7 +33,7 @@ export const PUSKRIS_NAV: PuskrisNavItem[] = [
     label: 'Dasbor Utama',
     shortLabel: 'Dasbor Utama',
     eyebrow: 'Dasbor Pusat Krisis Kesehatan',
-    title: 'Dasbor Utama Krisis Kesehatan',
+    title: 'DASHBOARD TERPADU PUSAT KRISIS KESEHATAN',
     desc: 'Gambaran nasional yang menyatukan pantauan bencana, layanan 119, tenaga cadangan, logistik, dan asesmen risiko.',
     sources: [],
   },

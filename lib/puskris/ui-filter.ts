@@ -71,7 +71,7 @@ export const PUSKRIS_PAGES: { key: PuskrisTab; label: string; eyebrow: string; t
     key: 'ringkasan',
     label: 'Dasbor Utama',
     eyebrow: 'Dasbor Pusat Krisis Kesehatan',
-    title: 'Dasbor Utama Krisis Kesehatan',
+    title: 'DASHBOARD TERPADU PUSAT KRISIS KESEHATAN',
     desc: 'Gambaran nasional yang menyatukan pantauan bencana, layanan 119, tenaga cadangan, logistik, dan asesmen risiko.',
   },
   {

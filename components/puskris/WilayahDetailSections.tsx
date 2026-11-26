@@ -196,7 +196,7 @@ export function WilayahIndikatorSections({
   return (
     <>
       <div className="min-w-0" data-testid="wilayah-header-band">
-        <Link href={`${PUBLIC_BASE_PATH}/dashboard/spatial-mode`} className="inline-flex items-center gap-1.5 text-xs font-bold text-[#047D78] hover:underline">
+        <Link href="/dashboard/spatial-mode" className="inline-flex items-center gap-1.5 text-xs font-bold text-[#047D78] hover:underline">
           <ArrowLeft className="h-3.5 w-3.5" /> Kembali ke peta
         </Link>
         <h1 className="mt-2 text-[22px] font-black uppercase tracking-wide text-slate-900 sm:text-[28px] lg:text-[30px]">

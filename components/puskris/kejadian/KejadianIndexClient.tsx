@@ -123,7 +123,7 @@ export default function KejadianIndexClient() {
         {filtered.map((ev: any) => {
           const meta = templateMeta(ev.template)
           const yr = String(ev.tanggal || '').slice(0, 4)
-          const href = `${PUBLIC_BASE_PATH}/kejadian/${encodeURIComponent(ev.uid)}${/^\d{4}$/.test(yr) ? `?tahun=${yr}` : ''}`
+          const href = `/dashboard/kejadian/${encodeURIComponent(ev.uid)}${/^\d{4}$/.test(yr) ? `?tahun=${yr}` : ''}`
           return (
             <Link
               key={ev.uid}

@@ -190,7 +190,7 @@ export function KejadianHeaderBand({ k, status, loadingRange }: { k: any; status
       <div className="absolute inset-y-0 left-0 w-1.5 bg-[#00705a]" />
       <div className="relative flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-start sm:justify-between sm:px-6">
         <div className="min-w-0">
-          <Link href={`${PUBLIC_BASE_PATH}/dashboard/spatial-mode`} className="inline-flex items-center gap-1.5 text-xs font-bold text-[#00705a] hover:underline">← Kembali ke peta</Link>
+          <Link href="/dashboard/spatial-mode" className="inline-flex items-center gap-1.5 text-xs font-bold text-[#00705a] hover:underline">← Kembali ke peta</Link>
           <p className="mt-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400">Pusat Krisis Kesehatan · Detail kejadian</p>
           <div className="mt-1.5 flex items-start gap-2.5">
             {k.icon?.src ? <img alt="" aria-hidden src={k.icon.src} className="mt-0.5 h-9 w-8 shrink-0 object-contain" /> : null}

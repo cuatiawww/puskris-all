@@ -68,7 +68,7 @@ export function buildKejadianMapLayers(opts: {
         badgeColor: x.serupa ? '#0f766e' : '#64748b',
         source: 'API EOC Pusat Krisis Kesehatan',
         iconSrc: kejadianPinSrc(x.jenis, { krisis: Boolean(x.krisis), approx: false }),
-        href: `${PUBLIC_BASE_PATH}/kejadian/${encodeURIComponent(x.uid)}${x.tanggal ? `?tahun=${String(x.tanggal).slice(0, 4)}` : ''}`,
+        href: `/dashboard/kejadian/${encodeURIComponent(x.uid)}${x.tanggal ? `?tahun=${String(x.tanggal).slice(0, 4)}` : ''}`,
         details: [
           { label: 'Meninggal', value: nf(x.meninggal) },
           { label: 'Pengungsi', value: nf(x.pengungsi) },

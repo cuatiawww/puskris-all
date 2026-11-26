@@ -1,4 +1,3 @@
-import { PUBLIC_BASE_PATH } from '@/lib/public-path'
 import type { ExtraPoint, ExtraPointLayer } from '@/lib/puskris/internal-layers'
 import {
   eocIconOf, fmtAngka, LOK_LABEL, resolveEventCoord, tglKejadian,
@@ -13,12 +12,12 @@ const kabList = kabIndex as KabRow[]
 export function kejadianHref(uid: string, tanggal?: string | null) {
   const tahun = String(tanggal || '').slice(0, 4)
   const q = /^\d{4}$/.test(tahun) ? `?tahun=${tahun}` : ''
-  return `${PUBLIC_BASE_PATH}/kejadian/${encodeURIComponent(uid)}${q}`
+  return `/dashboard/kejadian/${encodeURIComponent(uid)}${q}`
 }
 
 export function wilayahHref(kode: string, opts?: { tahun?: string | number | null; kab?: string | null; jenis?: string | null }) {
   const digits = String(kode || '').replace(/\D/g, '')
-  if (!digits) return `${PUBLIC_BASE_PATH}/dashboard/spatial-mode`
+  if (!digits) return '/dashboard/spatial-mode'
   const code = digits.length <= 2 ? digits.padStart(2, '0') : digits.padStart(4, '0').slice(0, 4)
   const q = new URLSearchParams()
   const tahun = String(opts?.tahun || '').slice(0, 4)
@@ -27,7 +26,7 @@ export function wilayahHref(kode: string, opts?: { tahun?: string | number | nul
   if (kab.length === 4 && code.length === 2) q.set('kab', kab)
   if (opts?.jenis) q.set('jenis', String(opts.jenis))
   const qs = q.toString()
-  return `${PUBLIC_BASE_PATH}/dashboard/wilayah/${encodeURIComponent(code)}${qs ? `?${qs}` : ''}`
+  return `/dashboard/wilayah/${encodeURIComponent(code)}${qs ? `?${qs}` : ''}`
 }
 
 /** Lapisan ikon kejadian EOC: koordinat asli bila ada, kalau tidak pusat kab/kota atau provinsi. */

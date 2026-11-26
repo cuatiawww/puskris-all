@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { eocKejadian, rekapKejadian } from '@/lib/puskris/derive'
 import { padProv, trendBulanan, breakdownKab, jenisOptions } from '@/lib/puskris/wilayah-detail'
-import { PUBLIC_BASE_PATH } from '@/lib/public-path'
 import { eocKindOf } from '@/lib/puskris/eoc-markers'
 
 const BULAN = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
@@ -33,7 +32,7 @@ export function jenisKejadianHref(
   const prov = opts?.prov ? String(opts.prov).replace(/\D/g, '').padStart(2, '0').slice(0, 2) : ''
   if (prov.length === 2 && prov !== '00') q.set('prov', prov)
   const qs = q.toString()
-  return `${PUBLIC_BASE_PATH}/dashboard/jenis-kejadian/${encodeURIComponent(slug)}${qs ? `?${qs}` : ''}`
+  return `/dashboard/jenis-kejadian/${encodeURIComponent(slug)}${qs ? `?${qs}` : ''}`
 }
 
 export function jenisKejadianIndexHref(opts?: { tahun?: string | number | null; prov?: string | null }) {
@@ -43,7 +42,7 @@ export function jenisKejadianIndexHref(opts?: { tahun?: string | number | null; 
   const prov = opts?.prov ? String(opts.prov).replace(/\D/g, '').padStart(2, '0').slice(0, 2) : ''
   if (prov.length === 2 && prov !== '00') q.set('prov', prov)
   const qs = q.toString()
-  return `${PUBLIC_BASE_PATH}/dashboard/jenis-kejadian${qs ? `?${qs}` : ''}`
+  return `/dashboard/jenis-kejadian${qs ? `?${qs}` : ''}`
 }
 
 export function tahunPilihan(current: number): number[] {

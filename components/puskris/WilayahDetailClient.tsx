@@ -104,7 +104,7 @@ export default function WilayahDetailClient({
     return (
       <div className="flex flex-col items-start gap-3 bg-[#fbffff] px-3 py-10 sm:px-6 lg:px-8">
         <ApiKosong pesan="Kode wilayah tidak dikenali." detail="Gunakan kode Kemendagri provinsi (2 digit) atau kabupaten/kota (4 digit)." />
-        <Link href={`${PUBLIC_BASE_PATH}/dashboard/spatial-mode`} className="inline-flex items-center gap-1.5 text-xs font-bold text-[#047D78] hover:underline"><ArrowLeft className="h-3.5 w-3.5" /> Kembali ke peta</Link>
+        <Link href="/dashboard/spatial-mode" className="inline-flex items-center gap-1.5 text-xs font-bold text-[#047D78] hover:underline"><ArrowLeft className="h-3.5 w-3.5" /> Kembali ke peta</Link>
       </div>
     )
   }
@@ -112,7 +112,7 @@ export default function WilayahDetailClient({
     return (
       <div className="space-y-3 bg-[#fbffff] px-3 py-8 sm:px-6 lg:px-8 text-sm text-red-700">
         <p>Data Pusat Krisis Kesehatan tidak dapat dimuat: {error}</p>
-        <Link href={`${PUBLIC_BASE_PATH}/dashboard/spatial-mode`} className="inline-flex items-center gap-1.5 text-xs font-bold text-[#047D78] hover:underline"><ArrowLeft className="h-3.5 w-3.5" /> Kembali ke peta</Link>
+        <Link href="/dashboard/spatial-mode" className="inline-flex items-center gap-1.5 text-xs font-bold text-[#047D78] hover:underline"><ArrowLeft className="h-3.5 w-3.5" /> Kembali ke peta</Link>
       </div>
     )
   }

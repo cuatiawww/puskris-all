@@ -92,7 +92,7 @@ export default function JenisKejadianClient({
 
   const goJenis = (nama: string | null) => {
     if (!nama) {
-      router.push(`${PUBLIC_BASE_PATH}/dashboard/jenis-kejadian${qsOf(f)}`)
+      router.push(`/dashboard/jenis-kejadian${qsOf(f)}`)
       return
     }
     router.push(jenisKejadianHref(nama, { tahun: f.tahun, prov: f.provinsi }))
@@ -100,7 +100,7 @@ export default function JenisKejadianClient({
 
   const onTahun = (y: number) => {
     setF((prevF) => ({ ...prevF, tahun: y }))
-    const href = jenis ? jenisKejadianHref(jenis, { tahun: y, prov: f.provinsi }) : `${PUBLIC_BASE_PATH}/dashboard/jenis-kejadian?tahun=${y}${f.provinsi ? `&prov=${f.provinsi}` : ''}`
+    const href = jenis ? jenisKejadianHref(jenis, { tahun: y, prov: f.provinsi }) : `/dashboard/jenis-kejadian?tahun=${y}${f.provinsi ? `&prov=${f.provinsi}` : ''}`
     router.replace(href)
   }
 
@@ -113,7 +113,7 @@ export default function JenisKejadianClient({
     return (
       <div className="space-y-3 bg-[#fbffff] px-3 py-8 sm:px-6 lg:px-8 text-sm text-red-700">
         <p>Data Pusat Krisis Kesehatan tidak dapat dimuat: {error}</p>
-        <Link href={`${PUBLIC_BASE_PATH}/dashboard/spatial-mode`} className="inline-flex items-center gap-1.5 text-xs font-bold text-[#047D78] hover:underline"><ArrowLeft className="h-3.5 w-3.5" /> Kembali ke peta</Link>
+        <Link href="/dashboard/spatial-mode" className="inline-flex items-center gap-1.5 text-xs font-bold text-[#047D78] hover:underline"><ArrowLeft className="h-3.5 w-3.5" /> Kembali ke peta</Link>
       </div>
     )
   }

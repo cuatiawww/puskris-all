@@ -375,13 +375,13 @@ export default function KejadianDetailClient({
         />
         <div className="flex flex-wrap gap-3">
           <Link
-            href={`${PUBLIC_BASE_PATH}/kejadian`}
+            href="/dashboard/kejadian"
             className="inline-flex items-center gap-1.5 text-xs font-bold text-[#00705a] hover:underline"
           >
             <ArrowLeft className="h-3.5 w-3.5" /> Lihat daftar kode kejadian
           </Link>
           <Link
-            href={`${PUBLIC_BASE_PATH}/dashboard/spatial-mode`}
+            href="/dashboard/spatial-mode"
             className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 hover:underline"
           >
             Kembali ke Peta Spasial

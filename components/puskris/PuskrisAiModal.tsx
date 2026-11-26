@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   Sparkles,
   FileText,
@@ -116,7 +117,7 @@ export default function PuskrisAiModal({
     if (start === -1) return ''
     const nextNum = sectionNum + 1
     const end = escaped.search(new RegExp(`(^|\\n)${nextNum}\\. `, 'm'))
-    const raw = end > start ? escaped.slice(start, end) : escaped.slice(start)
+    const raw = (end > start ? escaped.slice(start, end) : escaped.slice(start)).trim()
     return raw.replace(new RegExp(`^${sectionNum}\\. [^\\n]+\\n?`), '').trim()
   }
 
@@ -133,7 +134,7 @@ export default function PuskrisAiModal({
 
   const sectionDefs = [
     { key: 'executive', label: 'Executive Summary & Situasi Terkini', num: '1', color: 'teal' },
-    { key: 'epidemiology', label: 'Analisis Epidemiologis & Dampak Kesehatan', num: '2', color: 'amber' },
+    { key: 'epidemiology', label: 'Analisis Dampak Kesehatan', num: '2', color: 'amber' },
     { key: 'severity', label: 'Klasifikasi Tingkat Keparahan', num: '3', color: 'red' },
     { key: 'global', label: 'Komparasi Internasional & Benchmark', num: '4', color: 'indigo' },
     { key: 'healthsystem', label: 'Dampak Terhadap Sistem Kesehatan Nasional', num: '5', color: 'orange' },
@@ -170,13 +171,13 @@ export default function PuskrisAiModal({
     year: 'numeric',
   }) + ' pukul ' + new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB'
 
-  const cfrNum = summaryData?.cfr || '2.14'
-  const terdampakNum = (summaryData?.terdampak || 42017003).toLocaleString('id-ID')
-  const pengungsiNum = (summaryData?.pengungsi || 567877).toLocaleString('id-ID')
+  const cfrNum = summaryData?.cfr
+  const terdampakNum = summaryData?.terdampak != null ? Number(summaryData.terdampak).toLocaleString('id-ID') : null
+  const pengungsiNum = summaryData?.pengungsi != null ? Number(summaryData.pengungsi).toLocaleString('id-ID') : null
 
-  return (
+  return createPortal(
     <>
-      <div className="fixed inset-0 z-[9990] flex items-center justify-center bg-black/60 p-3 sm:p-4 backdrop-blur-xs animate-in fade-in duration-150">
+      <div data-testid="puskris-ai-modal" className="fixed inset-0 z-[9990] flex items-center justify-center bg-black/60 p-3 sm:p-4 backdrop-blur-xs animate-in fade-in duration-150">
         <div
           className="relative flex h-[90vh] max-h-[820px] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-teal-200/60 bg-white shadow-2xl animate-in zoom-in-95 duration-150"
           onClick={(e) => e.stopPropagation()}
@@ -418,7 +419,7 @@ export default function PuskrisAiModal({
                       REKOMENDASI UTAMA: STATUS SIAGA / PERLU ANTISIPASI
                     </h4>
                     <p className="text-xs font-semibold leading-relaxed text-amber-850 sm:text-sm">
-                      Wilayah {regionLabel} berada dalam status SIAGA (perlu perhatian sedang) karena: Tingkat fatalitas kasus (CFR) terpantau di angka {cfrNum}%, serta besarnya populasi terdampak ({terdampakNum} jiwa) dan pengungsi ({pengungsiNum} jiwa) di posko pengungsian memerlukan pemantauan sanitasi lingkungan ketat mencegah KLB penyakit menular.
+                      Ringkasan untuk {regionLabel} merujuk pada angka EOC yang tersedia{cfrNum != null ? `, dengan rasio meninggal ${cfrNum}%` : ''}{terdampakNum ? `, ${terdampakNum} orang terdampak` : ''}{pengungsiNum ? `, dan ${pengungsiNum} pengungsi` : ''}. Pemantauan layanan kesehatan dan sanitasi di lokasi pengungsian tetap diperlukan.
                     </p>
                   </div>
                 </div>
@@ -443,7 +444,7 @@ export default function PuskrisAiModal({
                   <div className="h-px bg-blue-100" />
 
                   <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wide leading-relaxed text-slate-500 italic">
-                    DISCLAIMER: Semua informasi, estimasi tren, dan rekomendasi taktis yang disajikan merupakan analisis dari model AI (Google Gemini). Hasil analisis ini ditujukan sebagai referensi pembantu pengambilan keputusan dinas kesehatan setempat dan tidak menggantikan keputusan medis formal maupun regulasi resmi dari kementerian terkait.
+                    DISCLAIMER: Laporan ini merangkum angka dari API EOC secara terstruktur. Ini bukan prediksi model dan tidak menggantikan keputusan medis formal atau regulasi resmi.
                   </p>
                 </div>
               </div>
@@ -488,6 +489,7 @@ export default function PuskrisAiModal({
           </div>
         </div>
       )}
-    </>
+    </>,
+    document.body,
   )
 }

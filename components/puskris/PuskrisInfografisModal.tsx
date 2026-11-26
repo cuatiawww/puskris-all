@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   FileText,
   Search,
@@ -137,9 +138,9 @@ export default function PuskrisInfografisModal({ isOpen, onClose }: PuskrisInfog
     return matchCat && matchSearch
   })
 
-  return (
+  return createPortal(
     <>
-      <div className="fixed inset-0 z-[9990] flex items-center justify-center bg-black/60 p-3 sm:p-4 backdrop-blur-xs animate-in fade-in duration-150">
+      <div data-testid="puskris-infografis-modal" className="fixed inset-0 z-[9990] flex items-center justify-center bg-black/60 p-3 sm:p-4 backdrop-blur-xs animate-in fade-in duration-150">
         <div
           className="relative flex h-[90vh] max-h-[820px] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-teal-200/60 bg-white shadow-2xl animate-in zoom-in-95 duration-150"
           onClick={(e) => e.stopPropagation()}
@@ -336,6 +337,7 @@ export default function PuskrisInfografisModal({ isOpen, onClose }: PuskrisInfog
           </div>
         </div>
       )}
-    </>
+    </>,
+    document.body,
   )
 }

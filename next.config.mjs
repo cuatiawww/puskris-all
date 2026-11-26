@@ -8,8 +8,8 @@ const cspDirectives = [
   "font-src 'self' data:",
   "connect-src 'self' data: blob: https://*.tile.openstreetmap.org https://tile.openstreetmap.org https://*.basemaps.cartocdn.com https://basemaps.cartocdn.com https://server.arcgisonline.com https://services.arcgisonline.com https://*.arcgisonline.com https://gis.bnpb.go.id https://*.tile.opentopomap.org https://cloudflareinsights.com https://*.cloudflareinsights.com https://static.cloudflareinsights.com https://sipkk-new.mediaciptainformasi.co.id https://opsroom.sipongidata.my.id https://router.project-osrm.org https://nominatim.openstreetmap.org https://api.gbif.org https://api.inaturalist.org",
   "worker-src 'self' blob:",
-  "child-src 'self' blob:",
-  "frame-src 'self' https://lookerstudio.google.com https://datastudio.google.com",
+  "child-src 'self' blob: https://app.heygen.com https://www.heygen.com",
+  "frame-src 'self' https://lookerstudio.google.com https://datastudio.google.com https://app.heygen.com https://www.heygen.com",
   "frame-ancestors 'self'",
 ].join('; ');
 

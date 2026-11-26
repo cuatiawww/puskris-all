@@ -1,20 +1,21 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   Sparkles,
   FileText,
   Video,
+  Info,
   ShieldAlert,
-  Loader2,
   Maximize2,
-  Share2,
-  Check,
   ExternalLink,
+  Loader2,
 } from 'lucide-react'
 import { PUBLIC_BASE_PATH } from '@/lib/public-path'
-import PuskrisAiModal from './PuskrisAiModal'
+import PuskrisAiModal, { PRESENTER_VIDEOS, getEmbedUrl } from './PuskrisAiModal'
 import PuskrisInfografisModal from './PuskrisInfografisModal'
+import { buildAiInsightReport } from '@/lib/puskris/ai-insight'
 
 interface PuskrisAiDockProps {
   raw: any
@@ -23,279 +24,313 @@ interface PuskrisAiDockProps {
   regionLabel?: string
 }
 
+const LOCAL_PRESENTER_MP4 = `${PUBLIC_BASE_PATH}/2026-07-17_06-45-52_Lumina_1.mp4`
+
+const SECTION_TONE: Record<string, { wrap: string; badge: string; title: string }> = {
+  teal: { wrap: 'border-teal-200 bg-teal-50/60', badge: 'bg-[#00705a]', title: 'text-teal-900' },
+  amber: { wrap: 'border-amber-200 bg-amber-50/60', badge: 'bg-amber-600', title: 'text-amber-900' },
+  red: { wrap: 'border-red-200 bg-red-50/60', badge: 'bg-red-700', title: 'text-red-900' },
+  indigo: { wrap: 'border-indigo-200 bg-indigo-50/60', badge: 'bg-indigo-700', title: 'text-indigo-900' },
+  orange: { wrap: 'border-orange-200 bg-orange-50/60', badge: 'bg-orange-600', title: 'text-orange-900' },
+  rose: { wrap: 'border-rose-200 bg-rose-50/60', badge: 'bg-rose-700', title: 'text-rose-900' },
+  green: { wrap: 'border-emerald-200 bg-emerald-50/60', badge: 'bg-emerald-700', title: 'text-emerald-900' },
+  slate: { wrap: 'border-slate-200 bg-slate-50/80', badge: 'bg-slate-700', title: 'text-slate-900' },
+}
+
 export default function PuskrisAiDock({
   raw,
   f,
   derived,
   regionLabel = 'Nasional',
 }: PuskrisAiDockProps) {
+  const [tab, setTab] = useState<'report' | 'video' | 'info'>('report')
   const [isAiModalOpen, setIsAiModalOpen] = useState(false)
   const [isInfografisModalOpen, setIsInfografisModalOpen] = useState(false)
   const [generatingAi, setGeneratingAi] = useState(false)
   const [isFullscreenDockVideo, setIsFullscreenDockVideo] = useState(false)
-  const [copiedLink, setCopiedLink] = useState(false)
-
-  const videoUrl = 'https://app.heygen.com/embeds/cbfda07fa0ad4e338dbe19d7eff5be75'
+  const [heygenFailed, setHeygenFailed] = useState(false)
+  const [videoIndex, setVideoIndex] = useState(0)
 
   const formattedTime = useMemo(() => {
     const now = new Date()
     return (
-      now.toLocaleDateString('id-ID', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-      }) +
+      now.toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' }) +
       ' pukul ' +
       now.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) +
       ' WIB'
     )
   }, [])
 
-  // Aggregate values from raw / derived
-  const summary = raw?.summary || {}
-  const totalBencana = summary.total_bencana || raw?.kejadian?.length || 5026
-  const totalKrisis = summary.total_krisis || 573
-  const meninggal = summary.total_meninggal || 1126
-  const luka = summary.total_luka || 35345
-  const hilang = summary.total_hilang || 155
-  const pengungsi = summary.total_pengungsi || 567877
-  const terdampak = summary.total_terdampak || 42017003
-  const totalKorban = meninggal + luka + hilang
-  const cfr = totalKorban > 0 ? ((meninggal / totalKorban) * 100).toFixed(2) : '3.07'
+  const report = useMemo(
+    () => buildAiInsightReport({ raw, derived, f, regionLabel }),
+    [raw, derived, f, regionLabel],
+  )
 
-  const topDisaster = raw?.jenis_bencana?.[0]?.nama || f?.jenis || 'Kebakaran Hutan dan Lahan'
-  const topRegion = f?.provinsi ? regionLabel : raw?.wilayah?.[0]?.nama || 'Jawa Timur'
-  const tahun = f?.tahun || 2026
+  const videoUrl = PRESENTER_VIDEOS[Math.min(videoIndex, PRESENTER_VIDEOS.length - 1)]?.url || PRESENTER_VIDEOS[0].url
 
   const handleOpenAiModal = () => {
     setGeneratingAi(true)
     setTimeout(() => {
       setGeneratingAi(false)
       setIsAiModalOpen(true)
-    }, 450)
+    }, 250)
   }
 
-  const handleCopyVideoUrl = () => {
-    navigator.clipboard.writeText(videoUrl)
-    setCopiedLink(true)
-    setTimeout(() => setCopiedLink(false), 2000)
-  }
-
-  const aiInsightText = useMemo(() => {
-    return `[ANALISIS RISK ASSESSMENT]
-
-1. Executive Summary & Situasi Terkini
-Berdasarkan data pantauan EOC Kementerian Kesehatan per tanggal real-time hari ini, tercatat total ${totalBencana.toLocaleString('id-ID')} kejadian bencana nasional dengan ${totalKrisis.toLocaleString('id-ID')} kejadian dikategorikan sebagai krisis kesehatan aktif. Bencana paling dominan yang terdeteksi saat ini adalah ${topDisaster} dengan konsentrasi kejadian teraktif berada di wilayah ${topRegion}. Dampak akumulatif krisis ini mencakup ${terdampak.toLocaleString('id-ID')} jiwa terdampak secara langsung dan memaksa ${pengungsi.toLocaleString('id-ID')} jiwa untuk mengungsi ke posko darurat.
-
-2. Analisis Epidemiologis & Dampak Kesehatan
-Pemantauan epidemiologis menunjukkan total korban jiwa langsung mencapai ${meninggal.toLocaleString('id-ID')} orang meninggal, ${hilang.toLocaleString('id-ID')} orang hilang, dan ${luka.toLocaleString('id-ID')} orang luka-luka (berat dan ringan). Indeks Kematian (Case Fatality Rate - CFR) saat ini berada di angka ${cfr}%. Faktor risiko terbesar bergeser ke area pengungsian, di mana kepadatan penduduk yang tinggi dikombinasikan dengan keterbatasan sanitasi berpotensi memicu kejadian luar biasa (KLB) penyakit menular seperti diare akut, infeksi saluran pernapasan akut (ISPA), dan penyakit kulit.
-
-3. Klasifikasi Tingkat Keparahan
-Dengan CFR sebesar ${cfr}% dan jumlah pengungsi mencapai ${pengungsi.toLocaleString('id-ID')} jiwa, tingkat keparahan bencana ini diklasifikasikan pada level SIAGA TINGGI (Category 2 Emergency). Meskipun kapasitas lokal masih mampu menopang sebagian besar kebutuhan operasional, volume terdampak yang tinggi membutuhkan koordinasi lintas sektor terpusat guna menghindari kelelahan sumber daya medis lokal di daerah episentrum ${topRegion}.
-
-4. Komparasi Internasional & Benchmark
-Merujuk pada standar Penilaian Risiko Krisis Kesehatan WHO (PHEOC Framework), rasio populasi terdampak terhadap kapasitas shelter darurat melebihi ambang batas ideal (maksimal 45 jiwa per shelter). Kondisi penanganan pengungsi saat ini mirip dengan mitigasi krisis pengungsian skala menengah di Asia Tenggara, di mana intervensi dini pada sanitasi terbukti menurunkan risiko transmisi patogen air (waterborne diseases) hingga 64%.
-
-5. Dampak Terhadap Sistem Kesehatan Nasional
-Beban sistem kesehatan lokal di ${topRegion} mengalami peningkatan beban kerja hingga 40%. Sebagian besar faskes tingkat pertama (Puskesmas) dialihkan untuk melayani rawat jalan darurat krisis dan penanganan trauma psikologis ringan. Rantai pasokan obat-obatan esensial, cairan dehidrasi, dan alat pelindung diri (APD) perlu diawasi ketat agar tidak terjadi kekosongan dalam 72 jam ke depan.
-
-6. Gap Analysis Respons Darurat
-Hasil gap analysis mengidentifikasi tiga titik kritis yang memerlukan intervensi mendesak:
-- Defisit toilet darurat di posko pengungsian utama (rasio saat ini 1:45 pengungsi, standar minimum adalah 1:20).
-- Keterlambatan distribusi air bersih layak minum ke posko sektor barat.
-- Keterbatasan nakes spesialis penanganan trauma/bedah di tingkat puskesmas lapangan.
-
-7. Rekomendasi Strategis Terstruktur
-PANDUAN KLINIS & RESPONS CEPAT:
-JANGKA PENDEK:
-- Segera lakukan distribusi paket air bersih dan air minum darurat dalam 24 jam pertama.
-- Bangun jamban darurat tambahan untuk mencapai rasio ideal 1 toilet per 20 orang guna mencegah transmisi diare.
-- Distribusikan masker medis dan APD dasar di daerah terdampak debu/kebakaran untuk menurunkan risiko ISPA.
-
-JANGKA MENENGAH:
-- Lakukan surveillance epidemiologi harian untuk deteksi dini gejala diare, kolera, dan penyakit kulit di posko pengungsian.
-- Salurkan bantuan nutrisi tambahan bagi balita dan ibu menyusui di wilayah pengungsian ${topRegion}.
-- Atur rotasi tenaga kesehatan bantuan untuk mencegah burnout di fasilitas kesehatan setempat.
-
-JANGKA PANJANG:
-- Rehabilitasi infrastruktur sanitasi dan faskes yang terdampak bencana secara bertahap.
-- Lakukan edukasi PHBS (Perilaku Hidup Bersih dan Sehat) mandiri pasca-krisis bagi masyarakat setempat.
-- Evaluasi dokumen rencana kontinjensi dinas kesehatan setempat berbasis data bencana ${tahun}.
-
-8. Kesimpulan Strategis EOC
-Secara keseluruhan, respon kesehatan terhadap bencana ${topDisaster} telah berjalan sesuai prosedur operasional standar, namun pengawasan ketat terhadap wilayah pengungsian wajib diperketat dalam 14 hari ke depan untuk mencegah timbulnya ancaman gelombang krisis kesehatan sekunder.`
-  }, [totalBencana, totalKrisis, topDisaster, topRegion, terdampak, pengungsi, meninggal, hilang, luka, cfr, tahun])
+  const stats = report.stats
+  const keparahan = !stats
+    ? null
+    : stats.krisis >= 50 || stats.meninggal >= 100
+      ? 'Siaga Tinggi'
+      : stats.krisis > 0 || stats.meninggal > 0
+        ? 'Waspada'
+        : 'Terpantau'
 
   return (
     <>
-      <div className="flex h-full flex-col overflow-y-auto p-3 scrollbar-thin">
-        {/* AI Insight Card Container */}
-        <article
-          className="relative flex flex-col overflow-hidden border border-[#b7d9d8] p-4 text-[#1a3535] shadow-xs"
-          style={{
-            backgroundImage: `url('${PUBLIC_BASE_PATH}/bg insght.png')`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center bottom',
-            backgroundRepeat: 'no-repeat',
-            borderTopLeftRadius: '17px',
-            borderTopRightRadius: '17px',
-            borderBottomRightRadius: '22px',
-            borderBottomLeftRadius: '17px',
-          }}
-        >
-          {/* Subtle gradient backdrop */}
-          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(237,251,250,0.78)_0%,rgba(231,247,246,0.65)_100%)] pointer-events-none" />
-
-          <div className="relative z-10 flex flex-col gap-3">
-            {/* Header: Icon + Title */}
-            <div className="flex items-start gap-2.5">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/95 p-1 shadow-xs border border-teal-200">
-                <img
-                  src={`${PUBLIC_BASE_PATH}/insight.svg`}
-                  alt="Insight AI"
-                  className="h-9 w-9 object-contain"
-                  onError={(e) => {
-                    ;(e.target as HTMLElement).style.display = 'none'
-                  }}
-                />
-              </div>
-              <div className="min-w-0 flex-1">
-                <h3 className="text-[13px] sm:text-[14px] font-black uppercase tracking-wider text-[#1a3535] leading-tight">
-                  Rekomendasi Insight AI
-                </h3>
-                <p className="text-[10px] text-slate-500 font-semibold mt-0.5 truncate">
-                  Data generate: <span className="text-[#047D78] font-bold">{formattedTime}</span>{' '}
-                  <span className="italic text-slate-400 font-normal">(by AI)</span>
-                </p>
-              </div>
+      <div className="flex h-full min-h-0 flex-col overflow-hidden">
+        <div className="shrink-0 border-b border-teal-100 bg-[linear-gradient(180deg,rgba(237,251,250,0.95)_0%,rgba(255,255,255,0.92)_100%)] px-2.5 pb-2 pt-2.5">
+          <div className="flex items-start gap-2">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-teal-200 bg-white shadow-xs">
+              <Sparkles className="h-4 w-4 text-[#047D78]" />
             </div>
+            <div className="min-w-0 flex-1">
+              <h3 className="text-[11px] font-black uppercase leading-tight tracking-wide text-[#1a3535]">
+                Rekomendasi Insight AI
+              </h3>
+              <p className="mt-0.5 truncate text-[9px] font-semibold text-slate-500">
+                {report.available ? (
+                  <>
+                    Data generate: <span className="font-bold text-[#047D78]">{formattedTime}</span>
+                  </>
+                ) : (
+                  'Menunggu data API EOC'
+                )}
+              </p>
+              <p className="truncate text-[9px] font-medium text-slate-400">
+                {report.stats?.regionLabel || regionLabel} · {f?.tahun || ''}
+              </p>
+            </div>
+          </div>
+        </div>
 
-            {/* Video Presenter Container (Portrait 9:15) */}
-            <div className="group/video relative aspect-[9/15] w-full overflow-hidden rounded-xl border border-teal-200/80 bg-black shadow-inner">
-              <iframe
-                src={`${videoUrl}?autoplay=true&loop=true`}
-                className="h-full w-full border-0"
-                allow="encrypted-media; fullscreen;"
-                allowFullScreen
-                title="AI Video Presenter"
-              />
+        <div className="flex shrink-0 gap-0.5 overflow-x-auto border-b border-slate-200 bg-slate-50 px-1 py-1">
+          {([
+            { id: 'report', label: 'Laporan', icon: FileText },
+            { id: 'video', label: 'Video', icon: Video },
+            { id: 'info', label: 'Sumber', icon: Info },
+          ] as const).map((t) => {
+            const Icon = t.icon
+            const active = tab === t.id
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setTab(t.id)}
+                className={`flex min-w-0 flex-1 items-center justify-center gap-1 rounded-md px-1.5 py-1 text-[9px] font-bold uppercase tracking-wide ${
+                  active ? 'bg-white text-[#047D78] shadow-xs' : 'text-slate-500 hover:bg-white/70'
+                }`}
+              >
+                <Icon className="h-3 w-3 shrink-0" />
+                <span className="truncate">{t.label}</span>
+              </button>
+            )
+          })}
+        </div>
 
-              {/* Floating Quick Action Overlay */}
-              <div className="absolute top-2 right-2 z-20 flex items-center gap-1 opacity-0 group-hover/video:opacity-100 transition-opacity bg-black/60 backdrop-blur-xs rounded-lg p-1">
-                <button
-                  type="button"
-                  onClick={handleCopyVideoUrl}
-                  className="flex h-7 w-7 items-center justify-center rounded-md bg-white/20 text-white hover:bg-white/30 transition text-[10px]"
-                  title="Salin Link Video Presenter"
-                >
-                  {copiedLink ? <Check className="h-3.5 w-3.5 text-emerald-300" /> : <Share2 className="h-3.5 w-3.5" />}
-                </button>
+        <div className="min-h-0 flex-1 overflow-y-auto px-2.5 py-2">
+          {tab === 'report' && (
+            <div className="space-y-2">
+              {!report.available ? (
+                <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-2.5 py-3 text-center text-[10px] font-medium text-slate-500">
+                  Data belum tersedia dari API
+                </p>
+              ) : (
+                <>
+                  <div className="rounded-lg border border-teal-200/80 bg-white/90 px-2 py-1.5">
+                    <div className="flex items-center justify-between gap-1 text-[9px] font-bold">
+                      <span className="inline-flex items-center gap-1 text-amber-800">
+                        <ShieldAlert className="h-3 w-3" />
+                        Status: {keparahan}
+                      </span>
+                      <span className="text-[#047D78]">
+                        {stats?.cfr != null ? `Rasio meninggal ${stats.cfr.toLocaleString('id-ID')}%` : 'Rasio meninggal n/a'}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-[10px] leading-snug text-slate-600">{report.preview}</p>
+                  </div>
+                  {report.sections.map((s) => {
+                    const tone = SECTION_TONE[s.color] || SECTION_TONE.slate
+                    return (
+                      <section key={s.num} className={`rounded-lg border px-2 py-1.5 ${tone.wrap}`}>
+                        <p className={`mb-0.5 flex items-center gap-1.5 text-[9px] font-black uppercase leading-tight tracking-wide ${tone.title}`}>
+                          <span className={`inline-flex h-3.5 w-3.5 items-center justify-center rounded-full text-[8px] font-black text-white ${tone.badge}`}>{s.num}</span>
+                          {s.title}
+                        </p>
+                        <p className="text-[10px] leading-snug text-slate-700">{s.body}</p>
+                      </section>
+                    )
+                  })}
+                </>
+              )}
+            </div>
+          )}
+
+          {tab === 'video' && (
+            <div className="space-y-2">
+              <p className="text-[9px] font-semibold leading-snug text-slate-500">
+                Video presenter EOC. Diperkecil agar muat di panel; buka layar penuh atau modal untuk ukuran semula.
+              </p>
+              <div className="flex gap-1 overflow-x-auto">
+                {PRESENTER_VIDEOS.map((v, i) => (
+                  <button
+                    key={v.id}
+                    type="button"
+                    onClick={() => { setVideoIndex(i); setHeygenFailed(false) }}
+                    className={`shrink-0 rounded-md border px-2 py-0.5 text-[9px] font-bold ${
+                      videoIndex === i ? 'border-teal-600 bg-teal-50 text-teal-800' : 'border-slate-200 bg-white text-slate-600'
+                    }`}
+                  >
+                    {v.title.replace('Video AI Presenter - Periode ', '')}
+                  </button>
+                ))}
+              </div>
+              <div className="mx-auto w-full max-w-[168px]">
+                <div className="relative aspect-[9/16] max-h-[220px] w-full overflow-hidden rounded-xl border border-teal-200 bg-slate-900 shadow-inner">
+                  {heygenFailed ? (
+                    <video
+                      src={LOCAL_PRESENTER_MP4}
+                      controls
+                      playsInline
+                      className="h-full w-full object-cover"
+                      poster={`${PUBLIC_BASE_PATH}/insight.svg`}
+                    />
+                  ) : (
+                    <iframe
+                      src={getEmbedUrl(videoUrl)}
+                      className="h-full w-full border-0"
+                      allow="autoplay; encrypted-media; fullscreen;"
+                      allowFullScreen
+                      title="AI Video Presenter"
+                      onError={() => setHeygenFailed(true)}
+                    />
+                  )}
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center justify-center gap-1.5">
                 <button
                   type="button"
                   onClick={() => setIsFullscreenDockVideo(true)}
-                  className="flex h-7 w-7 items-center justify-center rounded-md bg-white/20 text-white hover:bg-white/30 transition text-[10px]"
-                  title="Tonton Layar Penuh"
+                  className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[9px] font-bold text-slate-700 hover:bg-slate-50"
                 >
-                  <Maximize2 className="h-3.5 w-3.5" />
+                  <Maximize2 className="h-3 w-3" /> Layar penuh
                 </button>
+                <a
+                  href={videoUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2 py-1 text-[9px] font-bold text-slate-700 hover:bg-slate-50"
+                >
+                  <ExternalLink className="h-3 w-3" /> Buka di tab baru
+                </a>
               </div>
+              {heygenFailed ? (
+                <p className="text-center text-[9px] font-medium text-amber-700">
+                  Embed HeyGen tidak tampil. Memutar salinan lokal, atau buka tautan di tab baru.
+                </p>
+              ) : null}
             </div>
+          )}
 
-            {/* Quick Summary Pill */}
-            <div className="rounded-xl border border-teal-200/70 bg-white/90 p-2.5 shadow-2xs">
-              <div className="flex items-center justify-between text-[10px] font-bold">
-                <span className="flex items-center gap-1 text-amber-800">
-                  <ShieldAlert className="h-3.5 w-3.5 text-amber-600" />
-                  Status: Siaga Tinggi
-                </span>
-                <span className="text-[#047D78]">CFR: {cfr}%</span>
-              </div>
-              <p className="mt-1 line-clamp-2 text-[10px] leading-relaxed text-slate-600">
-                Konsentrasi pengungsi ({pengungsi.toLocaleString('id-ID')} jiwa) membutuhkan intervensi sanitasi mendesak untuk mencegah KLB.
-              </p>
+          {tab === 'info' && (
+            <div className="space-y-2 text-[10px] leading-snug text-slate-600">
+              <p className="text-[9px] font-black uppercase tracking-wide text-slate-500">Informasi sumber data & AI</p>
+              <ul className="list-disc space-y-1 pl-4">
+                <li>Angka kejadian, korban, pengungsi, dan terdampak berasal dari API EOC Pusat Krisis Kesehatan, mengikuti filter tahun dan wilayah yang aktif.</li>
+                <li>Laporan ini merangkum angka tersebut secara terstruktur. Bukan hasil model prediksi, dan tidak memakai angka cadangan jika data API belum ada.</li>
+                <li>Video presenter memakai embed HeyGen EOC (periode bulanan) dan salinan berkas lokal bila embed gagal tampil.</li>
+                <li>PSC, ambulans, dan tenaga cadangan dibaca dari API masing-masing di panel kesiapan, bukan dari laporan ini.</li>
+              </ul>
             </div>
+          )}
+        </div>
 
-            {/* Action Buttons: Analisis AI Lengkap + Infografis AI */}
-            <div className="grid grid-cols-2 gap-2.5 pt-0.5">
-              <button
-                type="button"
-                onClick={handleOpenAiModal}
-                disabled={generatingAi}
-                className="group flex items-center justify-center gap-2 rounded-[14px] bg-[#047D78] hover:bg-[#03605c] px-3 py-3 text-white shadow-[0_4px_14px_rgba(4,125,120,0.32)] transition-all hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(4,125,120,0.42)] active:scale-[0.99] disabled:cursor-wait"
-              >
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/20 transition-transform group-hover:scale-110">
-                  {generatingAi ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-                </span>
-                <span className="text-[11px] font-bold uppercase tracking-wide text-center leading-tight">
-                  {generatingAi ? 'Menganalisis...' : 'Analisis AI Lengkap'}
-                </span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setIsInfografisModalOpen(true)}
-                className="group flex items-center justify-center gap-2 rounded-[14px] bg-[#0f766e] hover:bg-[#0d655e] px-3 py-3 text-white shadow-[0_4px_14px_rgba(15,118,110,0.32)] transition-all hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(15,118,110,0.42)] active:scale-[0.99]"
-              >
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/20 transition-transform group-hover:scale-110">
-                  <FileText className="h-3.5 w-3.5" />
-                </span>
-                <span className="text-[11px] font-bold uppercase tracking-wide text-center leading-tight">
-                  Infografis AI
-                </span>
-              </button>
-            </div>
+        <div className="shrink-0 border-t border-slate-100 bg-white px-2.5 py-2">
+          <div className="grid grid-cols-2 gap-1.5">
+            <button
+              type="button"
+              onClick={handleOpenAiModal}
+              disabled={generatingAi || !report.available}
+              className="inline-flex items-center justify-center gap-1 rounded-lg bg-[#047D78] px-2 py-1.5 text-[10px] font-bold uppercase tracking-wide text-white hover:bg-[#03605c] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {generatingAi ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3" />}
+              Lengkap
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsInfografisModalOpen(true)}
+              className="inline-flex items-center justify-center gap-1 rounded-lg bg-[#0f766e] px-2 py-1.5 text-[10px] font-bold uppercase tracking-wide text-white hover:bg-[#0d655e]"
+            >
+              <FileText className="h-3 w-3" />
+              Infografis
+            </button>
           </div>
-        </article>
+        </div>
       </div>
 
-      {/* AI Modal Dialog */}
       <PuskrisAiModal
         isOpen={isAiModalOpen}
         onClose={() => setIsAiModalOpen(false)}
-        regionLabel={regionLabel.toUpperCase()}
-        aiInsightText={aiInsightText}
+        regionLabel={(report.stats?.regionLabel || regionLabel).toUpperCase()}
+        aiInsightText={report.fullText}
         formattedTime={formattedTime}
-        summaryData={{
-          totalBencana,
-          totalKrisis,
-          meninggal,
-          luka,
-          hilang,
-          pengungsi,
-          terdampak,
-          topDisaster,
-          topRegion,
-          cfr,
-        }}
+        summaryData={
+          stats
+            ? {
+                totalBencana: stats.terpantau,
+                totalKrisis: stats.krisis,
+                meninggal: stats.meninggal,
+                luka: stats.luka,
+                hilang: stats.hilang,
+                pengungsi: stats.pengungsi,
+                terdampak: stats.terdampak,
+                topDisaster: stats.topJenis || undefined,
+                topRegion: stats.topWilayah || undefined,
+                cfr: stats.cfr != null ? String(stats.cfr) : undefined,
+              }
+            : undefined
+        }
       />
 
-      {/* Infografis Modal Dialog */}
       <PuskrisInfografisModal
         isOpen={isInfografisModalOpen}
         onClose={() => setIsInfografisModalOpen(false)}
       />
 
-      {/* Fullscreen Dock Video Overlay */}
-      {isFullscreenDockVideo && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 p-4 backdrop-blur-sm animate-in fade-in duration-150">
-          <div className="relative aspect-[9/16] w-full max-w-sm overflow-hidden rounded-3xl border border-white/10 bg-black shadow-2xl animate-in zoom-in-95 duration-150">
-            <iframe
-              src={`${videoUrl}?autoplay=true&loop=true`}
-              className="h-full w-full border-0"
-              allow="autoplay; encrypted-media; fullscreen;"
-              allowFullScreen
-              title="Fullscreen Presenter"
-            />
+      {isFullscreenDockVideo && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 p-4 backdrop-blur-sm">
+          <div className="relative aspect-[9/16] w-full max-w-sm overflow-hidden rounded-3xl border border-white/10 bg-black shadow-2xl">
+            {heygenFailed ? (
+              <video src={LOCAL_PRESENTER_MP4} controls autoPlay playsInline className="h-full w-full object-cover" />
+            ) : (
+              <iframe
+                src={getEmbedUrl(videoUrl)}
+                className="h-full w-full border-0"
+                allow="autoplay; encrypted-media; fullscreen;"
+                allowFullScreen
+                title="Fullscreen Presenter"
+              />
+            )}
             <button
               type="button"
               onClick={() => setIsFullscreenDockVideo(false)}
-              className="absolute top-3 right-3 z-50 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80 transition"
+              className="absolute right-3 top-3 z-50 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80"
               aria-label="Tutup video"
             >
               ✕
             </button>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   )

@@ -448,7 +448,7 @@ export default function PuskrisPetaTerpadu({
                     raw={raw}
                     f={f}
                     derived={derived}
-                    regionLabel={drillNama || (f.provinsi ? `Provinsi ${f.provinsi}` : 'Nasional')}
+                    regionLabel={drillNama || (derived.rows || []).find((r) => String(r.code) === String(f.provinsi || f.kabupaten || ''))?.nama || 'Nasional'}
                   />
                 )}
                 {dockTab === 'analisa' && (

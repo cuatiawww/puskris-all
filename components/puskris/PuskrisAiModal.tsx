@@ -11,7 +11,11 @@ import {
   Clock,
   Maximize2,
   Check,
+  Copy,
+  Download,
+  ExternalLink,
 } from 'lucide-react'
+import { PUBLIC_BASE_PATH } from '@/lib/public-path'
 
 export type PresenterVideo = {
   id: number
@@ -84,8 +88,15 @@ export default function PuskrisAiModal({
   const [tab, setTab] = useState<'report' | 'video' | 'info'>('report')
   const [activeFullscreenVideo, setActiveFullscreenVideo] = useState<string | null>(null)
   const [copiedId, setCopiedId] = useState<number | null>(null)
+  const [reportCopied, setReportCopied] = useState(false)
 
   if (!isOpen) return null
+
+  const handleCopyFullReport = () => {
+    navigator.clipboard.writeText(aiInsightText)
+    setReportCopied(true)
+    setTimeout(() => setReportCopied(false), 2000)
+  }
 
   const handleShareWa = (title: string, url: string) => {
     const text = `*${title}*\n\nTonton update laporan video AI Presenter Emergency Operation Center (EOC) Krisis Kesehatan Kemenkes RI disini:\n${url}`
@@ -226,6 +237,44 @@ export default function PuskrisAiModal({
           <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-white scrollbar-thin">
             {tab === 'report' && (
               <div className="space-y-4">
+                {/* Action Bar */}
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50/80 p-2.5">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="text-[11px] font-bold text-slate-700">Laporan Resmi Risk Assessment EOC</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={handleCopyFullReport}
+                      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-700 shadow-2xs hover:bg-slate-100 transition"
+                      title="Salin teks analisis ke papan klip"
+                    >
+                      {reportCopied ? <Check className="h-3 w-3 text-emerald-600" /> : <Copy className="h-3 w-3" />}
+                      <span>{reportCopied ? 'Tersalin' : 'Salin Teks'}</span>
+                    </button>
+                    <a
+                      href={`${PUBLIC_BASE_PATH}/laporan_eoc_kemenkes.pdf`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 rounded-lg border border-teal-200 bg-teal-50 px-2.5 py-1 text-[11px] font-bold text-teal-800 shadow-2xs hover:bg-teal-100 transition"
+                      title="Buka dokumen PDF resmi"
+                    >
+                      <Download className="h-3 w-3" />
+                      <span>Unduh PDF</span>
+                    </a>
+                    <a
+                      href={`${PUBLIC_BASE_PATH}/laporan_eoc_kemenkes.html`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-700 shadow-2xs hover:bg-slate-100 transition"
+                      title="Buka versi web interaktif"
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      <span>HTML</span>
+                    </a>
+                  </div>
+                </div>
                 {sectionDefs.map((sec) => {
                   const c = colorMap[sec.color]
                   const content = sectionTexts[sec.key] || ''

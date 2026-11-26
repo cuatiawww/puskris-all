@@ -5,9 +5,12 @@ import {
   Sparkles,
   FileText,
   Video,
-  AlertTriangle,
-  ChevronRight,
   ShieldAlert,
+  Loader2,
+  Maximize2,
+  Share2,
+  Check,
+  ExternalLink,
 } from 'lucide-react'
 import { PUBLIC_BASE_PATH } from '@/lib/public-path'
 import PuskrisAiModal from './PuskrisAiModal'
@@ -28,6 +31,9 @@ export default function PuskrisAiDock({
 }: PuskrisAiDockProps) {
   const [isAiModalOpen, setIsAiModalOpen] = useState(false)
   const [isInfografisModalOpen, setIsInfografisModalOpen] = useState(false)
+  const [generatingAi, setGeneratingAi] = useState(false)
+  const [isFullscreenDockVideo, setIsFullscreenDockVideo] = useState(false)
+  const [copiedLink, setCopiedLink] = useState(false)
 
   const videoUrl = 'https://app.heygen.com/embeds/cbfda07fa0ad4e338dbe19d7eff5be75'
 
@@ -60,6 +66,20 @@ export default function PuskrisAiDock({
   const topDisaster = raw?.jenis_bencana?.[0]?.nama || f?.jenis || 'Kebakaran Hutan dan Lahan'
   const topRegion = f?.provinsi ? regionLabel : raw?.wilayah?.[0]?.nama || 'Jawa Timur'
   const tahun = f?.tahun || 2026
+
+  const handleOpenAiModal = () => {
+    setGeneratingAi(true)
+    setTimeout(() => {
+      setGeneratingAi(false)
+      setIsAiModalOpen(true)
+    }, 450)
+  }
+
+  const handleCopyVideoUrl = () => {
+    navigator.clipboard.writeText(videoUrl)
+    setCopiedLink(true)
+    setTimeout(() => setCopiedLink(false), 2000)
+  }
 
   const aiInsightText = useMemo(() => {
     return `[ANALISIS RISK ASSESSMENT]
@@ -110,13 +130,17 @@ Secara keseluruhan, respon kesehatan terhadap bencana ${topDisaster} telah berja
     <>
       <div className="flex h-full flex-col overflow-y-auto p-3 scrollbar-thin">
         {/* AI Insight Card Container */}
-        <div
-          className="relative flex flex-col overflow-hidden rounded-2xl border border-[#b7d9d8] p-4 text-[#1a3535] shadow-xs"
+        <article
+          className="relative flex flex-col overflow-hidden border border-[#b7d9d8] p-4 text-[#1a3535] shadow-xs"
           style={{
             backgroundImage: `url('${PUBLIC_BASE_PATH}/bg insght.png')`,
             backgroundSize: 'cover',
             backgroundPosition: 'center bottom',
             backgroundRepeat: 'no-repeat',
+            borderTopLeftRadius: '17px',
+            borderTopRightRadius: '17px',
+            borderBottomRightRadius: '22px',
+            borderBottomLeftRadius: '17px',
           }}
         >
           {/* Subtle gradient backdrop */}
@@ -125,29 +149,29 @@ Secara keseluruhan, respon kesehatan terhadap bencana ${topDisaster} telah berja
           <div className="relative z-10 flex flex-col gap-3">
             {/* Header: Icon + Title */}
             <div className="flex items-start gap-2.5">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/90 p-1 shadow-sm border border-teal-200">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/95 p-1 shadow-xs border border-teal-200">
                 <img
                   src={`${PUBLIC_BASE_PATH}/insight.svg`}
                   alt="Insight AI"
-                  className="h-8 w-8 object-contain"
+                  className="h-9 w-9 object-contain"
                   onError={(e) => {
                     ;(e.target as HTMLElement).style.display = 'none'
                   }}
                 />
               </div>
               <div className="min-w-0 flex-1">
-                <h3 className="text-xs font-black uppercase tracking-wider text-[#1a3535] sm:text-sm">
+                <h3 className="text-[13px] sm:text-[14px] font-black uppercase tracking-wider text-[#1a3535] leading-tight">
                   Rekomendasi Insight AI
                 </h3>
                 <p className="text-[10px] text-slate-500 font-semibold mt-0.5 truncate">
-                  Data generate: <span className="text-[#00705a]">{formattedTime}</span>{' '}
+                  Data generate: <span className="text-[#047D78] font-bold">{formattedTime}</span>{' '}
                   <span className="italic text-slate-400 font-normal">(by AI)</span>
                 </p>
               </div>
             </div>
 
-            {/* Video Presenter Container */}
-            <div className="relative aspect-[9/14] w-full overflow-hidden rounded-xl border border-teal-200/80 bg-black/5 shadow-inner">
+            {/* Video Presenter Container (Portrait 9:15) */}
+            <div className="group/video relative aspect-[9/15] w-full overflow-hidden rounded-xl border border-teal-200/80 bg-black shadow-inner">
               <iframe
                 src={`${videoUrl}?autoplay=true&loop=true`}
                 className="h-full w-full border-0"
@@ -155,52 +179,73 @@ Secara keseluruhan, respon kesehatan terhadap bencana ${topDisaster} telah berja
                 allowFullScreen
                 title="AI Video Presenter"
               />
+
+              {/* Floating Quick Action Overlay */}
+              <div className="absolute top-2 right-2 z-20 flex items-center gap-1 opacity-0 group-hover/video:opacity-100 transition-opacity bg-black/60 backdrop-blur-xs rounded-lg p-1">
+                <button
+                  type="button"
+                  onClick={handleCopyVideoUrl}
+                  className="flex h-7 w-7 items-center justify-center rounded-md bg-white/20 text-white hover:bg-white/30 transition text-[10px]"
+                  title="Salin Link Video Presenter"
+                >
+                  {copiedLink ? <Check className="h-3.5 w-3.5 text-emerald-300" /> : <Share2 className="h-3.5 w-3.5" />}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsFullscreenDockVideo(true)}
+                  className="flex h-7 w-7 items-center justify-center rounded-md bg-white/20 text-white hover:bg-white/30 transition text-[10px]"
+                  title="Tonton Layar Penuh"
+                >
+                  <Maximize2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
             </div>
 
             {/* Quick Summary Pill */}
-            <div className="rounded-xl border border-teal-200/70 bg-white/80 p-2.5 shadow-2xs">
+            <div className="rounded-xl border border-teal-200/70 bg-white/90 p-2.5 shadow-2xs">
               <div className="flex items-center justify-between text-[10px] font-bold">
                 <span className="flex items-center gap-1 text-amber-800">
-                  <ShieldAlert className="h-3 w-3 text-amber-600" />
+                  <ShieldAlert className="h-3.5 w-3.5 text-amber-600" />
                   Status: Siaga Tinggi
                 </span>
-                <span className="text-[#00705a]">CFR: {cfr}%</span>
+                <span className="text-[#047D78]">CFR: {cfr}%</span>
               </div>
               <p className="mt-1 line-clamp-2 text-[10px] leading-relaxed text-slate-600">
                 Konsentrasi pengungsi ({pengungsi.toLocaleString('id-ID')} jiwa) membutuhkan intervensi sanitasi mendesak untuk mencegah KLB.
               </p>
             </div>
 
-            {/* Action Buttons */}
-            <div className="grid grid-cols-2 gap-2 pt-1">
+            {/* Action Buttons: Analisis AI Lengkap + Infografis AI */}
+            <div className="grid grid-cols-2 gap-2.5 pt-0.5">
               <button
                 type="button"
-                onClick={() => setIsAiModalOpen(true)}
-                className="group flex items-center justify-center gap-1.5 rounded-xl bg-[#047D78] px-2.5 py-2.5 text-white shadow-[0_3px_10px_rgba(4,125,120,0.28)] hover:bg-[#03605c] hover:shadow-[0_4px_14px_rgba(4,125,120,0.38)] active:scale-[0.98] transition"
+                onClick={handleOpenAiModal}
+                disabled={generatingAi}
+                className="group flex items-center justify-center gap-2 rounded-[14px] bg-[#047D78] hover:bg-[#03605c] px-3 py-3 text-white shadow-[0_4px_14px_rgba(4,125,120,0.32)] transition-all hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(4,125,120,0.42)] active:scale-[0.99] disabled:cursor-wait"
               >
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/20">
-                  <Sparkles className="h-3 w-3" />
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/20 transition-transform group-hover:scale-110">
+                  {generatingAi ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
                 </span>
-                <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider leading-tight text-center">
-                  Analisis AI Lengkap
+                <span className="text-[11px] font-bold uppercase tracking-wide text-center leading-tight">
+                  {generatingAi ? 'Menganalisis...' : 'Analisis AI Lengkap'}
                 </span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setIsInfografisModalOpen(true)}
-                className="group flex items-center justify-center gap-1.5 rounded-xl bg-[#0f766e] px-2.5 py-2.5 text-white shadow-[0_3px_10px_rgba(15,118,110,0.28)] hover:bg-[#0d655e] hover:shadow-[0_4px_14px_rgba(15,118,110,0.38)] active:scale-[0.98] transition"
+                className="group flex items-center justify-center gap-2 rounded-[14px] bg-[#0f766e] hover:bg-[#0d655e] px-3 py-3 text-white shadow-[0_4px_14px_rgba(15,118,110,0.32)] transition-all hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(15,118,110,0.42)] active:scale-[0.99]"
               >
-                <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/20">
-                  <FileText className="h-3 w-3" />
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white/20 transition-transform group-hover:scale-110">
+                  <FileText className="h-3.5 w-3.5" />
                 </span>
-                <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider leading-tight text-center">
+                <span className="text-[11px] font-bold uppercase tracking-wide text-center leading-tight">
                   Infografis AI
                 </span>
               </button>
             </div>
           </div>
-        </div>
+        </article>
       </div>
 
       {/* AI Modal Dialog */}
@@ -229,6 +274,29 @@ Secara keseluruhan, respon kesehatan terhadap bencana ${topDisaster} telah berja
         isOpen={isInfografisModalOpen}
         onClose={() => setIsInfografisModalOpen(false)}
       />
+
+      {/* Fullscreen Dock Video Overlay */}
+      {isFullscreenDockVideo && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 p-4 backdrop-blur-sm animate-in fade-in duration-150">
+          <div className="relative aspect-[9/16] w-full max-w-sm overflow-hidden rounded-3xl border border-white/10 bg-black shadow-2xl animate-in zoom-in-95 duration-150">
+            <iframe
+              src={`${videoUrl}?autoplay=true&loop=true`}
+              className="h-full w-full border-0"
+              allow="autoplay; encrypted-media; fullscreen;"
+              allowFullScreen
+              title="Fullscreen Presenter"
+            />
+            <button
+              type="button"
+              onClick={() => setIsFullscreenDockVideo(false)}
+              className="absolute top-3 right-3 z-50 flex h-9 w-9 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80 transition"
+              aria-label="Tutup video"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
     </>
   )
 }

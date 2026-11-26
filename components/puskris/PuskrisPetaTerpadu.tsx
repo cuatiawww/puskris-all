@@ -6,7 +6,7 @@ import { logistikPerProvinsi, periodeRange } from '@/lib/puskris/derive'
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
-import { Ambulance, Hospital, PhoneCall, ChevronLeft, ChevronRight, Crosshair, Layers, ListTree, MapPin, Maximize2, Minimize2, Settings, Shapes, Wind, X } from 'lucide-react'
+import { Ambulance, Hospital, PhoneCall, ChevronLeft, ChevronRight, Crosshair, Layers, ListTree, MapPin, Maximize2, Minimize2, Settings, Shapes, Sparkles, Wind, X } from 'lucide-react'
 import SpasialPanel from '@/components/spasial/SpasialPanel'
 import { DEFAULT_LAYERS, type Focus, type Layers as MapLayers, type IntelLayerStatus } from '@/components/spasial/SpasialMap'
 import { defaultFilter, type AFilter } from '@/lib/analisa-api'
@@ -399,8 +399,13 @@ export default function PuskrisPetaTerpadu({
             </label>
             <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-700">{periodeLabel(f)}</span>
             <div className="flex items-center gap-1.5 border-l border-slate-200 pl-2">
+              <button type="button" onClick={() => { setDockTab('ai'); setLeftDockOpen(true) }}
+                className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-bold transition ${leftDockOpen && dockTab === 'ai' ? 'border-[#047D78] bg-teal-50 text-[#047D78]' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'}`}
+                title="Buka Rekomendasi Insight AI & Video Presenter">
+                <Sparkles className="h-3.5 w-3.5 text-[#047D78]" /><span className="hidden sm:inline">Analisa AI</span>
+              </button>
               <button type="button" onClick={() => setLeftDockOpen(!leftDockOpen)}
-                className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-bold transition ${leftDockOpen ? 'border-primary bg-primary/10 text-primary' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
+                className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-bold transition ${leftDockOpen && dockTab !== 'ai' ? 'border-primary bg-primary/10 text-primary' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'}`}
                 title="Buka / Ciutkan Analisa & Detail Wilayah">
                 <MapPin className="h-3.5 w-3.5" /><span className="hidden sm:inline">Analisa Wilayah</span>
               </button>

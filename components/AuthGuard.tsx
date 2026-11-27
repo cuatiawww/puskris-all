@@ -22,7 +22,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     if (need.kind === 'public' || loading || user) return
     // window.location (not useSearchParams) so pages need no Suspense boundary
     const target = pathname + window.location.search
-    router.replace(`/login?redirect=${encodeURIComponent(target)}`)
+    router.replace(`/dashboard/login?redirect=${encodeURIComponent(target)}`)
   }, [need.kind, loading, user, router, pathname])
 
   // An API call answered 401 (session expired / revoked): re-check, then the effect above redirects.
@@ -51,8 +51,8 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
           <p className="mb-6 mt-2 text-center text-xs leading-relaxed text-slate-600">
             {t('skdr.auth.mustChangeBody', { name: user.full_name || user.username })}
           </p>
-          <PasswordForm onDone={() => {}} onCancel={async () => { await logout(); router.replace('/login') }} />
-          <button type="button" onClick={async () => { await logout(); router.replace('/login') }}
+          <PasswordForm onDone={() => {}} onCancel={async () => { await logout(); router.replace('/dashboard/login') }} />
+          <button type="button" onClick={async () => { await logout(); router.replace('/dashboard/login') }}
             className="mx-auto mt-4 flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-rose-600">
             <LogOut className="h-3.5 w-3.5" /> {t('skdr.auth.logout')}
           </button>
@@ -76,7 +76,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
               className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 sm:w-auto">
               <ArrowLeft className="h-3.5 w-3.5" /> {t('common.back')}
             </button>
-            <Link href="/dashboard"
+            <Link href="/dashboard/ringkasan"
               className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-white transition hover:bg-primary-dark sm:w-auto">
               <LayoutDashboard className="h-3.5 w-3.5" /> {t('skdr.auth.toDashboard')}
             </Link>

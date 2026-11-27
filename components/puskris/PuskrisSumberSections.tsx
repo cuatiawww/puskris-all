@@ -706,32 +706,34 @@ export default function PuskrisSumberSections({
         </Card>
       )}
 
-      <section className="skdr-section">
-        <SectionHead eyebrow="Daftar kejadian" title="Kejadian krisis terbaru" desc="Mengikuti filter periode, provinsi, kabupaten, dan jenis kejadian." />
-        <div className="skdr-card overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-xs">
-            <thead className="bg-slate-50 text-left text-[10px] font-black uppercase tracking-wider text-slate-500">
-              <tr>{['Tanggal', 'Jenis', 'Provinsi', 'Kabupaten', 'Terdampak', 'Meninggal', 'Pengungsi'].map((h) => <th key={h} className="px-3 py-2">{h}</th>)}</tr>
-            </thead>
-            <tbody>
-              {kejadian.slice(0, 25).map((k: any, i: number) => (
-                <tr key={`${k.tanggal}-${k.jenis}-${i}`} className="border-t border-slate-100">
-                  <td className="whitespace-nowrap px-3 py-2">{k.tanggal}</td>
-                  <td className="px-3 py-2">{k.jenis}</td>
-                  <td className="px-3 py-2">{k.provinsi}</td>
-                  <td className="px-3 py-2">{k.kabupaten}</td>
-                  <td className="px-3 py-2 tabular-nums">{nf(k.terdampak)}</td>
-                  <td className="px-3 py-2 tabular-nums">{nf(k.meninggal)}</td>
-                  <td className="px-3 py-2 tabular-nums">{nf(k.pengungsi)}</td>
-                </tr>
-              ))}
-              {!kejadian.length && <tr><td className="px-3 py-6 text-slate-500" colSpan={7}>Tidak ada kejadian pada filter ini.</td></tr>}
-            </tbody>
-          </table>
+      {tab === 'krisis' && (
+        <section className="skdr-section">
+          <SectionHead eyebrow="Daftar kejadian" title="Kejadian krisis terbaru" desc="Mengikuti filter periode, provinsi, kabupaten, dan jenis kejadian." />
+          <div className="skdr-card overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-xs">
+              <thead className="bg-slate-50 text-left text-[10px] font-black uppercase tracking-wider text-slate-500">
+                <tr>{['Tanggal', 'Jenis', 'Provinsi', 'Kabupaten', 'Terdampak', 'Meninggal', 'Pengungsi'].map((h) => <th key={h} className="px-3 py-2">{h}</th>)}</tr>
+              </thead>
+              <tbody>
+                {kejadian.slice(0, 25).map((k: any, i: number) => (
+                  <tr key={`${k.tanggal}-${k.jenis}-${i}`} className="border-t border-slate-100">
+                    <td className="whitespace-nowrap px-3 py-2">{k.tanggal}</td>
+                    <td className="px-3 py-2">{k.jenis}</td>
+                    <td className="px-3 py-2">{k.provinsi}</td>
+                    <td className="px-3 py-2">{k.kabupaten}</td>
+                    <td className="px-3 py-2 tabular-nums">{nf(k.terdampak)}</td>
+                    <td className="px-3 py-2 tabular-nums">{nf(k.meninggal)}</td>
+                    <td className="px-3 py-2 tabular-nums">{nf(k.pengungsi)}</td>
+                  </tr>
+                ))}
+                {!kejadian.length && <tr><td className="px-3 py-6 text-slate-500" colSpan={7}>Tidak ada kejadian pada filter ini.</td></tr>}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
-      </section>
+        </section>
+      )}
     </div>
   )
 }

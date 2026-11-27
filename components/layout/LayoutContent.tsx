@@ -10,7 +10,12 @@ import AuthGuard from '@/components/AuthGuard'
 export default function LayoutContent({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const toaster = <Toaster position="top-right" richColors containerAriaLabel={tr("skdr.notifications")} />
-  const isStandalone = pathname === '/' || pathname === '/login' || pathname === '/register'
+  const isStandalone =
+    pathname === '/' ||
+    pathname === '/login' ||
+    pathname === '/register' ||
+    pathname === '/dashboard/login' ||
+    pathname === '/dashboard/register'
   if (isStandalone) {
     return (
       <>

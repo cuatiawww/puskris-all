@@ -416,7 +416,7 @@ export default function RegisterPage() {
         {step !== 'otp' && (
           <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-4">
             <Link
-              href="/login"
+              href="/dashboard/login"
               className="inline-flex items-center gap-2 text-teal-700 hover:text-teal-800 font-bold text-xs uppercase tracking-wider transition-colors"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -1055,7 +1055,7 @@ export default function RegisterPage() {
 
             <div className="pt-2 flex flex-col sm:flex-row gap-3 justify-center">
               <Link
-                href="/login"
+                href="/dashboard/login"
                 className="inline-flex h-12 items-center justify-center rounded-xl bg-[#047D78] px-8 text-xs font-bold uppercase tracking-wider text-white hover:bg-[#03605c] transition-colors shadow-md"
               >
                 Lanjut ke Halaman Login

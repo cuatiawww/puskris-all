@@ -60,9 +60,10 @@ export default function UserMenu({ onBrand = false }: { onBrand?: boolean }) {
 
   if (loading) return <div className="h-10 w-24" aria-hidden />
   if (!user) {
-    const redirect = pathname === '/login' ? '' : `?redirect=${encodeURIComponent(pathname)}`
+    const isLoginPath = pathname === '/login' || pathname === '/dashboard/login'
+    const redirect = isLoginPath ? '' : `?redirect=${encodeURIComponent(pathname)}`
     return (
-      <Link href={`/login${redirect}`} data-testid="login-link"
+      <Link href={`/dashboard/login${redirect}`} data-testid="login-link"
         className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold shadow-sm transition ${onBrand ? 'bg-white text-brand-700 hover:bg-brand-50' : 'bg-primary text-white hover:bg-primary-dark'
           }`}>
         <LogIn className="h-4 w-4" /> {t('skdr.auth.signInShort')}
@@ -75,7 +76,7 @@ export default function UserMenu({ onBrand = false }: { onBrand?: boolean }) {
   const doLogout = async () => {
     await logout()
     toast.success(isGuest ? 'Keluar dari sesi tamu' : t('skdr.auth.loggedOut'))
-    router.replace('/login')
+    router.replace('/dashboard/login')
   }
   const isBypass = process.env.NEXT_PUBLIC_BYPASS_AUTH === 'true'
   const item = 'flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-semibold text-slate-700 hover:bg-slate-50'
@@ -105,8 +106,8 @@ export default function UserMenu({ onBrand = false }: { onBrand?: boolean }) {
             <Link href="/dashboard/open-data" role="menuitem" className={item}><Database className="h-4 w-4 text-slate-400" />Open Data &amp; API</Link>
             {isGuest ? (
               <>
-                <Link href="/login" role="menuitem" className={item}><LogIn className="h-4 w-4 text-teal-600" />Masuk Akun Resmi</Link>
-                <Link href="/register" role="menuitem" className={item}><KeyRound className="h-4 w-4 text-teal-600" />Daftar sebagai Masyarakat</Link>
+                <Link href="/dashboard/login" role="menuitem" className={item}><LogIn className="h-4 w-4 text-teal-600" />Masuk Akun Resmi</Link>
+                <Link href="/dashboard/register" role="menuitem" className={item}><KeyRound className="h-4 w-4 text-teal-600" />Daftar sebagai Masyarakat</Link>
                 <button type="button" role="menuitem" data-testid="logout" className={`${item} text-red-600 hover:bg-red-50`} onClick={doLogout}><LogOut className="h-4 w-4" />Keluar Akses Tamu</button>
               </>
             ) : (

@@ -16,7 +16,7 @@ export const LIMITED_PREFIXES = ['/dashboard/spasial', '/dashboard/matriks-anali
 
 export function routeArea(pathname: string): Area {
   const p = pathname || '/'
-  if (p === '/login' || p === '/register') return 'bare'
+  if (p === '/login' || p === '/register' || p === '/dashboard/login' || p === '/dashboard/register') return 'bare'
   if (p === '/' || p === '/beranda') return 'home'
   if (TATAKELOLA_PREFIXES.some((x) => under(p, x))) return 'tatakelola'
   if (DASHBOARD_PREFIXES.some((x) => under(p, x))) return 'dashboard'
@@ -25,7 +25,7 @@ export function routeArea(pathname: string): Area {
 
 export function routeNeed(pathname: string): Need {
   const p = pathname || '/'
-  if (p === '/' || p === '/login' || p === '/register') return { kind: 'public' }
+  if (p === '/' || p === '/login' || p === '/register' || p === '/dashboard/login' || p === '/dashboard/register') return { kind: 'public' }
   if (LIMITED_PREFIXES.some((x) => under(p, x))) return { kind: 'perm', perm: 'dashboard_limited' }
   if (['/tatakelola/pengguna', '/tatakelola/peran', '/tatakelola/log-akses'].some((x) => under(p, x))) return { kind: 'perm', perm: 'user_management' }
   if (under(p, '/master')) return { kind: 'perm', perm: 'master_data' }
@@ -43,7 +43,16 @@ export function hasPerm(permissions: string[] | undefined | null, perm?: string)
 }
 
 /** Only allow same-app relative redirects after login (no open redirect). */
-export function safeRedirect(raw: string | null | undefined, fallback = '/dashboard'): string {
-  if (!raw || !raw.startsWith('/') || raw.startsWith('//') || raw.startsWith('/\\') || raw.startsWith('/login')) return fallback
+export function safeRedirect(raw: string | null | undefined, fallback = '/dashboard/ringkasan'): string {
+  if (
+    !raw ||
+    !raw.startsWith('/') ||
+    raw.startsWith('//') ||
+    raw.startsWith('/\\') ||
+    raw.startsWith('/login') ||
+    raw.startsWith('/register') ||
+    raw.startsWith('/dashboard/login') ||
+    raw.startsWith('/dashboard/register')
+  ) return fallback
   return raw
 }

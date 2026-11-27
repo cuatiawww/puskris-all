@@ -186,7 +186,7 @@ function LoginForm() {
         <div>
           <div className="flex items-center justify-between border-b border-slate-100 pb-4">
             <Link
-              href="/"
+              href="/dashboard/ringkasan"
               className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-slate-500 transition hover:text-teal-700"
               data-testid="back-landing"
             >
@@ -410,7 +410,7 @@ function LoginForm() {
                   Belum memiliki akun terdaftar sebagai Masyarakat?
                 </p>
                 <Link
-                  href="/register"
+                  href="/dashboard/register"
                   className="mt-2.5 inline-flex items-center justify-center gap-2 rounded-xl border border-[#047D78] bg-white px-5 py-2.5 text-xs font-bold uppercase tracking-wider text-[#047D78] shadow-2xs hover:bg-teal-50 transition"
                 >
                   <UserPlus className="h-4 w-4" />

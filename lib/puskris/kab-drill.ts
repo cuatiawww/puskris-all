@@ -52,6 +52,15 @@ export function buildKabNumeric(opts: {
     }
     if (!Object.keys(val).length) return kabNetral(prov, label, 'Data Asistensi kab/kota belum tersedia dari API.')
     sumber = 'API Asistensi (kab/kota)'
+  } else if (choro === 'tck') {
+    for (const r of opts.raw?.tck?.peta_kab || []) {
+      if (String(r.p).padStart(2, '0') !== prov) continue
+      const c = kode4(r.code)
+      if (!c) continue
+      val[c] = { v: Number(r.n || 0), nama: r.nama || c }
+    }
+    if (!Object.keys(val).length) return kabNetral(prov, label, 'Data relawan TCK per kab/kota belum tersedia dari API.')
+    sumber = 'API Tenaga Cadangan Kesehatan (kab/kota)'
   } else {
     return kabNetral(prov, label, `${label} belum tersedia per kab/kota dari API; hanya batas kab/kota.`)
   }

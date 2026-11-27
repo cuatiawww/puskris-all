@@ -19,7 +19,7 @@ export const SOURCE = {
   ambulans: { label: 'Dasbor Ambulans', href: 'https://psc.kemkes.go.id/dashboard/dashboard-ambulans' },
   ncc: { label: 'Dasbor Panggilan 119', href: 'https://psc.kemkes.go.id/dashboard/dashboard-ncc' },
   eocResmi: { label: 'Dasbor Pantauan Bencana', href: 'https://pusatkrisis.kemkes.go.id/dashboard-new' },
-  eocVercel: { label: 'Dasbor EOC', href: 'https://dashboard-eoc.vercel.app/dashboard-eoc/' },
+  eocVercel: { label: 'Dasbor EOC', href: 'https://dashboard-psi-ten-54.vercel.app/' },
   tck: { label: 'Dasbor Tenaga Cadangan', href: 'https://tenagacadangankesehatan.kemkes.go.id/web/site/dashboard-tck' },
   logistik: { label: 'Dasbor Logistik', href: 'https://pusatkrisis.kemkes.go.id/logistik/site/landing-page' },
   asisProv: { label: 'Dasbor Asistensi Provinsi', href: 'https://pusatkrisis.kemkes.go.id/asistensi/dashboard-provinsi/index?modul=58MFls8WhAeVFGXqpKj9KQ%3D%3D' },

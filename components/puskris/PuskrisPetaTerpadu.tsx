@@ -6,7 +6,7 @@ import { logistikPerProvinsi, periodeRange } from '@/lib/puskris/derive'
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
-import { Ambulance, Hospital, PhoneCall, ChevronLeft, ChevronRight, Crosshair, Layers, ListTree, MapPin, Maximize2, Minimize2, Settings, Shapes, Sparkles, Wind, X } from 'lucide-react'
+import { Ambulance, Hospital, PhoneCall, Users, ChevronLeft, ChevronRight, Crosshair, Layers, ListTree, MapPin, Maximize2, Minimize2, Settings, Shapes, Sparkles, Wind, X } from 'lucide-react'
 import SpasialPanel from '@/components/spasial/SpasialPanel'
 import { DEFAULT_LAYERS, type Focus, type Layers as MapLayers, type IntelLayerStatus } from '@/components/spasial/SpasialMap'
 import { defaultFilter, type AFilter } from '@/lib/analisa-api'
@@ -118,7 +118,7 @@ export default function PuskrisPetaTerpadu({
     else if (f.status === 'siap') setInternal((p) => ({ ...p, ambulans: true, ambSiapOnly: true }))
     else setInternal((p) => ({ ...p, pscAktifOnly: false, ambSiapOnly: false }))
   }, [f.status])
-  const internalPack = useMemo(() => buildInternalLayers(raw, f, internal), [raw, f, internal])
+  const internalPack = useMemo(() => buildInternalLayers(raw, f, internal, centroids), [raw, f, internal, centroids])
   const iInfo = internalPack.info
   const baseChoro = useChoroConfig()
   const RED_CHORO = { mode: 'quantile' as const, zeroColor: '#FDE8E8', colors: ['#FECACA', '#F87171', '#DC2626', '#7F1D1D'], quantiles: [0.25, 0.5, 0.75] }
@@ -657,6 +657,20 @@ export default function PuskrisPetaTerpadu({
                   </span>
                 </div>
                 <p className="mt-0.5 text-[10px] leading-tight text-slate-500">Agregat per kab/kota dari sampel {nfi(iInfo.panggilan.sampel)} panggilan terbaru ({iInfo.panggilan.dari || '–'} s.d. {iInfo.panggilan.sampai || '–'}), bukan titik penelepon. Lingkaran di rata-rata koordinat panggilan ({nfi(iInfo.panggilan.kabKoordinatPanggilan)} kab/kota) atau pusat kab/kota ({nfi(iInfo.panggilan.kabPusat)}, garis putus-putus).</p>
+              </label>
+              <label className={`block rounded-xl border p-2.5 transition select-none ${iInfo.tck.tampil ? 'cursor-pointer' : 'opacity-70'} ${internal.tck ? 'border-teal-300 bg-teal-50/50' : 'border-slate-100 bg-white hover:border-slate-200 hover:bg-slate-50/60'}`} data-testid="internal-tck">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="flex min-w-0 items-center gap-1.5 text-xs font-bold text-slate-800"><span className="flex h-4 w-4 items-center justify-center rounded-full bg-sky-600 text-white"><Users className="h-2.5 w-2.5" /></span>Titik TCK</span>
+                  <span className="flex items-center gap-2">
+                    <span className="text-xs font-black tabular-nums text-slate-800">{nfi(iInfo.tck.tampil)}</span>
+                    <input type="checkbox" disabled={!iInfo.tck.tampil} checked={internal.tck} onChange={(e) => setInternal((p) => ({ ...p, tck: e.target.checked }))} className="h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 text-teal-700 focus:ring-teal-500 disabled:cursor-not-allowed" aria-label="Titik TCK" />
+                  </span>
+                </div>
+                <p className="mt-0.5 text-[10px] leading-tight text-slate-500">
+                  {iInfo.tck.tampil
+                    ? `Agregat per ${iInfo.tck.kab ? 'kab/kota' : 'provinsi'} dari ${nfi(iInfo.tck.individu)} relawan TCK (${nfi(iInfo.tck.nakes)} nakes, ${nfi(iInfo.tck.tim)} tim, ${nfi(iInfo.tck.emt)} EMT) di ${nfi(iInfo.tck.tampil)} ${iInfo.tck.kab ? 'kab/kota' : 'provinsi'}. Lingkaran di pusat ${iInfo.tck.kab ? 'kab/kota' : 'provinsi'} (garis putus-putus; tanpa data pribadi).`
+                    : 'Data Tenaga Cadangan Kesehatan (TCK) belum termuat dari API.'}
+                </p>
               </label>
             </div>
           )}

@@ -134,6 +134,70 @@ export async function fetchAsistensi(tahun: number) {
 // dipetakan ke kode Kemendagri lewat nama + jenis (Kota/Kab) di GeoJSON kab/kota proyek.
 // Rekaman tanpa status yang dikenali atau yang kodenya tidak terpetakan TIDAK diberi nilai pengganti;
 // keduanya dikeluarkan dan dihitung di ringkasan (tanpa_status, tanpa_kode).
+type KabGeoInfo = { code: string; prov: string; nama: string; lat: number | null; lon: number | null }
+let kabGeoIndex: {
+  byProvFull: Map<string, KabGeoInfo>
+  byProvTight: Map<string, KabGeoInfo>
+  byProvBare: Map<string, KabGeoInfo>
+} | null = null
+
+const normKabTck = (s: string) =>
+  String(s || '')
+    .toUpperCase()
+    .replace(/^KABUPATEN\s+|^KAB\.?\s+|^KOTA\s+ADM\.?\s+|^KOTA\s+ADMINISTRASI\s+|^ADM\.?\s+/, '')
+    .replace(/^KOTA\s+(?!BARU\b)/, '')
+    .replace(/\bKEP\.?\s+/g, 'KEPULAUAN ')
+    .replace(/\bADM\.?\s+/g, '')
+    .replace(/[^A-Z0-9]+/g, ' ')
+    .trim()
+
+function getKabGeoIndex() {
+  if (kabGeoIndex) return kabGeoIndex
+  const byProvFull = new Map<string, KabGeoInfo>()
+  const byProvTight = new Map<string, KabGeoInfo>()
+  const byProvBare = new Map<string, KabGeoInfo>()
+  try {
+    const fc = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'public', 'data', 'indonesia-kabupaten.geojson'), 'utf8'))
+    for (const f of fc.features || []) {
+      const p = String(f.properties?.kode_prov || '').padStart(2, '0')
+      const code = String(f.properties?.kode_kab || '').padStart(4, '0')
+      const rawNama = String(f.properties?.nama_kab || '').trim()
+      if (!p || !code || !rawNama) continue
+      const upper = rawNama.toUpperCase()
+      const isKota = /^KOTA\b/.test(upper)
+      const bare = normKabTck(upper)
+      const tight = bare.replace(/\s+/g, '')
+      const full = `${isKota ? 'KOTA' : 'KAB'}|${tight}`
+      const kc = kabPusat(code)
+      const lat = Number(f.properties?.centerlat) || kc?.[0] || null
+      const lon = Number(f.properties?.centerlong) || kc?.[1] || null
+      const info: KabGeoInfo = { code, prov: p, nama: rawNama, lat: lat != null ? Math.round(lat * 1e4) / 1e4 : null, lon: lon != null ? Math.round(lon * 1e4) / 1e4 : null }
+      byProvFull.set(`${p}|${full}`, info)
+      if (!byProvTight.has(`${p}|${tight}`)) byProvTight.set(`${p}|${tight}`, info)
+      if (!byProvBare.has(`${p}|${bare}`)) byProvBare.set(`${p}|${bare}`, info)
+    }
+  } catch { /* fallback to empty index */ }
+  kabGeoIndex = { byProvFull, byProvTight, byProvBare }
+  return kabGeoIndex
+}
+
+function resolveTckKabGeo(provCode: string, rawKabNama: string): KabGeoInfo | null {
+  const raw = String(rawKabNama || '').toUpperCase().trim()
+  if (!raw || raw === '-' || raw === 'TIDAK DIISI') return null
+  const p = String(provCode || '').padStart(2, '0')
+  const isKota = /^KOTA\b/.test(raw)
+  const bare = normKabTck(raw)
+  if (!bare) return null
+  const tight = bare.replace(/\s+/g, '')
+  const idx = getKabGeoIndex()
+  return (
+    idx.byProvFull.get(`${p}|${isKota ? 'KOTA' : 'KAB'}|${tight}`) ||
+    idx.byProvTight.get(`${p}|${tight}`) ||
+    idx.byProvBare.get(`${p}|${bare}`) ||
+    null
+  )
+}
+
 let kabNameMap: Map<string, string> | null = null
 function getKabNameMap(): Map<string, string> {
   if (kabNameMap) return kabNameMap
@@ -742,14 +806,46 @@ function mergeTck(data: any, base: any, ov: Awaited<ReturnType<typeof getLiveOve
     })
   }
   if (rel) Object.assign(summary, { individu_provinsi_total: sumRel('individu'), nakes_geojson: sumRel('nakes'), non_nakes_geojson: sumRel('non_nakes'), individu_geojson: sumRel('individu'), perempuan: sumRel('perempuan'), laki: sumRel('laki'), terhubung_tim: sumRel('terhubung_tim') })
+  // Agregat titik TCK per kab/kota (dipetakan ke kode Kemendagri + pusat kab/kota dari GeoJSON; tanpa data pribadi).
+  const petaKabMap = new Map<string, { code: string; p: string; prov: string; nama: string; n: number; nakes: number; non_nakes: number; lat: number; lon: number }>()
+  for (const provRow of provinsi) {
+    const pCode = String(provRow.code || '').padStart(2, '0')
+    for (const kb of provRow.kab || []) {
+      const hit = resolveTckKabGeo(pCode, kb.nama)
+      if (!hit || hit.lat == null || hit.lon == null) continue
+      const nVal = Number(kb.n || 0)
+      const nakesVal = Number(kb.nakes || 0)
+      if (nVal <= 0) continue
+      const existing = petaKabMap.get(hit.code)
+      if (existing) {
+        existing.n += nVal
+        existing.nakes += nakesVal
+        existing.non_nakes = Math.max(0, existing.n - existing.nakes)
+      } else {
+        petaKabMap.set(hit.code, {
+          code: hit.code,
+          p: pCode,
+          prov: provRow.nama || pCode,
+          nama: hit.nama,
+          n: nVal,
+          nakes: nakesVal,
+          non_nakes: Math.max(0, nVal - nakesVal),
+          lat: hit.lat,
+          lon: hit.lon,
+        })
+      }
+    }
+  }
+  const peta_kab = [...petaKabMap.values()].sort((a, b) => b.n - a.n)
   data.tck = {
     ...snap,
     data_source: 'langsung',
     fetched_at_wib: ov.status.tck.at || ov.status.tckRelawan.at,
-    label: [d ? 'total, pendaftaran, tim & Tim Medis Darurat langsung dari API Tenaga Cadangan' : null, rel ? 'sebaran relawan per provinsi langsung dari API relawan-tck' : null].filter(Boolean).join('; '),
+    label: [d ? 'total, pendaftaran, tim & Tim Medis Darurat langsung dari API Tenaga Cadangan' : null, rel ? 'sebaran relawan per provinsi & kab/kota langsung dari API relawan-tck' : null].filter(Boolean).join('; '),
     sumber_status: { inti: inti ? 'langsung' : 'tidak_tersedia', relawan: rel ? 'langsung' : 'tidak_tersedia', relawan_gagal: rel?.gagal || [] },
     summary,
     provinsi,
+    peta_kab,
     ...(d ? { tren_pendaftaran: d.tren } : {}),
     ...(inti ? { emt_rekap: { jenis: inti.emt.jenis, waktu_respon: inti.emt.waktu_respon, per_tahun: inti.emt.per_tahun }, tim_rekap: { jenis: inti.tim.jenis, waktu_respon: inti.tim.waktu_respon, per_tahun: inti.tim.per_tahun } } : {}),
     ...(rel ? { profesi: TCK_PROFESI.map((nama) => ({ nama, jumlah: profesi[nama] || 0 })) } : {}),

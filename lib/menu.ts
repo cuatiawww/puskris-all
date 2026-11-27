@@ -38,7 +38,6 @@ import {
   Bell,
   Flame,
   CloudSun,
-  CloudRain,
   Eye,
   Circle,
   ExternalLink,
@@ -101,7 +100,6 @@ export const MENU_ICON_MAP: Record<string, any> = {
   Bell,
   Flame,
   CloudSun,
-  CloudRain,
   Eye,
   ExternalLink,
   Waypoints,
@@ -402,76 +400,6 @@ export const FORM_PE_SUB_ITEMS: SidebarSubItemConfig[] = [
   { id: 'sub_pe_ai', label: 'Flu Burung', href: '/pe/ai', icon: 'FileText', order: 5, enabled: true, description: 'Formulir PE Flu Burung / Avian Influenza' },
 ]
 
-
-/** Pastikan item Jenis Kejadian ada di menu Dasbor, termasuk jika navigasi disimpan di database. */
-export function ensureJenisKejadianMenu(config: SidebarGroupConfig[]): SidebarGroupConfig[] {
-  const has = (config || []).some((g) =>
-    (g.items || []).some((it) =>
-      (it.href || '').includes('/dashboard/jenis-kejadian')
-      || (it.subItems || []).some((s) => (s.href || '').includes('/dashboard/jenis-kejadian')),
-    ),
-  )
-  if (has) return config
-  const item = it('mod_jenis_kejadian', 'Jenis Kejadian', '/dashboard/jenis-kejadian', 'Layers', 2.5, {
-    description: 'Dashboard nasional per jenis kejadian: peta, dampak, chart, dan kesiapan di provinsi terdampak',
-  })
-  return (config || []).map((g) => {
-    if (g.id !== 'grp_dasbor' && g.area !== 'dashboard') return g
-    const items = [...(g.items || [])]
-    const after = items.findIndex((i) => i.id === 'mod_situasi_krisis' || i.href === '/dashboard/situasi-krisis')
-    if (after >= 0) items.splice(after + 1, 0, item)
-    else items.push(item)
-    return { ...g, items }
-  })
-}
-
-/** Pastikan item Hidrometeorologi ada di menu Dasbor, termasuk jika navigasi disimpan di database. */
-export function ensureHidrometMenu(config: SidebarGroupConfig[]): SidebarGroupConfig[] {
-  const has = (config || []).some((g) =>
-    (g.items || []).some((it) =>
-      (it.href || '').includes('/dashboard/hidrometeorologi')
-      || (it.subItems || []).some((s) => (s.href || '').includes('/dashboard/hidrometeorologi')),
-    ),
-  )
-  if (has) return config
-  const item = it('mod_hidrometeorologi', 'Hidrometeorologi', '/dashboard/hidrometeorologi', 'CloudRain', 2.6, {
-    description: 'Pantauan kejadian hidrometeorologi: peta, tren musiman, dampak, dan kesiapan di provinsi terdampak',
-  })
-  return (config || []).map((g) => {
-    if (g.id !== 'grp_dasbor' && g.area !== 'dashboard') return g
-    const items = [...(g.items || [])]
-    const afterJenis = items.findIndex((i) => i.id === 'mod_jenis_kejadian' || (i.href || '').includes('/dashboard/jenis-kejadian'))
-    if (afterJenis >= 0) items.splice(afterJenis + 1, 0, item)
-    else {
-      const after = items.findIndex((i) => i.id === 'mod_situasi_krisis' || i.href === '/dashboard/situasi-krisis')
-      if (after >= 0) items.splice(after + 1, 0, item)
-      else items.push(item)
-    }
-    return { ...g, items }
-  })
-}
-
-/** Pastikan item Mode Spasial memakai label "Mode Spasial" dan berada tepat di bawah Pantauan Krisis. */
-export function ensureModeSpasialMenu(config: SidebarGroupConfig[]): SidebarGroupConfig[] {
-  return (config || []).map((g) => {
-    if (g.id !== 'grp_dasbor' && g.area !== 'dashboard') return g
-    const items = [...(g.items || [])]
-    const idx = items.findIndex((i) => i.id === 'mod_spatial' || i.href === '/dashboard/spatial-mode')
-    const after = items.findIndex((i) => i.id === 'mod_situasi_krisis' || i.href === '/dashboard/situasi-krisis')
-    const targetOrder = after >= 0 ? (items[after].order || 2) + 0.2 : 2.2
-    const existing = idx >= 0 ? items.splice(idx, 1)[0] : null
-    const updated = existing
-      ? { ...existing, label: 'Mode Spasial', order: targetOrder }
-      : it('mod_spatial', 'Mode Spasial', '/dashboard/spatial-mode', 'Globe2', targetOrder, {
-          description: 'Tampilan peta layar penuh dengan variabel Pusat Krisis Kesehatan',
-        })
-    const insertIdx = items.findIndex((i) => i.id === 'mod_situasi_krisis' || i.href === '/dashboard/situasi-krisis')
-    if (insertIdx >= 0) items.splice(insertIdx + 1, 0, updated)
-    else items.push(updated)
-    return { ...g, items }
-  })
-}
-
 export const DEFAULT_NAVIGATION_CONFIG: SidebarGroupConfig[] = [
   { id: 'grp_dasbor', title: 'Dasbor', order: 1, enabled: true, area: 'dashboard', items: [
     it('mod_ringkasan', 'Dasbor Utama', '/dashboard/ringkasan', 'LayoutDashboard', 1, {
@@ -518,7 +446,7 @@ export const DEFAULT_NAVIGATION_CONFIG: SidebarGroupConfig[] = [
         { id: 'src_ambulans', label: 'Ambulans', href: 'https://psc.kemkes.go.id/dashboard/dashboard-ambulans', icon: 'Ambulance', order: 2, enabled: true, description: 'Dasbor armada ambulans' },
         { id: 'src_ncc', label: 'NCC Panggilan', href: 'https://psc.kemkes.go.id/dashboard/dashboard-ncc', icon: 'Radio', order: 3, enabled: true, description: 'Dasbor panggilan 119' },
         { id: 'src_eoc', label: 'Pantauan Bencana', href: 'https://pusatkrisis.kemkes.go.id/dashboard-new', icon: 'AlertTriangle', order: 4, enabled: true, description: 'Pantauan bencana Pusat Krisis' },
-        { id: 'src_eoc_vercel', label: 'EOC', href: 'https://dashboard-eoc.vercel.app/dashboard-eoc/', icon: 'Activity', order: 5, enabled: true, description: 'Dasbor EOC' },
+        { id: 'src_eoc_vercel', label: 'EOC', href: 'https://dashboard-psi-ten-54.vercel.app/', icon: 'Activity', order: 5, enabled: true, description: 'Dasbor EOC' },
         { id: 'src_tck', label: 'Tenaga Cadangan', href: 'https://tenagacadangankesehatan.kemkes.go.id/web/site/dashboard-tck', icon: 'Users', order: 6, enabled: true, description: 'Dasbor Tenaga Cadangan Kesehatan' },
         { id: 'src_logistik', label: 'Logistik', href: 'https://pusatkrisis.kemkes.go.id/logistik/site/landing-page', icon: 'Package', order: 7, enabled: true, description: 'Landing SIMLOGKES' },
         { id: 'src_asistensi_prov', label: 'Asistensi Provinsi', href: 'https://pusatkrisis.kemkes.go.id/asistensi/dashboard-provinsi/index?modul=58MFls8WhAeVFGXqpKj9KQ%3D%3D', icon: 'Shield', order: 8, enabled: true, description: 'Asistensi Risiko tingkat provinsi' },

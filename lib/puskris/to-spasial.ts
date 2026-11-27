@@ -35,6 +35,7 @@ export const METRIC_PILLS: { key: 'kasus' | 'kematian' | 'laporan' | 'alert' | '
   { key: 'laporan', label: 'Pengungsi', choro: 'pengungsi' },
   { key: 'alert', label: 'Layanan 119', choro: 'panggilan' },
   { key: 'klb', label: 'Kapasitas', choro: 'psc' },
+  { key: 'klb', label: 'TCK', choro: 'tck' },
   { key: 'kasus', label: 'Kesenjangan', choro: 'kesenjangan' },
 ]
 

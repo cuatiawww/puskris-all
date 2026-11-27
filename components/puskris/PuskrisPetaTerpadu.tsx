@@ -702,7 +702,7 @@ export default function PuskrisPetaTerpadu({
         <div data-testid="risiko-group">
           <div className="mb-2 flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-slate-400">
             <span>Risiko</span>
-            <span className="normal-case tracking-normal text-slate-400">{asisOk ? 1 : 0} tersedia</span>
+            <span className="normal-case tracking-normal text-slate-400">{(asisOk ? 1 : 0) + (pieOk ? 1 : 0)} tersedia</span>
           </div>
           <div className="space-y-1.5">
             <div data-testid="risiko-risiko-krisis" className={`rounded-xl border p-2.5 ${risikoAsis ? 'border-rose-300 bg-rose-50/40' : 'border-slate-100 bg-white'}`}>

@@ -4,6 +4,7 @@
  * Hanya endpoint baca; keluaran sudah diringkas (tanpa email, telepon, website).
  */
 import { getPuskrisToken } from '@/lib/server/puskris-auth-config'
+import { puskrisFetchJson } from '@/lib/server/puskris-http'
 import { persist } from '@/lib/server/persist'
 import type { FaskesAgregat, FaskesJenis, FaskesTitik } from '@/lib/puskris/faskes-layers'
 
@@ -35,32 +36,21 @@ function pad(v: unknown, n: number): string {
 async function postJson(path: string, body: Record<string, unknown>, timeoutMs = 60_000): Promise<any> {
   const token = getPuskrisToken()
   if (!token) throw new Error('Token Puskris (TTOKEN) belum diatur')
-  const ctl = new AbortController()
-  const tm = setTimeout(() => ctl.abort(), timeoutMs)
-  try {
-    const r = await fetch(`${FASKES_BASE}/${path.replace(/^\//, '')}`, {
-      method: 'POST',
-      headers: {
-        TTOKEN: token,
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-        'User-Agent': 'PusatKrisisKesehatan-Dasbor/1.0',
-      },
-      body: JSON.stringify(body),
-      cache: 'no-store',
-      signal: ctl.signal,
-    })
-    if (!r.ok) throw new Error(`HTTP ${r.status}`)
-    const j = await r.json()
-    if (j && (j.sukses === 0 || j.sukses === false || j.status === false)) {
-      throw new Error(String(j.message || 'API menolak permintaan'))
-    }
-    return j
-  } catch (e: any) {
-    throw new Error(e?.name === 'AbortError' ? 'Batas waktu habis' : String(e?.message || e))
-  } finally {
-    clearTimeout(tm)
+  const j = await puskrisFetchJson(`${FASKES_BASE}/${path.replace(/^\//, '')}`, {
+    method: 'POST',
+    headers: {
+      TTOKEN: token,
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      'User-Agent': 'PusatKrisisKesehatan-Dasbor/1.0',
+    },
+    body: JSON.stringify(body),
+    timeoutMs,
+  })
+  if (j && (j.sukses === 0 || j.sukses === false || j.status === false)) {
+    throw new Error(String(j.message || 'API menolak permintaan'))
   }
+  return j
 }
 
 function slimTitik(row: any, jenis: FaskesJenis): FaskesTitik | null {

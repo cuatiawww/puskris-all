@@ -137,7 +137,7 @@ export default function HidrometeorologiView({
   return (
     <div className="space-y-4" data-testid="hidromet-page">
       <p className="text-[11px] leading-relaxed text-slate-500" data-testid="hidromet-scope-note">
-        Halaman ini memuat kejadian hidrometeorologi dari API EOC — banjir, banjir bandang, tanah longsor, cuaca ekstrem/angin puting beliung, gelombang pasang/abrasi, dan kekeringan. Curah hujan dan peringatan dini BMKG belum tersedia di dasbor ini.
+        Halaman ini memuat kejadian hidrometeorologi dari API EOC — banjir, banjir bandang, tanah longsor, cuaca ekstrem/angin puting beliung, dan gelombang pasang/abrasi. Curah hujan dan peringatan dini BMKG belum tersedia di dasbor ini.
       </p>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4" data-testid="hidromet-kpi">

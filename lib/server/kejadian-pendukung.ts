@@ -10,6 +10,7 @@
 
 import Papa from 'papaparse'
 import { getEocAuth } from './puskris-auth-config'
+import { puskrisFetchJson } from './puskris-http'
 import { persist, REVALIDATE } from './persist'
 import {
   calcKlhkIspuFromPm25,
@@ -66,13 +67,11 @@ function shortDayId(iso: string): string {
 }
 
 async function fetchJson(url: string, timeoutMs = 8000, headers: Record<string, string> = {}) {
-  const res = await fetch(url, {
+  return puskrisFetchJson(url, {
+    method: 'GET',
     headers: { Accept: 'application/json', 'User-Agent': UA, ...headers },
-    cache: 'no-store',
-    signal: AbortSignal.timeout(timeoutMs),
+    timeoutMs,
   })
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
-  return res.json()
 }
 
 async function fetchText(url: string, timeoutMs = 9000) {

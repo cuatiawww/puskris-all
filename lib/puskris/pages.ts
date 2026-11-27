@@ -54,7 +54,7 @@ export const PUSKRIS_NAV: PuskrisNavItem[] = [
     shortLabel: 'Hidrometeorologi',
     eyebrow: 'Hidrometeorologi',
     title: 'Hidrometeorologi',
-    desc: 'Pantauan kejadian hidrometeorologi (banjir, longsor, cuaca ekstrem, gelombang, kekeringan). Peta, tren musiman, dampak kesehatan, dan kesiapan di provinsi terdampak — dari API EOC, bukan data curah hujan BMKG.',
+    desc: 'Pantauan kejadian hidrometeorologi (banjir, longsor, cuaca ekstrem, gelombang). Peta, tren musiman, dampak kesehatan, dan kesiapan di provinsi terdampak — dari API EOC, bukan data curah hujan BMKG.',
     sources: [SOURCE.eocResmi, SOURCE.eocVercel],
   },
   {

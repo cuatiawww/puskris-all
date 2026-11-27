@@ -1,8 +1,9 @@
 /** Pengelompokan jenis kejadian mengikuti kategori umum BNPB / EOC. */
 const RULES: { test: RegExp; category: string }[] = [
-  { test: /banjir|longsor|puting beliung|kekeringan|gelombang|badai|cuaca|hujan/i, category: 'ALAM · HIDROMETEOROLOGI' },
+  { test: /banjir|longsor|puting beliung|gelombang|badai|cuaca|hujan/i, category: 'ALAM · HIDROMETEOROLOGI' },
   { test: /gempa|tsunami|gunung api|letusan/i, category: 'ALAM · GEOLOGI' },
   { test: /hutan dan lahan|karhutla/i, category: 'ALAM · KARHUTLA' },
+  { test: /kekeringan/i, category: 'ALAM · KEKERINGAN' },
   { test: /konflik|kerusuhan|sosial/i, category: 'SOSIAL' },
   { test: /klb|keracunan|penyakit|kecelakaan|gagal teknologi|industri|kebakaran/i, category: 'NON ALAM' },
 ]
@@ -12,7 +13,7 @@ export function jenisCategory(nama: string): string {
   return 'LAINNYA'
 }
 
-/** Jenis kejadian hidrometeorologi (banjir, longsor, cuaca ekstrem, gelombang, kekeringan). Tidak termasuk karhutla. */
+/** Jenis kejadian hidrometeorologi (banjir, longsor, cuaca ekstrem, gelombang). Tidak termasuk karhutla dan kekeringan. */
 export function isHidrometJenis(nama: string | null | undefined): boolean {
   return jenisCategory(String(nama || '')) === 'ALAM · HIDROMETEOROLOGI'
 }

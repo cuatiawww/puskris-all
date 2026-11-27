@@ -13,6 +13,7 @@ import { fetchLogistik, LOG_KATEGORI } from './logistik-live'
 import { nccEnabled, fetchNcc, type NccRingkasan } from './ncc-live'
 import { eocEnabled, fetchEocRange, fetchEocTahun, fetchEocTren, rekapEoc, type EocEvent } from './eoc-live'
 import { getPuskrisToken, getNccSheetUrl, getPieBase, getPieKey } from './puskris-auth-config'
+import { puskrisFetchJson } from './puskris-http'
 import { parsePieStatus, pieNamaKey, resolveKodeKab, type PieRecord } from '@/lib/puskris/risiko-pie'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -35,25 +36,14 @@ export async function postForm(url: string, form: Record<string, string | number
   if (!token) throw new Error('Token Puskris (TTOKEN) belum diatur')
   const body = new URLSearchParams()
   for (const [k, v] of Object.entries(form)) body.set(k, String(v))
-  const ctl = new AbortController()
-  const tm = setTimeout(() => ctl.abort(), timeoutMs)
-  try {
-    const r = await fetch(url, {
-      method: 'POST',
-      headers: { TTOKEN: token, 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
-      body,
-      cache: 'no-store',
-      signal: ctl.signal,
-    })
-    if (!r.ok) throw new Error(`HTTP ${r.status}`)
-    const j = await r.json()
-    if (j && (j.status === false || j.sukses === 0)) throw new Error(String(j.message || 'API menolak permintaan'))
-    return j
-  } catch (e: any) {
-    throw new Error(e?.name === 'AbortError' ? 'Batas waktu habis' : String(e?.message || e))
-  } finally {
-    clearTimeout(tm)
-  }
+  const j = await puskrisFetchJson(url, {
+    method: 'POST',
+    headers: { TTOKEN: token, 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+    body: body.toString(),
+    timeoutMs,
+  })
+  if (j && (j.status === false || j.sukses === 0)) throw new Error(String(j.message || 'API menolak permintaan'))
+  return j
 }
 
 export async function pool<T, R>(items: T[], n: number, fn: (t: T) => Promise<R>): Promise<R[]> {
